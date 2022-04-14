@@ -1,7 +1,7 @@
 .PHONY: help env env-update env-remove init install format lint test \
 	docs-sphinx requirements
 
-PROJECTNAME=normalizing-flows-qr
+PROJECTNAME=nfqr
 
 help:
 	@echo "Available commands:"
@@ -12,16 +12,16 @@ help:
 	@echo "requirements	    compiles requirements from .in files"
 
 env:
-	python -m venv norm-flows-qr-env && \
-		norm-flows-qr-env/bin/pip install --upgrade pip
+	python -m venv nfqr-env && \
+		nfqr-env/bin/pip install --upgrade pip
 conda-env:
-	conda create -n norm-flows-qr-env python=3.8
+	conda create -n nfqr-env python=3.8
 
 env-update:
 	pip install --upgrade -r requirements/requirements.txt
 
 env-remove:
-	rm -rf norm-flows-qr-env
+	rm -rf nfqr-env
 
 requirements:
 	pip-compile --output-file requirements/requirements.txt \
