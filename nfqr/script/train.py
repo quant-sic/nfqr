@@ -19,12 +19,17 @@ if __name__ == "__main__":
 
     exp_dir = EXPERIMENTS_DIR / args.exp_dir
 
-    if "SGE_TASK_ID" not in os.environ:
+    if "SGE_TASK_ID" in os.environ:
+        task_id=int(os.environ["SGE_TASK_ID"])-1
         train_config = TrainConfig.from_directory_for_task(
-            exp_dir, task_id=os.environ["SGE_TASK_ID"]
+            exp_dir, task_id=task_id
         )
+        log_dir = exp_dir/f"task_{task_id}"
     else:
         train_config = TrainConfig.from_directory(exp_dir)
+        log_dir=exp_dir/"task_0"
+
+    log_dir.mkdir(exist_ok=True)
 
     flow_model = LitFlow(**dict(train_config))
 
@@ -35,7 +40,7 @@ if __name__ == "__main__":
             model=flow_model.model,
         )
 
-    logger = TensorBoardLogger(exp_dir, name="logs")
+    logger = TensorBoardLogger(log_dir, name="logs")
     trainer = Trainer(max_epochs=train_config.max_epochs, logger=logger, gpus=0)
 
     trainer.fit(model=flow_model, train_dataloaders=train_loader)
