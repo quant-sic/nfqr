@@ -1,16 +1,24 @@
+from xml.etree.ElementInclude import include
+
 import torch
 from torch.nn import Module
 
+from nfqr.normalizing_flows.nets.nets import NET_REGISTRY
+from nfqr.registry import StrRegistry
 
+CONDITIONER_REGISTRY = StrRegistry("conditioners")
+
+
+@CONDITIONER_REGISTRY.register("u1")
 class ConditionerU1(Module):
-    def __init__(self, net, dim_in, dim_out, expressivity, num_splits, **net_kwargs):
+    def __init__(self, dim_in, dim_out, expressivity, num_splits, net_config):
         super(ConditionerU1, self).__init__()
 
-        self.net = net(
+        self.net = NET_REGISTRY[net_config.net_type](
             in_size=dim_in * 2,
             out_size=dim_out,
             out_channels=expressivity * num_splits,
-            **net_kwargs
+            **dict(net_config)
         )
         self.expressivity = expressivity
 

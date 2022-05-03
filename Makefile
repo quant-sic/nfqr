@@ -15,7 +15,7 @@ env:
 	python -m venv nfqr-env && \
 		nfqr-env/bin/pip install --upgrade pip
 conda-env:
-	conda create -n nfqr-env python=3.8
+	conda create -n nfqr-env python=3.9
 
 env-update:
 	pip install --upgrade -r requirements/requirements.txt

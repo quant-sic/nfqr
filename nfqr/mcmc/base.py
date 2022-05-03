@@ -24,8 +24,8 @@ class MCMC(object):
         self.initialize()
 
         for _ in range(self.n_steps):
-            self.n_current_steps += 1
             self.step()
+            self.n_current_steps += 1
             yield self.current_config
 
     def run_entire_chain(self):

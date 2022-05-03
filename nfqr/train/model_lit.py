@@ -1,55 +1,53 @@
+from functools import cached_property
+from typing import List, Literal, Tuple
+
 import pytorch_lightning as pl
 import torch
 
-from nfqr.evaluation import estimate_ess_nip
-from nfqr.mcmc.nmcmc import estimate_nmcmc_acc_rate
-from nfqr.normalizing_flows.flow import U1CouplingChain, U1Flow
+from nfqr.eval.evaluation import estimate_obs_nip, estimate_obs_nmcmc
+from nfqr.normalizing_flows.flow.config import FlowConfig
+from nfqr.normalizing_flows.flow.flow import BareFlow
 from nfqr.normalizing_flows.loss.loss import elbo
 from nfqr.normalizing_flows.target_density import TargetDensity
-from nfqr.target_systems.observable import ObservableRecorder
-from nfqr.target_systems.rotor.rotor import TopologicalCharge, TopologicalSusceptibility
+from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY
+from nfqr.target_systems.config import ActionConfig
+from nfqr.target_systems.rotor.utils import SusceptibilityExact
 
 
 class LitFlow(pl.LightningModule):
     def __init__(
         self,
-        size,
-        coupling,
-        split_type,
-        net,
-        num_layers,
-        expressivity,
-        coupling_specifiers,
-        net_kwargs,
-        base_distribution,
-        target_action,
-        train_setup,
-        log_sample_shape,
+        dim: Tuple[int],
+        flow_config: FlowConfig,
+        target_system: ACTION_REGISTRY.enum,
+        action: ACTION_REGISTRY.enum,
+        observables: List[OBSERVABLE_REGISTRY.enum],
+        action_config: ActionConfig,
+        train_setup: Literal["reverse"] = "reverse",
+        **kwargs,
     ) -> None:
         super().__init__()
-        self.save_hyperparameters(ignore=["train_setup"])
 
-        transform = U1CouplingChain(
-            size=size,
-            net=net,
-            coupling=coupling,
-            split_type=split_type,
-            num_layers=num_layers,
-            expressivity=expressivity,
-            coupling_specifiers=coupling_specifiers,
-            **net_kwargs
+        self.model = BareFlow(**dict(flow_config))
+
+        self.target = TargetDensity.boltzmann_from_action(
+            ACTION_REGISTRY[target_system][action](**dict(action_config))
         )
-        base = base_distribution(dim=size)
-        self.model = U1Flow(base, transform)
-        self.target = TargetDensity.boltzmann_from_action(target_action)
 
-        self.observables = {
-            "Q_mean": TopologicalCharge(),
-            "Chi_t_mean": TopologicalSusceptibility(),
-        }
+        self.observables = observables
+        self.target_system = target_system
+
+        self.sus_exact = SusceptibilityExact(action_config.beta, *dim).evaluate()
 
         if train_setup == "reverse":
             self.training_step = self._training_step_reverse
+
+    @cached_property
+    def observables_fn(self):
+        return {
+            obs: OBSERVABLE_REGISTRY[self.target_system][obs]()
+            for obs in self.observables
+        }
 
     def _training_step_reverse(self, batch, *args, **kwargs):
 
@@ -59,7 +57,7 @@ class LitFlow(pl.LightningModule):
         elbo_values = elbo(log_q=log_q_x, log_p=log_p)
         loss = elbo_values.mean()
 
-        for name, observable in self.observables.items():
+        for name, observable in self.observables_fn.items():
             self.log(name, observable.evaluate(x_samples).mean())
 
         self.log("loss", loss)
@@ -72,15 +70,33 @@ class LitFlow(pl.LightningModule):
 
     def on_train_epoch_end(self):
 
-        acc_rate = estimate_nmcmc_acc_rate(
-            self.model, self.target, trove_size=5000, n_steps=100
+        stats_nmcmc = self.estimate_obs_nmcmc(
+            batch_size=5000,
+            n_iter=50,
         )
-        self.log("acc_rate", acc_rate)
 
-        ess_q = estimate_ess_nip(
-            model=self.model, target=self.target, batch_size=5000, n_iter=10
+        stats_nip = self.estimate_obs_nip(
+            batch_size=5000,
+            n_iter=50,
         )
-        self.log("ess/ess_q", ess_q)
+
+        for sampler, stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
+            for key, values in stats.items():
+                if not isinstance(values, dict):
+                    values = {"valid": values}
+                for stat, value in values.items():
+                    self.log(f"{sampler}/{key}/{stat}", value)
+                    if "Chi_t" in key and stat == "mean":
+                        self.log(f"{sampler}/{key}/exact", self.sus_exact)
+
+        # if "von_mises" in self.config.flow_config.base_dist_config.type:
+        #     with torch.no_grad():
+        #         self.log(
+        #             "base_dist/concentration",
+        #             self.model.base_distribution.constraint_transform(
+        #                 self.model.base_distribution.concentration
+        #             ),
+        #         )
 
     def training_epoch_end(self, train_outputs):
 
@@ -88,3 +104,27 @@ class LitFlow(pl.LightningModule):
             "loss_epoch",
             sum(map(lambda output: output["loss"], train_outputs)) / len(train_outputs),
         )
+
+    def estimate_obs_nip(self, batch_size, n_iter):
+
+        stats_nip = estimate_obs_nip(
+            model=self.model,
+            target=self.target,
+            observables=self.observables_fn,
+            batch_size=batch_size,
+            n_iter=n_iter,
+        )
+
+        return stats_nip
+
+    def estimate_obs_nmcmc(self, batch_size, n_iter):
+
+        stats_nmcmc = estimate_obs_nmcmc(
+            model=self.model,
+            observables=self.observables_fn,
+            target=self.target,
+            trove_size=batch_size,
+            n_steps=n_iter * batch_size,
+        )
+
+        return stats_nmcmc

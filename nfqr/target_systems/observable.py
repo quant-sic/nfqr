@@ -6,7 +6,6 @@ from functools import cached_property
 
 import numpy as np
 import torch
-from attr import has
 
 from nfqr.nip.nip import calc_imp_weights
 from nfqr.stats import get_iid_statistics, get_impsamp_statistics, get_mcmc_statistics

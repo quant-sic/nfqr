@@ -8,7 +8,7 @@ class BoltzmannFactor(object):
         self.action = action
 
     def log_prob(self, value: torch.Tensor):
-        return -self.action.evaluate(value)
+        return -self.action.evaluate(config=value)
 
 
 class TargetDensity(object):

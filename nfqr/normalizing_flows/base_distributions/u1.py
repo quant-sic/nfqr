@@ -1,19 +1,23 @@
 from math import pi
+from typing import List, Tuple, Union
 
 import torch
 from torch.distributions import VonMises
 from torch.nn import Module, parameter
 
 from nfqr.normalizing_flows.base_distributions.base import BaseDistribution
-from nfqr.normalizing_flows.misc.constraints import (
-    nf_constraints_alternative,
+from nfqr.normalizing_flows.misc.constraints import (  # nf_constraints_alternative,
     nf_constraints_standard,
 )
+from nfqr.registry import StrRegistry
+
+U1_BASE_DIST_REGISTRY = StrRegistry("u1")
 
 
+@U1_BASE_DIST_REGISTRY.register("uniform")
 class UniformBaseDistribution(BaseDistribution, Module):
     def __init__(
-        self, dim: torch.Size, left: float = 0.0, right: float = 2 * pi
+        self, dim=Tuple[int], left: float = 0.0, right: float = 2 * pi, **kwargs
     ) -> None:
         super().__init__()
 
@@ -27,14 +31,16 @@ class UniformBaseDistribution(BaseDistribution, Module):
         return self.dist.log_prob(value)
 
 
+@U1_BASE_DIST_REGISTRY.register("von_mises")
 class VonMisesBaseDistribution(BaseDistribution, Module):
     def __init__(
         self,
-        dim: torch.Size,
-        loc_requires_grad: bool = True,
-        concentration_requires_grad: bool = True,
-        loc: torch.Tensor = None,
-        concentration_unconstrained: torch.Tensor = None,
+        dim: Tuple[int],
+        loc_requires_grad: bool = False,
+        concentration_requires_grad: bool = False,
+        loc: Union[None, List[float]] = None,
+        concentration_unconstrained: Union[None, List[float]] = None,
+        **kwargs
     ) -> None:
         super(VonMisesBaseDistribution, self).__init__()
 
@@ -42,13 +48,24 @@ class VonMisesBaseDistribution(BaseDistribution, Module):
 
         if loc is None or concentration_unconstrained is None:
 
-            loc = torch.full(size=dim, fill_value=pi)
-            concentration_unconstrained = torch.full(size=dim, fill_value=0.1)
+            loc = torch.full(size=self.dim, fill_value=pi)
+            concentration_unconstrained = torch.full(size=self.dim, fill_value=0.1)
             self.expand_sample_shape = False
+
+        elif loc is None or concentration_unconstrained is None:
+            loc = torch.tensor(loc)
+            concentration_unconstrained = torch.tensor(concentration_unconstrained)
+
+        if not isinstance(loc, torch.Tensor):
+            loc = torch.tensor(loc)
+
+        if not isinstance(concentration_unconstrained, torch.Tensor):
+            concentration_unconstrained = torch.tensor(concentration_unconstrained)
 
         self.loc = parameter.Parameter(loc, requires_grad=loc_requires_grad)
         self.concentration_unconstrained = parameter.Parameter(
-            concentration_unconstrained, requires_grad=concentration_requires_grad
+            concentration_unconstrained,
+            requires_grad=concentration_requires_grad,
         )
         self.constraint_transform = nf_constraints_standard(
             VonMises.arg_constraints["concentration"]
@@ -57,20 +74,21 @@ class VonMisesBaseDistribution(BaseDistribution, Module):
     @classmethod
     def all_pars_joint(
         cls,
-        dim: torch.Size,
-        loc_requires_grad: bool = True,
-        concentration_requires_grad: bool = True,
+        dim: Tuple[int],
+        loc_requires_grad: bool = False,
+        concentration_requires_grad: bool = False,
+        **kwargs
     ):
 
-        loc = torch.tensor([pi])
-        concentration_unconstrained = torch.tensor([0.1])
+        loc = [pi]
+        concentration_unconstrained = [0.1]
 
         return cls(
-            dim,
-            loc=loc,
-            concentration_unconstrained=concentration_unconstrained,
+            dim=dim,
             loc_requires_grad=loc_requires_grad,
             concentration_requires_grad=concentration_requires_grad,
+            loc=loc,
+            concentration_unconstrained=concentration_unconstrained,
         )
 
     @property
@@ -91,6 +109,13 @@ class VonMisesBaseDistribution(BaseDistribution, Module):
         return dist.log_prob(value - pi)
 
 
+U1_BASE_DIST_REGISTRY.register(
+    "von_mises_joint", VonMisesBaseDistribution.all_pars_joint
+)
+
+
 # class WrappedCauchy(BaseDistribution,Module):
 
 #     pass
+
+# https://github.com/jasonlaska/spherecluster

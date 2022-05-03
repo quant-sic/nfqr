@@ -4,6 +4,8 @@ import numpy as np
 import torch
 import unew.analysis as un
 
+from nfqr.nip.nip import calc_ess_q
+
 
 def basic_integrated_ac(history):
     """
@@ -48,23 +50,25 @@ def get_iid_statistics(history):
         std = torch.sqrt(abs(sq_mean - mean**2))
         err = std / math.sqrt(count)
 
-        return mean.item(), err.item()
+        return {"mean": mean.item(), "error": err.item()}
 
 
 def get_mcmc_statistics(history):
     mean, error, tau, dtau = uw_analysis(history)
-    return mean, error, tau, dtau
+    return {"mean": mean, "error": error, "tau_int": tau, "dtau_int": dtau}
 
 
-def get_impsamp_statistics(history, weights):
+def get_impsamp_statistics(history, unnormalized_weights):
     with torch.no_grad():
-        weights = weights / weights.sum()
 
-        mean = (weights * history).sum()
-        sq_mean = (weights * history**2).sum()
+        weights = unnormalized_weights / unnormalized_weights.mean()
+
+        mean = (weights * history).mean()
+
+        sq_mean = (weights * history**2).mean()
         std = torch.sqrt(abs(sq_mean - mean**2))
 
-        ess = 1 / (weights**2).sum()
+        ess = calc_ess_q(unnormalized_weights=unnormalized_weights)
         err = std / math.sqrt(ess)
 
-        return mean.item(), err.item(), ess.item()
+        return {"mean": mean.item(), "error": err.item(), "ess_q": ess.item()}

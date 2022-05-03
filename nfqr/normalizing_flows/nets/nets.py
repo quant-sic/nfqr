@@ -2,7 +2,12 @@ from typing import List
 
 from torch import nn
 
+from nfqr.registry import StrRegistry
 
+NET_REGISTRY = StrRegistry("nets")
+
+
+@NET_REGISTRY.register("mlp")
 class MLP(nn.Module):
     """a simple 4-layer MLP"""
 
@@ -67,7 +72,8 @@ class Permute(nn.Module):
         return x.permute(*self.order)
 
 
-class FlowCNN(nn.Module):
+@NET_REGISTRY.register("cnn")
+class CNN(nn.Module):
     def __init__(
         self,
         in_size: int,

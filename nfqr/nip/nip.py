@@ -33,6 +33,14 @@ def calc_imp_weights(
     return weight_hist
 
 
+def calc_ess_q(unnormalized_weights):
+    weights = unnormalized_weights / unnormalized_weights.mean()
+
+    ess_q = 1 / (weights**2).mean()
+
+    return ess_q
+
+
 class NeuralImportanceSampler:
     def __init__(self, model, target, n_iter, batch_size=2000):
         self.batch_size = batch_size

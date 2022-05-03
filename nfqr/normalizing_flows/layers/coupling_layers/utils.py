@@ -1,4 +1,9 @@
 import torch
+from strenum import StrEnum
+
+
+class SPLIT_TYPES(StrEnum):
+    checkerboard = "checkerboard"
 
 
 def checkerboard_mask(size, mask_config, **kwargs):
