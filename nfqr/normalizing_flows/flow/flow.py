@@ -3,12 +3,28 @@ from typing import Literal
 from torch.nn import Module
 
 from nfqr.normalizing_flows.base_distributions import BASE_DIST_REGISTRY
-from nfqr.normalizing_flows.base_distributions.config import BaseDistConfig
+from nfqr.normalizing_flows.base_distributions import BaseDistConfig
 from nfqr.normalizing_flows.layers.config import LayersConfig
 from nfqr.normalizing_flows.layers.layer_chain import LayerChain
 from nfqr.utils.misc import create_logger
 
+from typing import Literal, Union
+
+from pydantic import BaseModel
+
+from nfqr.normalizing_flows.base_distributions import BaseDistConfig
+from nfqr.normalizing_flows.layers.config import LayersConfig
+
 logger = create_logger(__name__)
+
+
+
+class FlowConfig(BaseModel):
+
+    flow_type: str
+    domain: Literal["u1"] = "u1"
+    base_dist_config: BaseDistConfig
+    layer_chain_config: Union[None, LayersConfig]
 
 
 class BareFlow(Module):

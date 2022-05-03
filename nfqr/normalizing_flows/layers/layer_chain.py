@@ -11,8 +11,19 @@ from nfqr.normalizing_flows.layers.coupling_layers.utils import (
     generate_splits,
 )
 from nfqr.utils.misc import create_logger
+from typing import List, Tuple, Union
+from pydantic import BaseModel
+from nfqr.normalizing_flows.layers.coupling_layers.utils import SPLIT_TYPES
 
 logger = create_logger(__name__)
+
+
+class LayerChainConfig(BaseModel):
+
+    dim: Tuple[int]
+    layers_config: Union[None, CouplingConfig, List[CouplingConfig]]
+    split_type: SPLIT_TYPES
+    num_layers: int
 
 
 class LayerChain(Module):
