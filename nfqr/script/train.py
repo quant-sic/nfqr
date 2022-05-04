@@ -20,14 +20,12 @@ if __name__ == "__main__":
     exp_dir = EXPERIMENTS_DIR / args.exp_dir
 
     if "SGE_TASK_ID" in os.environ:
-        task_id=int(os.environ["SGE_TASK_ID"])-1
-        train_config = TrainConfig.from_directory_for_task(
-            exp_dir, task_id=task_id
-        )
-        log_dir = exp_dir/f"task_{task_id}"
+        task_id = int(os.environ["SGE_TASK_ID"]) - 1
+        train_config = TrainConfig.from_directory_for_task(exp_dir, task_id=task_id)
+        log_dir = exp_dir / f"task_{task_id}"
     else:
         train_config = TrainConfig.from_directory(exp_dir)
-        log_dir=exp_dir/"task_0"
+        log_dir = exp_dir / "task_0"
 
     log_dir.mkdir(exist_ok=True)
 

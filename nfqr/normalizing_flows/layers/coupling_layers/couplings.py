@@ -1,14 +1,28 @@
 from typing import Literal
 
 import torch
+from pydantic import BaseModel, Field
 from torch.nn import Module, parameter
 
 from nfqr.normalizing_flows.diffeomorphisms import DIFFEOMORPHISMS_REGISTRY
 from nfqr.normalizing_flows.misc.constraints import nf_constraints_standard, simplex
-from nfqr.normalizing_flows.nets.config import NetConfig
+from nfqr.normalizing_flows.nets import NetConfig
 from nfqr.registry import StrRegistry
 
 from .conditioners import CONDITIONER_REGISTRY
+from .couplings import COUPLING_TYPES
+
+
+class CouplingConfig(BaseModel):
+
+    domain: Literal["u1"] = "u1"
+    coupling_type: COUPLING_TYPES.enum = Field(...)
+    diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum
+    expressivity: int
+    net_config: NetConfig
+
+    # validators ..
+
 
 COUPLING_TYPES = StrRegistry("coupling_types")
 

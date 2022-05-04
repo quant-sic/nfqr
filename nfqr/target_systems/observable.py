@@ -7,8 +7,10 @@ from functools import cached_property
 import numpy as np
 import torch
 
+from nfqr.mcmc import get_mcmc_statistics
+from nfqr.nip import get_impsamp_statistics
 from nfqr.nip.nip import calc_imp_weights
-from nfqr.stats import get_iid_statistics, get_impsamp_statistics, get_mcmc_statistics
+from nfqr.stats.stats import get_iid_statistics
 
 
 class Observable(object):

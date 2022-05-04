@@ -1,40 +1,6 @@
-from collections import defaultdict
 from itertools import chain
 
 from strenum import StrEnum
-
-
-class RegistryBase(object):
-    def __init__(self):
-        self._meta = defaultdict(dict)
-        self._call_registry = {}
-
-        super(RegistryBase, self).__init__()
-
-    def register(self, name, factory=None, **kwargs):
-
-        # Support use as decorator.
-        if factory is None:
-            return lambda factory: self.register(name=name, factory=factory, **kwargs)
-
-        self._meta[name] = kwargs
-        self._call_registry[name] = factory
-
-        return factory
-
-    def __call__(self, name):
-
-        try:
-            factory = self._call_registry[name]
-        except KeyError:
-            raise NotImplementedError(
-                f"No Factory registered for name {name}"
-            ) from None
-        return factory
-
-    @property
-    def meta(self):
-        return self._meta
 
 
 class StrRegistry(object):

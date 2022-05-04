@@ -5,8 +5,7 @@ import pytorch_lightning as pl
 import torch
 
 from nfqr.eval.evaluation import estimate_obs_nip, estimate_obs_nmcmc
-from nfqr.normalizing_flows.flow.config import FlowConfig
-from nfqr.normalizing_flows.flow.flow import BareFlow
+from nfqr.normalizing_flows.flow import BareFlow, FlowConfig
 from nfqr.normalizing_flows.loss.loss import elbo
 from nfqr.normalizing_flows.target_density import TargetDensity
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY

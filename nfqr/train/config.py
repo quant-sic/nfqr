@@ -1,16 +1,25 @@
 import json
 from pathlib import Path
-from tkinter import N
 from typing import List, Literal, Tuple, Type, TypeVar, Union
 
-from pydantic import root_validator
+from pydantic import BaseModel, root_validator
 
 from nfqr.config import BaseConfig
-from nfqr.normalizing_flows.flow.config import FlowConfig
+from nfqr.normalizing_flows.flow import FlowConfig
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY
 from nfqr.target_systems.config import ActionConfig
 
 ConfigType = TypeVar("ConfigType", bound="TrainConfig")
+
+
+class TrainerConfig(BaseModel):
+
+    batch_size: int
+    num_batches: int
+    max_epochs: int = 100
+    log_every_n_steps: int = 50
+    task_parameters: Union[List[str], None] = None
+    accumulate_grad_batches: int = 1
 
 
 class TrainConfig(BaseConfig):
@@ -26,12 +35,7 @@ class TrainConfig(BaseConfig):
     action_config: ActionConfig
 
     dim: Tuple[int]
-
-    batch_size: int
-    num_batches: int
-    max_epochs: int = 10
-    log_every_n_steps: int = 50
-    task_parameters: Union[List[str], None] = None
+    trainer_config: TrainerConfig
 
     @classmethod
     def from_directory_for_task(

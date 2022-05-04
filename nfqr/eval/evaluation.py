@@ -1,12 +1,28 @@
 import shutil
+from typing import Dict, Optional, Union
 
 import torch
 
+from nfqr.config import BaseConfig
 from nfqr.globals import TEMP_DIR
+from nfqr.mcmc import get_mcmc_statistics
 from nfqr.mcmc.nmcmc import NeuralMCMC
+from nfqr.nip import get_impsamp_statistics
 from nfqr.nip.nip import NeuralImportanceSampler, calc_ess_q
-from nfqr.stats import get_impsamp_statistics, get_mcmc_statistics
+from nfqr.target_systems import OBSERVABLE_REGISTRY
 from nfqr.target_systems.observable import ObservableRecorder
+
+
+class EvalConfig(BaseConfig):
+
+    _name: str = "eval_result"
+
+    nip: Optional[Dict[OBSERVABLE_REGISTRY.enum, Dict[str, float]]]
+    nmcmc: Optional[
+        Dict[Union[str, OBSERVABLE_REGISTRY.enum], Union[float, Dict[str, float]]]
+    ]
+
+    exact_sus: Optional[float]
 
 
 def estimate_ess_nip(model, target, batch_size, n_iter):

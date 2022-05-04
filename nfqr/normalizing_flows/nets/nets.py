@@ -1,10 +1,17 @@
 from typing import List
 
+from pydantic import BaseModel
 from torch import nn
 
 from nfqr.registry import StrRegistry
 
 NET_REGISTRY = StrRegistry("nets")
+
+
+class NetConfig(BaseModel):
+
+    net_type: str
+    net_hidden: List[int]
 
 
 @NET_REGISTRY.register("mlp")

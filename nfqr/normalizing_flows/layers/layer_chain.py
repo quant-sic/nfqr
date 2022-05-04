@@ -2,18 +2,16 @@ from typing import List, Tuple, Union
 
 import torch
 from numpy import pi
+from pydantic import BaseModel
 from torch.nn import Module, ModuleList
 
-from nfqr.normalizing_flows.layers.coupling_layers.config import CouplingConfig
-from nfqr.normalizing_flows.layers.coupling_layers.couplings import COUPLING_TYPES
-from nfqr.normalizing_flows.layers.coupling_layers.utils import (
+from nfqr.normalizing_flows.layers.coupling_layers import (
+    COUPLING_TYPES,
     SPLIT_TYPES,
+    CouplingConfig,
     generate_splits,
 )
 from nfqr.utils.misc import create_logger
-from typing import List, Tuple, Union
-from pydantic import BaseModel
-from nfqr.normalizing_flows.layers.coupling_layers.utils import SPLIT_TYPES
 
 logger = create_logger(__name__)
 

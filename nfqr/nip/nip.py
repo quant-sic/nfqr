@@ -1,3 +1,5 @@
+import math
+
 import torch
 
 from nfqr.utils.misc import create_logger
@@ -6,6 +8,22 @@ from nfqr.utils.misc import create_logger
 
 
 logger = create_logger(__name__)
+
+
+def get_impsamp_statistics(history, unnormalized_weights):
+    with torch.no_grad():
+
+        weights = unnormalized_weights / unnormalized_weights.mean()
+
+        mean = (weights * history).mean()
+
+        sq_mean = (weights * history**2).mean()
+        std = torch.sqrt(abs(sq_mean - mean**2))
+
+        ess = calc_ess_q(unnormalized_weights=unnormalized_weights)
+        err = std / math.sqrt(ess)
+
+        return {"mean": mean.item(), "error": err.item(), "ess_q": ess.item()}
 
 
 def calc_imp_weights(
