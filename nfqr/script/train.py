@@ -24,7 +24,8 @@ if __name__ == "__main__":
         train_config = TrainConfig.from_directory_for_task(exp_dir, task_id=task_id)
         log_dir = exp_dir / f"task_{task_id}"
     else:
-        train_config = TrainConfig.from_directory(exp_dir)
+        train_config = TrainConfig.from_directory_for_task(exp_dir, task_id=0)
+        # train_config = TrainConfig.from_directory(exp_dir)
         log_dir = exp_dir / "task_0"
 
     log_dir.mkdir(exist_ok=True)
@@ -33,13 +34,25 @@ if __name__ == "__main__":
 
     if train_config.train_setup == "reverse":
         train_loader = FlowSampler(
-            batch_size=train_config.batch_size,
-            num_batches=train_config.num_batches,
+            batch_size=train_config.trainer_config.batch_size,
+            num_batches=train_config.trainer_config.num_batches,
             model=flow_model.model,
         )
 
     logger = TensorBoardLogger(log_dir, name="logs")
-    trainer = Trainer(max_epochs=train_config.max_epochs, logger=logger, gpus=0)
+    trainer = Trainer(
+        **train_config.trainer_config.dict(
+            include={
+                "max_epochs",
+                "log_every_n_steps",
+                "accumulate_grad_batches",
+            }
+        ),
+        logger=logger,
+        gpus=0,
+    )
+
+    print(train_config)
 
     trainer.fit(model=flow_model, train_dataloaders=train_loader)
 

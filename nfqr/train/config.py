@@ -50,26 +50,29 @@ class TrainConfig(BaseConfig):
                 if isinstance(value, dict):
                     _dict[key] = set_task_par(value)
 
-                if key in raw_config["task_parameters"]:
+                if key in raw_config["trainer_config"]["task_parameters"]:
                     _dict[key] = _dict[key][task_id]
 
             return _dict
 
-        if raw_config["task_parameters"] is not None:
+        if raw_config["trainer_config"]["task_parameters"] is not None:
             raw_config = set_task_par(raw_config)
 
         return cls(**raw_config)
 
-    @root_validator()
+    @root_validator(pre=True)
     @classmethod
-    def check_matching_dims(cls, values):
-        print(values, type(values))
+    def add_dims(cls, values):
 
-        dims = (
-            values["dim"],
-            values["flow_config"].layer_chain_config.dim,
-            values["flow_config"].base_dist_config.dim,
-        )
-        assert len(set(dims)) == 1
+        dim = values["dim"]
+        if "dim" not in values["flow_config"]["layer_chain_config"]:
+            values["flow_config"]["layer_chain_config"]["dim"] = dim
+        else:
+            assert dim == values["flow_config"]["layer_chain_config"]["dim"]
+
+        if "dim" not in values["flow_config"]["base_dist_config"]:
+            values["flow_config"]["base_dist_config"]["dim"] = dim
+        else:
+            assert dim == values["flow_config"]["base_dist_config"]["dim"]
 
         return values

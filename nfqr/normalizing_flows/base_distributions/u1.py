@@ -2,6 +2,7 @@ from math import pi
 from typing import List, Tuple, Union
 
 import torch
+from pydantic import BaseModel
 from torch.distributions import VonMises
 from torch.nn import Module, parameter
 

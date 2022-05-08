@@ -23,7 +23,7 @@ class QuantumRotor(Action):
         return cls(beta, diffs=True)
 
     def evaluate(self, config: torch.Tensor) -> torch.Tensor:
-        if self.diffs:
+        if not self.diffs:
             _config = torch.roll(config, shifts=1, dims=-1) - config
         else:
             _config = config
@@ -31,7 +31,7 @@ class QuantumRotor(Action):
         return self.beta * (1.0 - torch.cos(_config)).sum(dim=-1)
 
     def evaluate_jnp(self, config):
-        if self.diffs:
+        if not self.diffs:
             _config = jnp.roll(config, shift=1, axis=-1) - config
         else:
             _config = config
@@ -83,7 +83,7 @@ class TopologicalCharge(Observable):
         return cls(diffs=True)
 
     def evaluate(self, config):
-        if self.diffs:
+        if not self.diffs:
             _config = torch.roll(config, shifts=1, dims=-1) - config
         else:
             _config = config
