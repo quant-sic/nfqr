@@ -3,7 +3,7 @@
     "flow_type": "bare",
     "domain": "u1",
     "base_dist_config": {
-      "dist_type": "uniform",
+      "dist_type": "von_mises_joint",
       "loc_requires_grad": false,
       "concentration_requires_grad": false,
       "loc": null,

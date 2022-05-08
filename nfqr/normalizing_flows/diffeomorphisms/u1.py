@@ -134,9 +134,23 @@ class NCP(Diffeomorphism):
 
         phi = bring_back_to_u1(phi)
 
-        return ncp(
-            phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
-        )
+        if ret_logabsdet:
+
+            phi_out,ld = ncp(
+                        phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
+                    )
+            phi_out = bring_back_to_u1(phi_out)
+
+            return phi_out,ld
+        
+        else:
+
+            phi_out = ncp(
+                        phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
+                    )
+            phi_out = bring_back_to_u1(phi_out)
+
+            return phi_out
 
     def inverse(
         self, phi, alpha_unconstrained, beta, rho_unconstrained, ret_logabsdet=True
@@ -148,6 +162,7 @@ class NCP(Diffeomorphism):
         phi = bring_back_to_u1(phi)
 
         phi_out = NumericalInverse.apply(phi, self.inverse_fn_params, alpha, beta, rho)
+        phi_out = bring_back_to_u1(phi_out)
 
         if ret_logabsdet:
             _, ld = ncp(

@@ -23,9 +23,14 @@ class LitFlow(pl.LightningModule):
         observables: List[OBSERVABLE_REGISTRY.enum],
         action_config: ActionConfig,
         train_setup: Literal["reverse"] = "reverse",
+        learning_rate=0.001,
         **kwargs,
     ) -> None:
         super().__init__()
+
+        self.save_hyperparameters()
+        
+        self.learning_rate = learning_rate
 
         self.model = BareFlow(**dict(flow_config))
 
@@ -65,18 +70,18 @@ class LitFlow(pl.LightningModule):
         return {"loss": loss}
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=0.001)
+        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
     def on_train_epoch_end(self):
 
         stats_nmcmc = self.estimate_obs_nmcmc(
             batch_size=5000,
-            n_iter=50,
+            n_iter=1,
         )
 
         stats_nip = self.estimate_obs_nip(
             batch_size=5000,
-            n_iter=50,
+            n_iter=10,
         )
 
         for sampler, stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
@@ -86,7 +91,9 @@ class LitFlow(pl.LightningModule):
                 for stat, value in values.items():
                     self.log(f"{sampler}/{key}/{stat}", value)
                     if "Chi_t" in key and stat == "mean":
-                        self.log(f"{sampler}/{key}/exact", self.sus_exact)
+                        self.log(f"{sampler}/{key}/abs_diff_to_exact", abs(value-self.sus_exact))
+
+        self.log("lr",self.learning_rate)
 
         # if "von_mises" in self.config.flow_config.base_dist_config.type:
         #     with torch.no_grad():

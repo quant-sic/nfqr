@@ -1,6 +1,7 @@
 import os
 from argparse import ArgumentParser
 from pathlib import Path
+from venv import create
 
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -9,6 +10,9 @@ from nfqr.data.datasampler import FlowSampler
 from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.train.config import TrainConfig
 from nfqr.train.model_lit import LitFlow
+from nfqr.utils.misc import create_logger
+
+logger = create_logger(__name__)
 
 if __name__ == "__main__":
 
@@ -19,16 +23,10 @@ if __name__ == "__main__":
 
     exp_dir = EXPERIMENTS_DIR / args.exp_dir
 
-    if "SGE_TASK_ID" in os.environ:
-        task_id = int(os.environ["SGE_TASK_ID"]) - 1
-        train_config = TrainConfig.from_directory_for_task(exp_dir, task_id=task_id)
-        log_dir = exp_dir / f"task_{task_id}"
-    else:
-        train_config = TrainConfig.from_directory_for_task(exp_dir, task_id=0)
-        # train_config = TrainConfig.from_directory(exp_dir)
-        log_dir = exp_dir / "task_0"
 
-    log_dir.mkdir(exist_ok=True)
+    train_config = TrainConfig.from_directory_for_task(exp_dir, task_id=int(os.environ["task_id"]))
+    log_dir = "task_{}".format(os.environ["task_id"])
+    
 
     flow_model = LitFlow(**dict(train_config))
 
@@ -39,7 +37,7 @@ if __name__ == "__main__":
             model=flow_model.model,
         )
 
-    logger = TensorBoardLogger(log_dir, name="logs")
+    logger = TensorBoardLogger(exp_dir/"logs", name=log_dir)
     trainer = Trainer(
         **train_config.trainer_config.dict(
             include={
@@ -49,11 +47,10 @@ if __name__ == "__main__":
             }
         ),
         logger=logger,
-        gpus=0,
+        accelerator='gpu', devices=1,auto_lr_find=True
     )
 
-    print(train_config)
+    logger.info("Train Config for task {}:\n {}".format(os.environ["task_id"],train_config))
 
     trainer.fit(model=flow_model, train_dataloaders=train_loader)
 
-    trainer.save_checkpoint(exp_dir / "model.ckpt")

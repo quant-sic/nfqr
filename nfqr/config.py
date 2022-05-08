@@ -16,7 +16,7 @@ class BaseConfig(BaseModel):
 
     def save(self, directory: Path) -> None:
         """Saves the config to specified directory."""
-        directory.mkdir(exist_ok=True)
+        directory.mkdir(parents=True,exist_ok=True)
         with open(self._config_path(directory), "w") as f:
             f.write(self.json(indent=2))
 
@@ -38,3 +38,4 @@ class BaseConfig(BaseModel):
     @classmethod
     def _config_path(cls, directory: Path) -> Path:
         return directory.joinpath(cls._name + ".json")
+

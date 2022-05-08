@@ -11,6 +11,7 @@ from nfqr.mcmc import get_mcmc_statistics
 from nfqr.nip import get_impsamp_statistics
 from nfqr.nip.nip import calc_imp_weights
 from nfqr.stats.stats import get_iid_statistics
+from tqdm.autonotebook import tqdm
 
 
 class Observable(object):
@@ -33,7 +34,7 @@ class ObservableRecorder(object):
         self.sampler = sampler
 
         self.save_dir_path = save_dir_path
-        self.save_dir_path.mkdir(exist_ok=True)
+        self.save_dir_path.mkdir(parents=True,exist_ok=True)
 
         self.stats_function = stats_function
 
@@ -81,7 +82,7 @@ class ObservableRecorder(object):
 
     def record_sampler(self):
 
-        for sampler_out in self.sampler:
+        for sampler_out in tqdm(self.sampler,desc= f"Recording Sampler: {type(self.sampler)}"):
             if isinstance(sampler_out, tuple):
                 self.record(*sampler_out)
             else:

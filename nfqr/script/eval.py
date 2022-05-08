@@ -1,11 +1,8 @@
-import argparse
 from argparse import ArgumentParser
 from pathlib import Path
+import os
 
-from pytorch_lightning import Trainer
-from pytorch_lightning.loggers import TensorBoardLogger
-
-from nfqr.eval.config import EvalConfig
+from nfqr.eval.evaluation import EvalConfig
 from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.train.config import TrainConfig
 from nfqr.train.model_lit import LitFlow
@@ -19,20 +16,24 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=5000)
     parser.add_argument("--n_iter", type=int, default=20)
 
-    parser.add_argument("--methods", type=str)
-    # parser.add_argument("--observables", type=str)
+    parser.add_argument("--methods", type=str,default="nip,nmcmc")
+    parser.add_argument("--observables", default="Chi_t",type=str)
 
     args = parser.parse_args()
 
     exp_dir = EXPERIMENTS_DIR / args.exp_dir
 
-    train_config = TrainConfig.from_directory(exp_dir)
+    train_config = TrainConfig.from_directory_for_task(exp_dir, task_id=int(os.environ["task_id"]))
+    
+    log_dir = "task_{}".format(os.environ["task_id"])
 
-    model_ckpt_path = exp_dir / "model.ckpt"
+    task_dir = exp_dir/f"eval/{log_dir}"
+ 
+    model_ckpt_path = (exp_dir / f"logs/{log_dir}").glob("**/*.ckpt").__next__()
 
     lit_model = LitFlow.load_from_checkpoint(model_ckpt_path, **dict(train_config))
 
-    eval_config = EvalConfig()
+    eval_config = EvalConfig(observables=args.observables)
 
     if "nip" in args.methods:
         stats_nip = lit_model.estimate_obs_nip(
@@ -48,4 +49,4 @@ if __name__ == "__main__":
 
     eval_config.exact_sus = lit_model.sus_exact
 
-    eval_config.save(exp_dir)
+    eval_config.save(task_dir)

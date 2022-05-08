@@ -23,7 +23,12 @@ class UniformBaseDistribution(BaseDistribution, Module):
         super().__init__()
 
         self.dim = dim
-        self.dist = torch.distributions.uniform.Uniform(left, right)
+
+        # define parameters, such that .to method of module moves distribution to device
+        self.left = parameter.Parameter(torch.tensor(left),requires_grad=False)
+        self.right = parameter.Parameter(torch.tensor(right),requires_grad=False)
+
+        self.dist = torch.distributions.uniform.Uniform(self.left, self.right)
 
     def sample(self, size):
         return self.dist.sample(sample_shape=(*size, *self.dim))

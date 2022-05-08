@@ -48,7 +48,8 @@ class BareFlow(Module):
 
     def sample_with_abs_log_det(self, size):
 
-        z = self.base_distribution.sample(size)
+        device = self.parameters().__next__().device
+        z = self.base_distribution.sample(size).to(device)
         x, abs_log_det = self.transform.decode(z)
 
         q_x = self.base_distribution.log_prob(z).sum(dim=-1) - abs_log_det
