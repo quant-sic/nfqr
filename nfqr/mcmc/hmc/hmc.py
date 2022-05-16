@@ -1,7 +1,6 @@
 import json
-from ctypes import Union
 from pathlib import Path
-from typing import List, Literal, Optional, Type, TypeVar
+from typing import List, Literal, Optional, Type, TypeVar,Union
 
 import numpy as np
 import numpyro
@@ -19,6 +18,7 @@ from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY
 from nfqr.target_systems.config import ActionConfig
 from nfqr.target_systems.observable import ObservableRecorder
 from nfqr.target_systems.rotor.rotor import QuantumRotor
+from nfqr.mcmc.base import get_mcmc_statistics
 
 ConfigType = TypeVar("ConfigType", bound="HMCConfig")
 
@@ -32,69 +32,16 @@ hmc_cpp = cpp_extension.load(
         REPO_ROOT / "nfqr/mcmc/hmc/hmc.cpp",
         # REPO_ROOT / "nfqr/mcmc/hmc/hmc_binding.cpp",
     ],
-    extra_cflags=["-I /usr/include/eigen-3.4.0"],
+    extra_cflags=["-I /usr/include/eigen-3.4.0","-I /home/dechentf/eigen-3.4.0"],
     # extra_include_paths=[
     #     str(REPO_ROOT / "nfqr/target_systems"),
     #     str(REPO_ROOT / "nfqr/target_systems/rotor"),
     # ],
+    verbose=True
 )
 
 
-class HMCConfig(BaseConfig):
 
-    _name: str = "hmc_config"
-
-    hmc_type: HMC_REGISTRY.enum
-
-    observables: List[OBSERVABLE_REGISTRY.enum]
-    n_steps: int
-    dim: int
-    action_config: ActionConfig
-    n_burnin_steps: int
-    out_dir: Union[str, Path]
-    n_traj_steps: Optional[int] = 20
-    step_size: Optional[float] = 0.01
-    autotune_step: Optional[bool] = True
-    alg: Optional[Literal["cpp_batch", "cpp_single"]] = "cpp_single"
-    batch_size: Optional[int] = 1
-    n_samples_at_a_time: Optional[int] = 10000
-    target_system: Optional[ACTION_REGISTRY.enum] = "qr"
-    action: Optional[ACTION_REGISTRY.enum] = "qr"
-
-    task_parameters: Union[List[str], None] = None
-
-    @validator("observables", pre=True)
-    @classmethod
-    def str_to_list(cls, v):
-        if isinstance(v, str):
-            return v.split(",")
-
-        return v
-
-    @classmethod
-    def from_directory_for_task(
-        cls: Type[ConfigType], directory: Union[str, Path], task_id
-    ) -> ConfigType:
-        """Load config from json with task id."""
-        with open(str(cls._config_path(Path(directory)))) as f:
-            raw_config = json.load(f)
-
-        def set_task_par(_dict):
-            for key, value in _dict.items():
-                if isinstance(value, dict):
-                    _dict[key] = set_task_par(value)
-
-                if key in raw_config["task_parameters"]:
-                    _dict[key] = _dict[key][task_id]
-
-            return _dict
-
-        if raw_config["task_parameters"] is not None:
-            raw_config = set_task_par(raw_config)
-
-        raw_config["out_dir"] = directory / f"mcmc/task_{task_id}"
-
-        return cls(**raw_config)
 
 
 @HMC_REGISTRY.register("hmc_leapfrog")
@@ -128,11 +75,12 @@ class HMC(MCMC):
         self.n_samples_at_a_time = n_samples_at_a_time
 
         self._observable_rec = ObservableRecorder(
-            observables={obs: OBSERVABLE_REGISTRY[obs] for obs in observables},
+            observables={obs: OBSERVABLE_REGISTRY[target_system][obs]() for obs in observables},
             save_dir_path=out_dir,
+            stats_function=get_mcmc_statistics
         )
 
-        self.action = ACTION_REGISTRY[target_system][action](**dict(action_config))
+        # py_action = ACTION_REGISTRY[target_system][action](**dict(action_config))
 
         self.alg = alg
         if "cpp" in alg:
@@ -150,8 +98,8 @@ class HMC(MCMC):
             else:
                 raise ValueError("Unknown Observable")
 
-            if isinstance(action, QuantumRotor):
-                cpp_action = hmc_cpp.QR(action.beta)
+            if action=="qr":
+                cpp_action = hmc_cpp.QR(action_config.beta)
             else:
                 raise ValueError("Unknown Action")
 
@@ -172,12 +120,12 @@ class HMC(MCMC):
         self._trove = None
 
     @property
-    def obserbles_rec(self):
+    def observable_rec(self):
         return self._observable_rec
 
     @property
     def acceptance_rate(self):
-        return self.hmc.acceptance_ratio
+        return self.hmc.acceptance_rate
 
     def initialize(self):
 
@@ -273,3 +221,60 @@ class HMC_NUMPYRO(MCMC):
 
     def step(self):
         self.current_config = self.samples_iter.__next__()
+
+
+class HMCConfig(BaseConfig):
+
+    _name: str = "hmc_config"
+
+    hmc_type: HMC_REGISTRY.enum
+
+    observables: List[OBSERVABLE_REGISTRY.enum]
+    n_steps: int
+    dim: int
+    action_config: ActionConfig
+    n_burnin_steps: int
+    out_dir: Union[str, Path]
+    n_traj_steps: Optional[int] = 20
+    step_size: Optional[float] = 0.01
+    autotune_step: Optional[bool] = True
+    alg: Optional[Literal["cpp_batch", "cpp_single"]] = "cpp_single"
+    batch_size: Optional[int] = 1
+    n_samples_at_a_time: Optional[int] = 10000
+    target_system: Optional[ACTION_REGISTRY.enum] = "qr"
+    action: Optional[ACTION_REGISTRY.enum] = "qr"
+
+    task_parameters: Union[List[str], None] = None
+
+    @validator("observables", pre=True)
+    @classmethod
+    def str_to_list(cls, v):
+        if isinstance(v, str):
+            return v.split(",")
+
+        return v
+
+    @classmethod
+    def from_directory_for_task(
+        cls: Type[ConfigType], directory: Union[str, Path], task_id
+    ) -> ConfigType:
+        """Load config from json with task id."""
+        with open(str(cls._config_path(Path(directory)))) as f:
+            raw_config = json.load(f)
+
+        def set_task_par(_dict):
+            for key, value in _dict.items():
+                if isinstance(value, dict):
+                    _dict[key] = set_task_par(value)
+
+                if key in raw_config["task_parameters"]:
+                    _dict[key] = _dict[key][task_id]
+
+            return _dict
+
+        if raw_config["task_parameters"] is not None:
+            raw_config = set_task_par(raw_config)
+
+        raw_config["out_dir"] = directory / f"mcmc/task_{task_id}"
+
+        return cls(**raw_config)

@@ -3,16 +3,21 @@ Code for observable generation and storage
 """
 import io
 from functools import cached_property
+from typing import Callable
 
 import numpy as np
 import torch
 from tqdm.autonotebook import tqdm
-
+import os
 from nfqr.mcmc import get_mcmc_statistics
 from nfqr.nip import get_impsamp_statistics
 from nfqr.nip.nip import calc_imp_weights
 from nfqr.stats.stats import get_iid_statistics
+from dataclasses import dataclass
+from typing import Dict,Callable
+from nfqr.utils.misc  import create_logger
 
+logger = create_logger(__name__)
 
 class Observable(object):
     def __init__(self) -> None:
@@ -24,12 +29,15 @@ class Observable(object):
     def postprocess(self, value):
         return value
 
-
+@dataclass
 class ObservableRecorder(object):
+    
+    
     def __init__(
-        self, observables, save_dir_path, stats_function=get_iid_statistics
+        self, observables:Dict[str,Callable[[torch.Tensor],torch.Tensor]], save_dir_path, stats_function=get_iid_statistics,delete_existing_data=True
     ) -> None:
 
+        self.delete_existing_data=delete_existing_data
         self.observables = observables
 
         self.save_dir_path = save_dir_path
@@ -41,13 +49,17 @@ class ObservableRecorder(object):
     def observable_fstreams(self):
         streams = {}
         for name, path in self.observable_save_paths.items():
-
+            if path.is_file() and self.delete_existing_data:
+                os.remove(path)
             streams[name] = io.open(path, "ab")
 
         return streams
 
     @cached_property
     def log_weights_fstream(self):
+        if self.log_weights_save_path.is_file() and self.delete_existing_data:
+            os.remove(self.log_weights_save_path)
+
         return io.open(self.log_weights_save_path, "ab")
 
     @cached_property
@@ -135,6 +147,7 @@ class ObservableRecorder(object):
     def _evaluate_obs(self, observable):
 
         observable_data = self[observable]
+
         prepared_observable_data = self.observables[observable].prepare(observable_data)
 
         if self.stats_function == get_impsamp_statistics:

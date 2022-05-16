@@ -2,7 +2,8 @@ from typing import Dict, List, Optional
 
 from pydantic import validator
 
-from nfqr.config import REPO_ROOT, BaseConfig
+from nfqr.globals import REPO_ROOT
+from nfqr.config import BaseConfig
 from nfqr.mcmc.hmc.hmc import HMC_REGISTRY
 from nfqr.target_systems import OBSERVABLE_REGISTRY
 
@@ -20,6 +21,8 @@ class MCMCConfig(BaseConfig):
     acceptance_rate: float
     n_steps: int
     obs_stats: Dict[OBSERVABLE_REGISTRY.enum, Dict[str, float]]
+
+    sus_exact:Optional[float]
 
     @validator("observables", pre=True)
     @classmethod
