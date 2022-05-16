@@ -7,7 +7,7 @@ from nfqr.mcmc.base import MCMC
 
 
 class NeuralMCMC(MCMC):
-    def __init__(self, n_steps, model, target, trove_size):
+    def __init__(self, n_steps, model, target, observables_rec, trove_size):
         super(NeuralMCMC, self).__init__(n_steps)
 
         self.model = model
@@ -19,6 +19,8 @@ class NeuralMCMC(MCMC):
         self.trove_size = trove_size
         self.trove = 0
         self.previous_weight = 0.0
+
+        self.observables_rec = observables_rec
 
     def step(self):
 
@@ -34,6 +36,8 @@ class NeuralMCMC(MCMC):
             self.n_accepted += 1
             self.previous_weight = weight_proposed
             self.current_config = self.trove["configs"][idx].unsqueeze(0)
+
+        self.observables_rec.record_config(self.current_config)
 
     def initialize(self):
 

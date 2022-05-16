@@ -62,19 +62,21 @@ def calc_ess_q(unnormalized_weights):
 
 
 class NeuralImportanceSampler:
-    def __init__(self, model, target, n_iter, batch_size=2000):
+    def __init__(self, model, observables_rec, target, n_iter, batch_size=2000):
         self.batch_size = batch_size
         self.model = model
         self.target = target
         self.n_iter = n_iter
 
+        self.observables_rec = observables_rec
+
         # set model to evaluation mode
         self.model.eval()
 
-    def __iter__(self):
+    def run(self):
 
         for _ in range(self.n_iter):
-            yield self.step()
+            self.step()
 
     @torch.no_grad()
     def step(self):
@@ -84,4 +86,4 @@ class NeuralImportanceSampler:
 
         log_weights = log_p - log_q_x
 
-        return x_samples, log_weights
+        self.observables_rec.record_config_with_log_weight(x_samples, log_weights)

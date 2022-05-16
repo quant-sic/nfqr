@@ -11,8 +11,8 @@ class SusceptibilityExact:
     :arg P: number of plaquettes
     """
 
-    def __init__(self, beta, P):
-        self.nmax = 10
+    def __init__(self, beta, P, nmax=10):
+        self.nmax = nmax
         self.beta = beta
         self.P = P
 

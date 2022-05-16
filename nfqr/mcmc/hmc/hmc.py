@@ -1,33 +1,253 @@
-from multiprocessing.sharedctypes import Value
+import json
+from ctypes import Union
+from pathlib import Path
+from typing import List, Literal, Optional, Type, TypeVar
 
 import numpy as np
 import numpyro
 import torch
 from jax import random as jax_random
-from pyro import sample
+from pydantic import root_validator, validator
 from torch.utils import cpp_extension
 from tqdm.autonotebook import tqdm
 
+from nfqr.config import BaseConfig
 from nfqr.globals import REPO_ROOT
 from nfqr.mcmc.base import MCMC
-from nfqr.target_systems.rotor.rotor import QuantumRotor, TopologicalSusceptibility
+from nfqr.registry import StrRegistry
+from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY
+from nfqr.target_systems.config import ActionConfig
+from nfqr.target_systems.observable import ObservableRecorder
+from nfqr.target_systems.rotor.rotor import QuantumRotor
+
+ConfigType = TypeVar("ConfigType", bound="HMCConfig")
+
+
+HMC_REGISTRY = StrRegistry("hmc")
 
 hmc_cpp = cpp_extension.load(
     name="hmc_cpp",
     sources=[
-        REPO_ROOT / "nfqr/target_systems/rotor/rotor.cpp",
+        # REPO_ROOT / "nfqr/target_systems/rotor/rotor.cpp",
         REPO_ROOT / "nfqr/mcmc/hmc/hmc.cpp",
-        REPO_ROOT / "nfqr/mcmc/hmc/hmc_binding.cpp",
+        # REPO_ROOT / "nfqr/mcmc/hmc/hmc_binding.cpp",
     ],
-    extra_include_paths=[
-        str(REPO_ROOT / "nfqr/target_systems"),
-        str(REPO_ROOT / "nfqr/target_systems/rotor"),
-    ],
+    extra_cflags=["-I /usr/include/eigen-3.4.0"],
+    # extra_include_paths=[
+    #     str(REPO_ROOT / "nfqr/target_systems"),
+    #     str(REPO_ROOT / "nfqr/target_systems/rotor"),
+    # ],
 )
 
 
+class HMCConfig(BaseConfig):
+
+    _name: str = "hmc_config"
+
+    hmc_type: HMC_REGISTRY.enum
+
+    observables: List[OBSERVABLE_REGISTRY.enum]
+    n_steps: int
+    dim: int
+    action_config: ActionConfig
+    n_burnin_steps: int
+    out_dir: Union[str, Path]
+    n_traj_steps: Optional[int] = 20
+    step_size: Optional[float] = 0.01
+    autotune_step: Optional[bool] = True
+    alg: Optional[Literal["cpp_batch", "cpp_single"]] = "cpp_single"
+    batch_size: Optional[int] = 1
+    n_samples_at_a_time: Optional[int] = 10000
+    target_system: Optional[ACTION_REGISTRY.enum] = "qr"
+    action: Optional[ACTION_REGISTRY.enum] = "qr"
+
+    task_parameters: Union[List[str], None] = None
+
+    @validator("observables", pre=True)
+    @classmethod
+    def str_to_list(cls, v):
+        if isinstance(v, str):
+            return v.split(",")
+
+        return v
+
+    @classmethod
+    def from_directory_for_task(
+        cls: Type[ConfigType], directory: Union[str, Path], task_id
+    ) -> ConfigType:
+        """Load config from json with task id."""
+        with open(str(cls._config_path(Path(directory)))) as f:
+            raw_config = json.load(f)
+
+        def set_task_par(_dict):
+            for key, value in _dict.items():
+                if isinstance(value, dict):
+                    _dict[key] = set_task_par(value)
+
+                if key in raw_config["task_parameters"]:
+                    _dict[key] = _dict[key][task_id]
+
+            return _dict
+
+        if raw_config["task_parameters"] is not None:
+            raw_config = set_task_par(raw_config)
+
+        raw_config["out_dir"] = directory / f"mcmc/task_{task_id}"
+
+        return cls(**raw_config)
+
+
+@HMC_REGISTRY.register("hmc_leapfrog")
+class HMC(MCMC):
+    def __init__(
+        self,
+        n_steps: int,
+        dim: int,
+        action_config: ActionConfig,
+        n_burnin_steps: int,
+        observables,
+        out_dir,
+        target_system: str = "qr",
+        n_traj_steps=20,
+        step_size=0.01,
+        autotune_step=True,
+        alg="cpp_batch",
+        batch_size=1,
+        n_samples_at_a_time=10000,
+        action="qr",
+        **kwargs,
+    ) -> None:
+        super(HMC, self).__init__(n_steps=n_steps)
+
+        self.dim = dim
+        self.batch_size = batch_size
+        self.n_burnin_steps = n_burnin_steps
+        self.n_steps = n_steps
+        self.step_size = step_size
+        self.n_traj_steps = n_traj_steps
+        self.n_samples_at_a_time = n_samples_at_a_time
+
+        self._observable_rec = ObservableRecorder(
+            observables={obs: OBSERVABLE_REGISTRY[obs] for obs in observables},
+            save_dir_path=out_dir,
+        )
+
+        self.action = ACTION_REGISTRY[target_system][action](**dict(action_config))
+
+        self.alg = alg
+        if "cpp" in alg:
+            if not target_system == "qr" or not action == "qr":
+                raise ValueError("For Cpp algorithm currently only qr is supported")
+
+            if len(observables) > 1:
+                raise ValueError(
+                    "For Cpp algorithm currently only 1 observable allowed"
+                )
+
+            if "Chi_t" in observables:
+                cpp_obs = hmc_cpp.TopologicalSusceptibility()
+                self.observable = "Chi_t"
+            else:
+                raise ValueError("Unknown Observable")
+
+            if isinstance(action, QuantumRotor):
+                cpp_action = hmc_cpp.QR(action.beta)
+            else:
+                raise ValueError("Unknown Action")
+
+            if alg == "cpp_batch":
+                self.hmc = hmc_cpp.HMC_Batch(cpp_obs, cpp_action, dim, batch_size)
+            elif alg == "cpp_single":
+                self.hmc = hmc_cpp.HMC_Single_Config(cpp_obs, cpp_action, dim)
+            else:
+                raise ValueError("Unknown Algorithm")
+        elif "python" in alg:
+            raise NotImplementedError()
+        else:
+            raise ValueError("Unknown Algorithm")
+
+        if autotune_step:
+            self.autotune_step_size(0.8)
+
+        self._trove = None
+
+    @property
+    def obserbles_rec(self):
+        return self._observable_rec
+
+    @property
+    def acceptance_rate(self):
+        return self.hmc.acceptance_ratio
+
+    def initialize(self):
+
+        self.hmc.initialize()
+        self.hmc.burnin(self.n_burnin_steps, self.n_traj_steps, self.step_size)
+
+        return self.hmc.current_config
+
+    def step(self):
+
+        step_in_trove = self.n_current_steps % self.n_samples_at_a_time
+        if (self._trove is None) or (step_in_trove == 0):
+            self.hmc.reset_expectation_values()
+            self.hmc.advance(
+                self.n_samples_at_a_time, self.n_traj_steps, self.step_size
+            )
+
+            if isinstance(self.hmc.expectation_values[0], torch.Tensor):
+                self._trove = torch.stack(self.hmc.expectation_values, dim=-1)
+            else:
+                self._trove = torch.Tensor(self.hmc.expectation_values)
+
+        self.observable_rec.record_obs(self.observable, self._trove[..., step_in_trove])
+
+    def autotune_step_size(self, desired_acceptance_percentage):
+
+        n_autotune_samples = 1000
+        tolerance = 0.05  # Tolerance
+        step_size_original = 0.01
+        step_size_min = 0.01 * step_size_original
+        step_size_max = 100 * step_size_original
+        converged = False
+        tune_steps = 100
+
+        pbar = tqdm(range(tune_steps))
+        for _ in pbar:
+
+            self.hmc.initialize()
+            self.step_size = 0.5 * (step_size_min + step_size_max)
+
+            self.hmc.advance(
+                n_steps=n_autotune_samples,
+                n_traj_steps=self.n_traj_steps,
+                step_size=self.step_size,
+            )
+
+            acceptance_rate = (
+                self.hmc.acceptance_rate.mean()
+                if isinstance(self.hmc.acceptance_rate, torch.Tensor)
+                else self.hmc.acceptance_rate
+            )
+            if acceptance_rate > desired_acceptance_percentage:
+                step_size_min = self.step_size
+            else:
+                step_size_max = self.step_size
+
+            if abs(acceptance_rate - desired_acceptance_percentage) < tolerance:
+                converged = True
+                break
+
+            pbar.set_description(
+                f"step_size: {self.step_size}, Acceptance Rate {acceptance_rate}"
+            )
+
+        if not converged:
+            self.step_size = step_size_original
+
+
 class HMC_NUMPYRO(MCMC):
-    def __init__(self, dim, target, n_burin_stpes, n_steps) -> None:
+    def __init__(self, dim, target, n_burin_stpes, n_steps, **kwargs) -> None:
         super().__init__(n_steps=n_steps)
 
         self.dim = dim
@@ -48,116 +268,8 @@ class HMC_NUMPYRO(MCMC):
         self.samples_iter = self._samples_iter(samples=samples).__iter__()
 
     def _samples_iter(self, samples):
-        for sample in samples:
-            yield sample
+        for _sample in samples:
+            yield _sample
 
     def step(self):
         self.current_config = self.samples_iter.__next__()
-
-
-class HMC_CPP(MCMC):
-    def __init__(
-        self,
-        n_steps,
-        dim,
-        batch_size,
-        target,
-        n_burnin_steps,
-        step_size=0.01,
-        autotune_step=True,
-    ) -> None:
-        super(HMC_CPP, self).__init__(n_steps=n_steps)
-
-        self.hmc_cpp = hmc_cpp.HMC()
-        self.dim = dim
-        self.batch_size = batch_size
-
-        self.n_burnin_steps = n_burnin_steps
-        self.n_steps = n_steps
-
-        self.step_size = step_size
-        self.n_traj_steps = 100
-
-        if isinstance(target.dist.action, QuantumRotor):
-            self.action = hmc_cpp.QR(target.dist.action.beta)
-        else:
-            raise ValueError("Unknown Action")
-
-        if autotune_step:
-            self.autotune_step_size(0.8)
-
-        # cpp_hmc.current_config()
-
-        # sus = cpp_hmc.advance(
-        #     0.01, 100, 10000, hmc_cpp.QR(1.0), [hmc_cpp.TopologicalSusceptibility()]
-        # )
-        # cpp_hmc.n_accepted()
-
-    def initialize(self):
-
-        input = torch.rand(1, self.dim, dtype=torch.float32)
-        self.hmc_cpp.initialize(input)
-
-        self.hmc_cpp.advance(
-            self.step_size,
-            self.n_traj_steps,
-            self.n_burnin_steps,
-            self.action,
-            [],
-            False,
-        )
-
-        return self.hmc_cpp.current_config()
-
-    def step(self):
-        return self.hmc_cpp.advance(
-            self.step_size,
-            self.n_traj_steps,
-            self.batch_size,
-            self.action,
-            [hmc_cpp.TopologicalSusceptibility()],
-            True,
-        )
-
-    def autotune_step_size(self, desired_acceptance_percentage):
-
-        n_autotune_samples = 1000
-        tolerance = 0.03  # Tolerance
-        step_size_original = 0.01
-        step_size_min = 0.01 * step_size_original
-        step_size_max = 100 * step_size_original
-        converged = False
-        tune_steps = 100
-
-        pbar = tqdm(range(tune_steps))
-        for _ in pbar:
-
-            self.initialize()
-            self.step_size = 0.5 * (step_size_min + step_size_max)
-
-            self.hmc_cpp.advance(
-                self.step_size,
-                self.n_traj_steps,
-                n_autotune_samples,
-                self.action,
-                [],
-                True,
-            )
-
-            acc_perc = self.hmc_cpp.n_accepted() / n_autotune_samples
-
-            if acc_perc.mean() > desired_acceptance_percentage:
-                step_size_min = self.step_size
-            else:
-                step_size_max = self.step_size
-
-            if abs(acc_perc.mean() - desired_acceptance_percentage) < tolerance:
-                converged = True
-                break
-
-            pbar.set_description(
-                f"step_size: {self.step_size}, Acceptance Rate {acc_perc.mean()}"
-            )
-
-        if not converged:
-            self.step_size = step_size_original
