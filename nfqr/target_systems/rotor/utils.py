@@ -11,8 +11,8 @@ class SusceptibilityExact:
     :arg P: number of plaquettes
     """
 
-    def __init__(self, beta, P, nmax=10):
-        self.nmax = nmax
+    def __init__(self, beta, P, accuracy=1e-6):
+        self.nmax = self._get_n_max(accuracy=accuracy, beta=beta)
         self.beta = beta
         self.P = P
 
@@ -51,3 +51,11 @@ class SusceptibilityExact:
 
         intPhi = sint.quad(integrand, -np.pi, np.pi)
         return 1.0 / (8.0 * np.pi**3) * intPhi[0]
+
+    def _get_n_max(self, accuracy, beta):
+
+        eps = 1
+        for i in range(1, 100):
+            eps *= np.sqrt(1 + ((i + 0.5) / beta) ** 2) - (i + 0.5) / beta
+            if eps < accuracy:
+                return i
