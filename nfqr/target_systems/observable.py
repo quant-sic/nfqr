@@ -2,22 +2,23 @@
 Code for observable generation and storage
 """
 import io
+import os
+from dataclasses import dataclass
 from functools import cached_property
-from typing import Callable
+from typing import Callable, Dict
 
 import numpy as np
 import torch
 from tqdm.autonotebook import tqdm
-import os
+
 from nfqr.mcmc import get_mcmc_statistics
 from nfqr.nip import get_impsamp_statistics
 from nfqr.nip.nip import calc_imp_weights
 from nfqr.stats.stats import get_iid_statistics
-from dataclasses import dataclass
-from typing import Dict,Callable
-from nfqr.utils.misc  import create_logger
+from nfqr.utils.misc import create_logger
 
 logger = create_logger(__name__)
+
 
 class Observable(object):
     def __init__(self) -> None:
@@ -29,15 +30,18 @@ class Observable(object):
     def postprocess(self, value):
         return value
 
+
 @dataclass
 class ObservableRecorder(object):
-    
-    
     def __init__(
-        self, observables:Dict[str,Callable[[torch.Tensor],torch.Tensor]], save_dir_path, stats_function=get_iid_statistics,delete_existing_data=True
+        self,
+        observables: Dict[str, Callable[[torch.Tensor], torch.Tensor]],
+        save_dir_path,
+        stats_function=get_iid_statistics,
+        delete_existing_data=True,
     ) -> None:
 
-        self.delete_existing_data=delete_existing_data
+        self.delete_existing_data = delete_existing_data
         self.observables = observables
 
         self.save_dir_path = save_dir_path
@@ -120,6 +124,8 @@ class ObservableRecorder(object):
             self.log_weights_fstream.flush()
 
     def _load_file(self, path):
+        self.flush_streams()
+
         with io.open(path, "rb") as file:
             file_tensor = torch.from_numpy(np.fromfile(file, dtype=np.float32))
 

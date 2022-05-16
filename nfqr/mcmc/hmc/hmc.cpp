@@ -404,7 +404,7 @@ void HMC_Single_Config::advance(int n_steps, int n_traj_steps,double step_size) 
   double h;
   double hp;
   double log_ratio;
-  double exp_value;
+  double exp_value = observable->evaluate(current_config);
 
   for (unsigned int step = 0; step < n_steps; step++) {
 

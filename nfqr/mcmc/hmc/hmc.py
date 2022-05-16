@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import List, Literal, Optional, Type, TypeVar,Union
+from typing import List, Literal, Optional, Type, TypeVar, Union
 
 import numpy as np
 import numpyro
@@ -12,13 +12,12 @@ from tqdm.autonotebook import tqdm
 
 from nfqr.config import BaseConfig
 from nfqr.globals import REPO_ROOT
-from nfqr.mcmc.base import MCMC
+from nfqr.mcmc.base import MCMC, get_mcmc_statistics
 from nfqr.registry import StrRegistry
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY
 from nfqr.target_systems.config import ActionConfig
 from nfqr.target_systems.observable import ObservableRecorder
 from nfqr.target_systems.rotor.rotor import QuantumRotor
-from nfqr.mcmc.base import get_mcmc_statistics
 
 ConfigType = TypeVar("ConfigType", bound="HMCConfig")
 
@@ -32,16 +31,13 @@ hmc_cpp = cpp_extension.load(
         REPO_ROOT / "nfqr/mcmc/hmc/hmc.cpp",
         # REPO_ROOT / "nfqr/mcmc/hmc/hmc_binding.cpp",
     ],
-    extra_cflags=["-I /usr/include/eigen-3.4.0","-I /home/dechentf/eigen-3.4.0"],
+    extra_cflags=["-I /usr/include/eigen-3.4.0", "-I /home/dechentf/eigen-3.4.0"],
     # extra_include_paths=[
     #     str(REPO_ROOT / "nfqr/target_systems"),
     #     str(REPO_ROOT / "nfqr/target_systems/rotor"),
     # ],
-    verbose=True
+    verbose=True,
 )
-
-
-
 
 
 @HMC_REGISTRY.register("hmc_leapfrog")
@@ -59,7 +55,7 @@ class HMC(MCMC):
         step_size=0.01,
         autotune_step=True,
         alg="cpp_batch",
-        batch_size=1,
+        batch_size=10000,
         n_samples_at_a_time=10000,
         action="qr",
         **kwargs,
@@ -75,9 +71,11 @@ class HMC(MCMC):
         self.n_samples_at_a_time = n_samples_at_a_time
 
         self._observable_rec = ObservableRecorder(
-            observables={obs: OBSERVABLE_REGISTRY[target_system][obs]() for obs in observables},
+            observables={
+                obs: OBSERVABLE_REGISTRY[target_system][obs]() for obs in observables
+            },
             save_dir_path=out_dir,
-            stats_function=get_mcmc_statistics
+            stats_function=get_mcmc_statistics,
         )
 
         # py_action = ACTION_REGISTRY[target_system][action](**dict(action_config))
@@ -98,7 +96,7 @@ class HMC(MCMC):
             else:
                 raise ValueError("Unknown Observable")
 
-            if action=="qr":
+            if action == "qr":
                 cpp_action = hmc_cpp.QR(action_config.beta)
             else:
                 raise ValueError("Unknown Action")
