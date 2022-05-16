@@ -116,11 +116,11 @@ class ObservableRecorder(object):
 
     def flush_streams(self):
 
-        if hasattr(self, "observable_fstreams"):
+        if "observable_fstreams" in self.__dict__:
             for stream in self.observable_fstreams.values():
                 stream.flush()
 
-        if hasattr(self, "log_weights_fstream"):
+        if "log_weights_fstream" in self.__dict__:
             self.log_weights_fstream.flush()
 
     def _load_file(self, path):
