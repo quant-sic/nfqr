@@ -21,6 +21,8 @@ class EvalConfig(BaseConfig):
 
     observables: List[OBSERVABLE_REGISTRY.enum]
 
+    n_samples:int
+
     nip: Optional[Dict[OBSERVABLE_REGISTRY.enum, Dict[str, float]]]
     nmcmc: Optional[
         Dict[Union[str, OBSERVABLE_REGISTRY.enum], Union[float, Dict[str, float]]]

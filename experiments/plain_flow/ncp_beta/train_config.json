@@ -14,7 +14,7 @@
         "domain": "u1",
         "coupling_type": "bare",
         "diffeomorphism": "ncp",
-        "expressivity": 7,
+        "expressivity": 8,
         "net_config": {
           "net_type": "mlp",
           "net_hidden": [
@@ -25,7 +25,7 @@
         }
       },
       "split_type": "checkerboard",
-      "num_layers": 4
+      "num_layers": 5
     }
   },
   "target_system": "qr",
@@ -36,6 +36,7 @@
   "train_setup": "reverse",
   "action_config": {
     "beta": [
+      0.75,
       1.0,
       1.25,
       1.5,
@@ -45,7 +46,11 @@
       2.5,
       2.75,
       3.0,
-      3.25
+      3.25,
+      3.5,
+      3.75,
+      4.5,
+      5.0
     ]
   },
   "dim": [

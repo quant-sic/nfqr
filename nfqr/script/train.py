@@ -4,6 +4,7 @@ from pathlib import Path
 from venv import create
 
 from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from nfqr.data.datasampler import FlowSampler
@@ -24,7 +25,7 @@ if __name__ == "__main__":
     exp_dir = EXPERIMENTS_DIR / args.exp_dir
 
 
-    train_config = TrainConfig.from_directory_for_task(exp_dir, task_id=int(os.environ["task_id"]))
+    train_config = TrainConfig.from_directory_for_task(exp_dir, task_id=int(os.environ["task_id"]),num_tasks=int(os.environ["num_tasks"]))
     log_dir = "task_{}".format(os.environ["task_id"])
     
 
@@ -37,7 +38,9 @@ if __name__ == "__main__":
             model=flow_model.model,
         )
 
-    logger = TensorBoardLogger(exp_dir/"logs", name=log_dir)
+    tb_logger = TensorBoardLogger(exp_dir/"logs", name=log_dir)
+
+    checkpoint_callback = ModelCheckpoint(save_top_k=1, monitor="loss_std")
     trainer = Trainer(
         **train_config.trainer_config.dict(
             include={
@@ -46,7 +49,7 @@ if __name__ == "__main__":
                 "accumulate_grad_batches",
             }
         ),
-        logger=logger,
+        logger=tb_logger,
         accelerator='gpu', devices=1,auto_lr_find=True
     )
 
