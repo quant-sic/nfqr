@@ -62,8 +62,8 @@ class QuantumRotor(Action):
     def force(self, config: torch.Tensor) -> torch.Tensor:
 
         force = self.beta * (
-            torch.sin(config - torch.roll(config, -1, -1))
-            - torch.sin(torch.roll(config, shifts=1, dim=-1) - config)
+            torch.sin(config - torch.roll(config, shifts=-1, dims=-1))
+            - torch.sin(torch.roll(config, shifts=1, dims=-1) - config)
         )
 
         return force

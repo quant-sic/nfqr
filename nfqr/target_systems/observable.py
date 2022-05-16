@@ -6,12 +6,12 @@ from functools import cached_property
 
 import numpy as np
 import torch
+from tqdm.autonotebook import tqdm
 
 from nfqr.mcmc import get_mcmc_statistics
 from nfqr.nip import get_impsamp_statistics
 from nfqr.nip.nip import calc_imp_weights
 from nfqr.stats.stats import get_iid_statistics
-from tqdm.autonotebook import tqdm
 
 
 class Observable(object):
@@ -27,14 +27,13 @@ class Observable(object):
 
 class ObservableRecorder(object):
     def __init__(
-        self, observables, sampler, save_dir_path, stats_function=get_iid_statistics
+        self, observables, save_dir_path, stats_function=get_iid_statistics
     ) -> None:
 
         self.observables = observables
-        self.sampler = sampler
 
         self.save_dir_path = save_dir_path
-        self.save_dir_path.mkdir(parents=True,exist_ok=True)
+        self.save_dir_path.mkdir(parents=True, exist_ok=True)
 
         self.stats_function = stats_function
 
@@ -65,33 +64,45 @@ class ObservableRecorder(object):
 
         return observable_paths
 
-    def record(self, config, log_weight=None):
+    def evaluate_observables(self, config):
 
-        if log_weight is not None:
-            self.log_weights_fstream.write(
-                log_weight.cpu().numpy().flatten().astype(np.float32).tobytes()
-            )
+        obs_values = {}
 
         for name, observable in self.observables.items():
+            obs_values[name] = observable.evaluate(config)
 
-            obs_values = observable.evaluate(config)
+        return obs_values
 
-            self.observable_fstreams[name].write(
-                obs_values.cpu().numpy().flatten().astype(np.float32).tobytes()
-            )
+    def record_log_weight(self, log_weight):
 
-    def record_sampler(self):
+        self.log_weights_fstream.write(
+            log_weight.cpu().numpy().flatten().astype(np.float32).tobytes()
+        )
 
-        for sampler_out in tqdm(self.sampler,desc= f"Recording Sampler: {type(self.sampler)}"):
-            if isinstance(sampler_out, tuple):
-                self.record(*sampler_out)
-            else:
-                self.record(sampler_out)
+    def record_obs(self, name, obs):
+        self.observable_fstreams[name].write(
+            obs.cpu().numpy().flatten().astype(np.float32).tobytes()
+        )
+
+    def record_config(self, config):
+
+        obs_values = self.evaluate_observables(config)
+        for name, value in obs_values.items():
+            self.record_obs(name, value)
+
+    def record_config_with_log_weight(self, config, log_weight):
+
+        obs_values = self.evaluate_observables(config)
+        for name, value in obs_values.items():
+            self.record_obs(name, value)
+
+        self.record_log_weight(log_weight)
+
+    def flush_streams(self):
 
         if hasattr(self, "observable_fstreams"):
             for stream in self.observable_fstreams.values():
                 stream.flush()
-                stream.close()
 
         if hasattr(self, "log_weights_fstream"):
             self.log_weights_fstream.flush()

@@ -33,13 +33,16 @@ class MCMC(object):
             self.n_current_steps += 1
             yield self.current_config
 
-    def run_entire_chain(self):
+    def run(self):
         for _ in self:
             pass
 
-    @property
-    def acceptance_ratio(self):
-        return self.n_accepted / self.n_current_steps
+    def get_stats(self):
+        return {
+            "acceptance_rate": self.acceptance_rate,
+            "n_steps": self.n_current_steps,
+            "obs_stats": self.observable_rec.aggregate(),
+        }
 
 
 def basic_integrated_ac(history):
