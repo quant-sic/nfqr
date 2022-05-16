@@ -8,7 +8,7 @@
 #$ -V          # provide environment variables
 #$ -o /home/dechentf/MA/nfqr/pipe_out/$JOB_ID/
 #$ -e /home/dechentf/MA/nfqr/pipe_out/$JOB_ID/
-#$ -t 1-10
+#$ -t 1-15
 
 
 export num_tasks=$SGE_TASK_LAST
@@ -20,4 +20,4 @@ source /home/dechentf/MA/nfqr/nfqr-env/bin/activate
 
 echo /home/dechentf/MA/nfqr/nfqr-env/bin/python3 /home/dechentf/MA/nfqr/nfqr/script/eval.py --exp_dir $1 --observables $2
 
-/home/dechentf/MA/nfqr/nfqr-env/bin/python3 /home/dechentf/MA/nfqr/nfqr/script/eval.py --exp_dir $1 --observables $2
+/home/dechentf/MA/nfqr/nfqr-env/bin/python3 /home/dechentf/MA/nfqr/nfqr/script/eval.py --exp_dir $1 --observables $2 --n_iter $3

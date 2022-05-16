@@ -1,3 +1,4 @@
+from distutils.log import error
 import math
 
 import torch
@@ -16,14 +17,15 @@ def get_impsamp_statistics(history, unnormalized_weights):
         weights = unnormalized_weights / unnormalized_weights.mean()
 
         mean = (weights * history).mean()
+        ess = calc_ess_q(unnormalized_weights=unnormalized_weights)
+
+        error = (weights * history).std()/math.sqrt(len(history))
 
         sq_mean = (weights * history**2).mean()
-        std = torch.sqrt(abs(sq_mean - mean**2))
+        std = torch.sqrt(abs(sq_mean - mean**2)/len(history))
+        error_ess = std / math.sqrt(ess)
 
-        ess = calc_ess_q(unnormalized_weights=unnormalized_weights)
-        err = std / math.sqrt(ess)
-
-        return {"mean": mean.item(), "error": err.item(), "ess_q": ess.item()}
+        return {"mean": mean.item(), "error": error.item(),"error_ess": error_ess.item(), "ess_q": ess.item()}
 
 
 def calc_imp_weights(
