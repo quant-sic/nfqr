@@ -6,13 +6,12 @@ import numpy as np
 import numpyro
 import torch
 from jax import random as jax_random
-from pydantic import root_validator, validator
-from torch.utils import cpp_extension
+from pydantic import validator
 from tqdm.autonotebook import tqdm
 
 from nfqr.config import BaseConfig
-from nfqr.globals import REPO_ROOT
 from nfqr.mcmc.base import MCMC, get_mcmc_statistics
+from nfqr.mcmc.hmc.hmc_cpp import hmc_cpp
 from nfqr.registry import StrRegistry
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY
 from nfqr.target_systems.config import ActionConfig
@@ -27,21 +26,6 @@ ConfigType = TypeVar("ConfigType", bound="HMCConfig")
 
 
 HMC_REGISTRY = StrRegistry("hmc")
-
-hmc_cpp = cpp_extension.load(
-    name="hmc_cpp",
-    sources=[
-        # REPO_ROOT / "nfqr/target_systems/rotor/rotor.cpp",
-        REPO_ROOT / "nfqr/mcmc/hmc/hmc.cpp",
-        # REPO_ROOT / "nfqr/mcmc/hmc/hmc_binding.cpp",
-    ],
-    extra_cflags=["-I /usr/include/eigen-3.4.0", "-I /home/dechentf/eigen-3.4.0"],
-    # extra_include_paths=[
-    #     str(REPO_ROOT / "nfqr/target_systems"),
-    #     str(REPO_ROOT / "nfqr/target_systems/rotor"),
-    # ],
-    verbose=True,
-)
 
 
 @HMC_REGISTRY.register("hmc_leapfrog")

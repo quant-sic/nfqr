@@ -5,10 +5,7 @@ from hmc import HMC
 from tqdm.autonotebook import tqdm
 
 from nfqr.globals import TEMP_DIR
-from nfqr.mcmc.base import get_mcmc_statistics
-from nfqr.normalizing_flows.target_density import TargetDensity
-from nfqr.target_systems.observable import ObservableRecorder
-from nfqr.target_systems.rotor.rotor import QuantumRotor, TopologicalSusceptibility
+from nfqr.target_systems.config import ActionConfig
 from nfqr.target_systems.rotor.utils import SusceptibilityExact
 
 
@@ -19,33 +16,27 @@ def test_hmc_single_config():
 
     for beta, dim in tqdm(itertools.product(betas, dims)):
 
-        target = TargetDensity.boltzmann_from_action(QuantumRotor(beta))
-
         tmp_test_path = TEMP_DIR / "test_hmc"
         if tmp_test_path.is_dir():
             shutil.rmtree(tmp_test_path)
 
-        rec = ObservableRecorder(
-            {"Chi_t": TopologicalSusceptibility()},
-            save_dir_path=tmp_test_path,
-            stats_function=get_mcmc_statistics,
-        )
-
         hmc = HMC(
-            observables_rec=rec,
+            observables=["Chi_t"],
             n_burnin_steps=100000,
             n_steps=250000,
             dim=dim,
             batch_size=1,
-            target=target,
             autotune_step=True,
             n_traj_steps=20,
             alg="cpp_single",
             n_samples_at_a_time=25000,
+            out_dir=tmp_test_path,
+            action="qr",
+            action_config=ActionConfig(beta=beta),
         )
 
         hmc.run()
-        stats = rec.aggregate()
+        stats = hmc.observable_rec.aggregate()
 
         exact_sus = SusceptibilityExact(beta, dim).evaluate()
 
@@ -59,33 +50,27 @@ def test_hmc_batch():
 
     for beta, dim in tqdm(itertools.product(betas, dims)):
 
-        target = TargetDensity.boltzmann_from_action(QuantumRotor(beta))
-
         tmp_test_path = TEMP_DIR / "test_hmc"
         if tmp_test_path.is_dir():
             shutil.rmtree(tmp_test_path)
 
-        rec = ObservableRecorder(
-            {"Chi_t": TopologicalSusceptibility()},
-            save_dir_path=tmp_test_path,
-            stats_function=get_mcmc_statistics,
-        )
-
         hmc = HMC(
-            observables_rec=rec,
+            observables=["Chi_t"],
             n_burnin_steps=100000,
             n_steps=250000,
             dim=dim,
             batch_size=1,
-            target=target,
             autotune_step=True,
             n_traj_steps=20,
             alg="cpp_batch",
             n_samples_at_a_time=25000,
+            out_dir=tmp_test_path,
+            action="qr",
+            action_config=ActionConfig(beta=beta),
         )
 
         hmc.run()
-        stats = rec.aggregate()
+        stats = hmc.observable_rec.aggregate()
 
         exact_sus = SusceptibilityExact(beta, dim).evaluate()
 
