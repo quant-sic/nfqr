@@ -1,10 +1,11 @@
 import numpy as np
 import torch
-import unew.analysis as un
-from unew.errors import NoFluctuationsError
+
+from nfqr.mcmc.ac.ac import NoFluctuationsError, PrimaryAnalysis
 from nfqr.utils.misc import create_logger
 
 logger = create_logger(__name__)
+
 
 class MCMC(object):
     def __init__(self, n_steps) -> None:
@@ -58,13 +59,13 @@ def basic_integrated_ac(history):
     ac = ac[N - 1 :] / np.arange(N, 0, -1)
     normed_ac = ac / ac[0]
 
-    integration_length = int(.1 * N)
+    integration_length = int(0.1 * N)
     tau_int = normed_ac[:integration_length].sum()
 
     return tau_int
 
 
-def uw_analysis(history,max_rep_size=1e6):
+def uw_analysis(history, max_rep_size=1e6):
 
     # floored
     # rep_size = int(min(max_rep_size,len(history)))
@@ -77,7 +78,7 @@ def uw_analysis(history,max_rep_size=1e6):
 
     try:
         history = history[None, :, None]
-        analysis = un.PrimaryAnalysis(history, [np.prod(history.shape)], name="primary")
+        analysis = PrimaryAnalysis(history, [np.prod(history.shape)], name="primary")
         analysis.mean()
         results = analysis.errors()
 
@@ -95,6 +96,10 @@ def uw_analysis(history,max_rep_size=1e6):
 def get_mcmc_statistics(history):
 
     mean, error_unew, tau_unew, dtau_unew = uw_analysis(history)
-    tau_int_basic = basic_integrated_ac(history)
 
-    return {"mean": mean, "error": error_unew, "tau_int": tau_unew, "dtau_int": dtau_unew,"tau_int_basic":tau_int_basic}
+    return {
+        "mean": mean,
+        "error": error_unew,
+        "tau_int": tau_unew,
+        "dtau_int": dtau_unew,
+    }

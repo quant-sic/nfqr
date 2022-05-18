@@ -3,8 +3,8 @@ import math
 from timeit import timeit
 
 import torch
-from hmc import hmc_cpp
 
+from nfqr.mcmc.hmc.hmc_cpp import hmc_cpp
 from nfqr.target_systems.rotor.rotor import QuantumRotor, TopologicalSusceptibility
 
 

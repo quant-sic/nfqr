@@ -38,7 +38,7 @@ class ObservableRecorder(object):
         observables: Dict[str, Callable[[torch.Tensor], torch.Tensor]],
         save_dir_path,
         stats_function=get_iid_statistics,
-        delete_existing_data=True,
+        delete_existing_data=False,
     ) -> None:
 
         self.delete_existing_data = delete_existing_data

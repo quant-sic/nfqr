@@ -12,6 +12,7 @@ class SusceptibilityExact:
     """
 
     def __init__(self, beta, P, accuracy=1e-6):
+
         self.nmax = self._get_n_max(accuracy=accuracy, beta=beta)
         self.beta = beta
         self.P = P
