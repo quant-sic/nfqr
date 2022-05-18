@@ -1,15 +1,17 @@
-import numpy as np
-import torch
-
-from nfqr.mcmc.ac.ac import NoFluctuationsError, PrimaryAnalysis
-from nfqr.utils.misc import create_logger
 from tqdm.autonotebook import tqdm
+
+from nfqr.mcmc.stats import get_mcmc_statistics
+from nfqr.sampler import Sampler
+from nfqr.utils.misc import create_logger
 
 logger = create_logger(__name__)
 
 
-class MCMC(object):
-    def __init__(self, n_steps) -> None:
+class MCMC(Sampler):
+    def __init__(self, n_steps, observables, target_system, out_dir) -> None:
+        super(MCMC, self).__init__(
+            observables=observables, target_system=target_system, out_dir=out_dir
+        )
         self.n_steps = n_steps
         self._config = None
         self.n_accepted = 0
@@ -39,68 +41,24 @@ class MCMC(object):
             yield self.current_config
 
     def run(self):
-        for _ in tqdm(self):
+        for _ in tqdm(self, "Running MCMC"):
             pass
 
     def get_stats(self):
         return {
             "acceptance_rate": self.acceptance_rate,
             "n_steps": self.n_current_steps,
-            "obs_stats": self.observable_rec.aggregate(),
+            "obs_stats": self.aggregate(),
         }
 
+    def _evaluate_obs(self, obs):
 
-def basic_integrated_ac(history):
-    """
-    Returns the autocorrelation for given history
-    """
-    N = len(history)
-    history_c = history - history.mean()
-    ac = np.correlate(history_c, history_c, mode="full")
-    ac = ac[N - 1 :] / np.arange(N, 0, -1)
-    normed_ac = ac / ac[0]
+        observable_data = self.observables_rec[obs]
+        prepared_observable_data = self.observables_rec.observables[obs].prepare(
+            observable_data
+        )
 
-    integration_length = int(.01 * N)
-    tau_int = normed_ac[:integration_length].sum()
+        stats = get_mcmc_statistics(prepared_observable_data)
+        stats_postprocessed = self.observables[obs].postprocess(stats)
 
-    return tau_int
-
-
-def uw_analysis(history, max_rep_size=1e6):
-
-    # floored
-    # rep_size = int(min(max_rep_size,len(history)))
-
-    # # max not necessary, but makes it manifest
-    # num_rep = max(int(len(history)/rep_size),1)
-
-    if isinstance(history, torch.Tensor):
-        history = history.numpy()
-
-    try:
-        history = history[None, :, None]
-        analysis = PrimaryAnalysis(history, [np.prod(history.shape)], name="primary")
-        analysis.mean()
-        results = analysis.errors()
-
-        mean = results.value.item()
-        error = results.dvalue[0]
-        tau = results.tau_int[0]
-        dtau = results.dtau_int[0]
-
-    except NoFluctuationsError:
-        mean, error, tau, dtau = 0, 0, 0, 0
-
-    return mean, error, tau, dtau
-
-
-def get_mcmc_statistics(history):
-
-    mean, error_unew, tau_unew, dtau_unew = uw_analysis(history)
-
-    return {
-        "mean": mean,
-        "error": error_unew,
-        "tau_int": tau_unew,
-        "dtau_int": dtau_unew,
-    }
+        return stats_postprocessed

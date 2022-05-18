@@ -36,7 +36,7 @@ def test_hmc_single_config():
         )
 
         hmc.run()
-        stats = hmc.observable_rec.aggregate()
+        stats = hmc.observables_rec.aggregate()
 
         exact_sus = SusceptibilityExact(beta, dim).evaluate()
 
@@ -70,7 +70,7 @@ def test_hmc_batch():
         )
 
         hmc.run()
-        stats = hmc.observable_rec.aggregate()
+        stats = hmc.observables_rec.aggregate()
 
         exact_sus = SusceptibilityExact(beta, dim).evaluate()
 

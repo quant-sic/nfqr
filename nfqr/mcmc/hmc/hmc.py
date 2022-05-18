@@ -10,14 +10,11 @@ from pydantic import validator
 from tqdm.autonotebook import tqdm
 
 from nfqr.config import BaseConfig
-from nfqr.mcmc.base import MCMC, get_mcmc_statistics
+from nfqr.mcmc.base import MCMC
 from nfqr.mcmc.hmc.hmc_cpp import hmc_cpp
 from nfqr.registry import StrRegistry
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY
 from nfqr.target_systems.config import ActionConfig
-from nfqr.target_systems.observable import ObservableRecorder
-from nfqr.target_systems.rotor.rotor import QuantumRotor
-
 from nfqr.utils.misc import create_logger
 
 logger = create_logger(__name__)
@@ -48,7 +45,12 @@ class HMC(MCMC):
         action="qr",
         **kwargs,
     ) -> None:
-        super(HMC, self).__init__(n_steps=n_steps)
+        super(HMC, self).__init__(
+            n_steps=n_steps,
+            observables=observables,
+            target_system=target_system,
+            out_dir=out_dir,
+        )
 
         self.dim = dim
         self.batch_size = batch_size
@@ -57,14 +59,6 @@ class HMC(MCMC):
         self.step_size = step_size
         self.n_traj_steps = n_traj_steps
         self.n_samples_at_a_time = n_samples_at_a_time
-
-        self._observable_rec = ObservableRecorder(
-            observables={
-                obs: OBSERVABLE_REGISTRY[target_system][obs]() for obs in observables
-            },
-            save_dir_path=out_dir,
-            stats_function=get_mcmc_statistics,
-        )
 
         # py_action = ACTION_REGISTRY[target_system][action](**dict(action_config))
 
@@ -106,10 +100,6 @@ class HMC(MCMC):
         self._trove = None
 
     @property
-    def observable_rec(self):
-        return self._observable_rec
-
-    @property
     def acceptance_rate(self):
         return self.hmc.acceptance_rate
 
@@ -137,7 +127,9 @@ class HMC(MCMC):
             else:
                 self._trove = torch.Tensor(self.hmc.expectation_values)
 
-        self.observable_rec.record_obs(self.observable, self._trove[..., step_in_trove])
+        self.observables_rec.record_obs(
+            self.observable, self._trove[..., step_in_trove]
+        )
 
     def autotune_step_size(self, desired_acceptance_percentage):
 

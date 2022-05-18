@@ -29,7 +29,7 @@ class LitFlow(pl.LightningModule):
         super().__init__()
 
         self.save_hyperparameters()
-        
+
         self.learning_rate = learning_rate
 
         self.model = BareFlow(**dict(flow_config))
@@ -91,9 +91,12 @@ class LitFlow(pl.LightningModule):
                 for stat, value in values.items():
                     self.log(f"{sampler}/{key}/{stat}", value)
                     if "Chi_t" in key and stat == "mean":
-                        self.log(f"{sampler}/{key}/abs_diff_to_exact", abs(value-self.sus_exact))
+                        self.log(
+                            f"{sampler}/{key}/abs_diff_to_exact",
+                            abs(value - self.sus_exact),
+                        )
 
-        self.log("lr",self.learning_rate)
+        self.log("lr", self.learning_rate)
 
         # if "von_mises" in self.config.flow_config.base_dist_config.type:
         #     with torch.no_grad():
@@ -116,7 +119,7 @@ class LitFlow(pl.LightningModule):
         stats_nip = estimate_obs_nip(
             model=self.model,
             target=self.target,
-            observables=self.observables_fn,
+            observables=self.observables,
             batch_size=batch_size,
             n_iter=n_iter,
         )
@@ -127,7 +130,7 @@ class LitFlow(pl.LightningModule):
 
         stats_nmcmc = estimate_obs_nmcmc(
             model=self.model,
-            observables=self.observables_fn,
+            observables=self.observables,
             target=self.target,
             trove_size=batch_size,
             n_steps=n_iter * batch_size,

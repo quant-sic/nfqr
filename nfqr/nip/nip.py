@@ -1,94 +1,35 @@
-import math
-
-import numpy as np
 import torch
 from tqdm.autonotebook import tqdm
 
-from nfqr.target_systems import OBSERVABLE_REGISTRY
-from nfqr.target_systems.observable import ObservableRecorder
+from nfqr.nip.stats import calc_imp_weights, get_impsamp_statistics
+from nfqr.sampler import Sampler
 from nfqr.utils.misc import create_logger
 
 logger = create_logger(__name__)
 
 
-def get_impsamp_statistics(history, unnormalized_weights):
-    with torch.no_grad():
-
-        weights = unnormalized_weights / unnormalized_weights.mean()
-        print(unnormalized_weights.mean())
-        print(np.isnan(unnormalized_weights))
-
-        mean = (weights * history).mean()
-        ess = calc_ess_q(unnormalized_weights=unnormalized_weights)
-
-        error = (weights * history).std() / math.sqrt(len(history))
-
-        sq_mean = (weights * history**2).mean()
-        std = torch.sqrt(abs(sq_mean - mean**2) / len(history))
-        error_ess = std / math.sqrt(ess)
-
-        return {
-            "mean": mean.item(),
-            "error": error.item(),
-            "error_ess": error_ess.item(),
-            "ess_q": ess.item(),
-        }
-
-
-def calc_imp_weights(
-    log_weight_hist, subtract_max=True, include_factor_N=False, divide_by_mean=False
-):
-    """
-    Calculates normalized importance weights from logarithm of unnormalized weights.
-    If include_factor_N is set, then the result will be multiplied by the number of weights, s.t. the expectation is
-    simply the sum of weights and history. Otherwise, the average instead of the sum has to be taken.
-    """
-
-    if subtract_max:
-        # use exp-norm trick:
-        # https://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick
-        log_weight_hist_max, _ = log_weight_hist.max(dim=0)
-        log_weight_hist = log_weight_hist - log_weight_hist_max
-
-    weight_hist = log_weight_hist.exp()
-
-    if include_factor_N:
-        weight_hist = weight_hist / weight_hist.sum(dim=0)
-    elif divide_by_mean:
-        weight_hist = weight_hist / weight_hist.mean(dim=0)
-
-    return weight_hist
-
-
-def calc_ess_q(unnormalized_weights):
-    weights = unnormalized_weights / unnormalized_weights.mean()
-
-    ess_q = 1 / (weights**2).mean()
-
-    return ess_q
-
-
-class NeuralImportanceSampler:
+class NeuralImportanceSampler(Sampler):
     def __init__(
-        self, model, observables, target, n_iter, target_system="qr", batch_size=2000
+        self,
+        model,
+        observables,
+        target,
+        n_iter,
+        out_dir,
+        target_system="qr",
+        batch_size=2000,
     ):
+        super(NeuralImportanceSampler, self).__init__(
+            observables=observables, target_system=target_system, out_dir=out_dir
+        )
+
         self.batch_size = batch_size
         self.model = model
         self.target = target
         self.n_iter = n_iter
 
-        self._observables_rec = ObservableRecorder(
-            {obs: OBSERVABLE_REGISTRY[target_system][obs] for obs in observables},
-            stats_function=get_impsamp_statistics,
-            delete_existing_data=True,
-        )
-
         # set model to evaluation mode
         self.model.eval()
-
-    @property
-    def observables_rec(self):
-        return self._observables_rec
 
     def run(self):
 
@@ -104,3 +45,29 @@ class NeuralImportanceSampler:
         log_weights = log_p - log_q_x
 
         self.observables_rec.record_config_with_log_weight(x_samples, log_weights)
+
+    @property
+    def unnormalized_log_weights(self):
+        self.observables_rec["log_weights"]
+
+    def _evaluate_obs(self, obs):
+
+        observable_data = self.observables_rec[obs]
+        prepared_observable_data = self.observables_rec.observables[obs].prepare(
+            observable_data
+        )
+
+        config_log_weights_unnormalized = self.observables_rec["log_weights"]
+
+        assert len(config_log_weights_unnormalized) == len(observable_data)
+
+        stats = get_impsamp_statistics(
+            prepared_observable_data, config_log_weights_unnormalized
+        )
+
+        stats_postprocessed = self.observables_rec.observables[obs].postprocess(stats)
+
+        # else:
+        #     stats = self.stats_function(prepared_observable_data)
+
+        return stats_postprocessed

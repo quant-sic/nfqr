@@ -3,18 +3,12 @@ Code for observable generation and storage
 """
 import io
 import os
-from dataclasses import dataclass
 from functools import cached_property
 from typing import Callable, Dict
 
 import numpy as np
 import torch
-from tqdm.autonotebook import tqdm
 
-from nfqr.mcmc import get_mcmc_statistics
-from nfqr.nip import get_impsamp_statistics
-from nfqr.nip.nip import calc_imp_weights
-from nfqr.stats.stats import get_iid_statistics
 from nfqr.utils.misc import create_logger
 
 logger = create_logger(__name__)
@@ -31,13 +25,11 @@ class Observable(object):
         return value
 
 
-@dataclass
 class ObservableRecorder(object):
     def __init__(
         self,
         observables: Dict[str, Callable[[torch.Tensor], torch.Tensor]],
         save_dir_path,
-        stats_function=get_iid_statistics,
         delete_existing_data=False,
     ) -> None:
 
@@ -46,8 +38,6 @@ class ObservableRecorder(object):
 
         self.save_dir_path = save_dir_path
         self.save_dir_path.mkdir(parents=True, exist_ok=True)
-
-        self.stats_function = stats_function
 
     @cached_property
     def observable_fstreams(self):
@@ -146,36 +136,3 @@ class ObservableRecorder(object):
                 path = self.observable_save_paths[name]
 
         return self._load_file(path)
-
-    def load_imp_weights(self):
-        return calc_imp_weights(self["log_weights"])
-
-    def _evaluate_obs(self, observable):
-
-        observable_data = self[observable]
-
-        prepared_observable_data = self.observables[observable].prepare(observable_data)
-
-        if self.stats_function == get_impsamp_statistics:
-            config_weights_unnormalized = self.load_imp_weights()
-
-            assert len(config_weights_unnormalized) == len(observable_data)
-
-            stats = self.stats_function(
-                prepared_observable_data, config_weights_unnormalized
-            )
-
-        else:
-            stats = self.stats_function(prepared_observable_data)
-
-        stats_postprocessed = self.observables[observable].postprocess(stats)
-
-        return stats_postprocessed
-
-    def aggregate(self):
-
-        stats = {}
-        for obs in self.observables.keys():
-            stats[obs] = self._evaluate_obs(obs)
-
-        return stats

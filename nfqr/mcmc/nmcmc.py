@@ -1,14 +1,31 @@
 import math
+from webbrowser import get
 
 import torch
 from numpy.random import rand
 
-from nfqr.mcmc.base import MCMC
+from nfqr.mcmc.base import MCMC, get_mcmc_statistics
+from nfqr.target_systems import OBSERVABLE_REGISTRY
+from nfqr.target_systems.observable import ObservableRecorder
 
 
 class NeuralMCMC(MCMC):
-    def __init__(self, n_steps, model, target, observables_rec, trove_size):
-        super(NeuralMCMC, self).__init__(n_steps)
+    def __init__(
+        self,
+        n_steps,
+        model,
+        target,
+        observables,
+        out_dir,
+        trove_size,
+        target_system="qr",
+    ):
+        super(NeuralMCMC, self).__init__(
+            n_steps=n_steps,
+            observables=observables,
+            target_system=target_system,
+            out_dir=out_dir,
+        )
 
         self.model = model
         self.target = target
@@ -19,8 +36,6 @@ class NeuralMCMC(MCMC):
         self.trove_size = trove_size
         self.trove = 0
         self.previous_weight = 0.0
-
-        self.observables_rec = observables_rec
 
     def step(self):
 
@@ -41,7 +56,7 @@ class NeuralMCMC(MCMC):
 
     @property
     def acceptance_rate(self):
-        return self.n_accepted/self.n_current_steps
+        return self.n_accepted / self.n_current_steps
 
     def initialize(self):
 
