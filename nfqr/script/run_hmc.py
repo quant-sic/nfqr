@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     stats = hmc.get_stats()
 
-    sus_exact = SusceptibilityExact(hmc_config.action_config.beta,hmc_config.dim)
+    sus_exact = SusceptibilityExact(hmc_config.action_config.beta,hmc_config.dim).evaluate()
 
     result_config = MCMCConfig(
         hmc_type=hmc_config.hmc_type,

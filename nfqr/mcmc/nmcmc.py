@@ -39,6 +39,10 @@ class NeuralMCMC(MCMC):
 
         self.observables_rec.record_config(self.current_config)
 
+    @property
+    def acceptance_rate(self):
+        return self.n_accepted/self.n_current_steps
+
     def initialize(self):
 
         with torch.no_grad():
