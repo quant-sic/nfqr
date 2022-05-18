@@ -45,37 +45,39 @@ class VonMisesBaseDistribution(BaseDistribution, Module):
         loc_requires_grad: bool = False,
         concentration_requires_grad: bool = False,
         loc: Union[None, List[float]] = None,
-        concentration_unconstrained: Union[None, List[float]] = None,
+        concentration: Union[None, List[float]] = None,
         **kwargs
     ) -> None:
         super(VonMisesBaseDistribution, self).__init__()
 
         self.dim = dim
 
-        if loc is None or concentration_unconstrained is None:
+        if loc is None or concentration is None:
 
             loc = torch.full(size=self.dim, fill_value=pi)
             concentration_unconstrained = torch.full(size=self.dim, fill_value=0.1)
             self.expand_sample_shape = False
 
-        elif loc is None or concentration_unconstrained is None:
-            loc = torch.tensor(loc)
-            concentration_unconstrained = torch.tensor(concentration_unconstrained)
-
         if not isinstance(loc, torch.Tensor):
+            if isinstance(loc,float):
+                loc=[loc]
             loc = torch.tensor(loc)
 
-        if not isinstance(concentration_unconstrained, torch.Tensor):
-            concentration_unconstrained = torch.tensor(concentration_unconstrained)
+        self.constraint_transform = nf_constraints_standard(
+            VonMises.arg_constraints["concentration"]
+        )
+
+        if not isinstance(concentration, torch.Tensor):
+            if isinstance(concentration,float):
+                concentration=[concentration]
+            concentration_unconstrained = self.constraint_transform.inv(torch.tensor(concentration))
 
         self.loc = parameter.Parameter(loc, requires_grad=loc_requires_grad)
         self.concentration_unconstrained = parameter.Parameter(
             concentration_unconstrained,
             requires_grad=concentration_requires_grad,
         )
-        self.constraint_transform = nf_constraints_standard(
-            VonMises.arg_constraints["concentration"]
-        )
+
 
     @classmethod
     def all_pars_joint(
@@ -87,14 +89,14 @@ class VonMisesBaseDistribution(BaseDistribution, Module):
     ):
 
         loc = [pi]
-        concentration_unconstrained = [0.1]
+        concentration = [0.1]
 
         return cls(
             dim=dim,
             loc_requires_grad=loc_requires_grad,
             concentration_requires_grad=concentration_requires_grad,
             loc=loc,
-            concentration_unconstrained=concentration_unconstrained,
+            concentration=concentration,
         )
 
     @property

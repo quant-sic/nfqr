@@ -2,13 +2,9 @@ from typing import Dict, List, Optional
 
 from pydantic import validator
 
-from nfqr.globals import REPO_ROOT
 from nfqr.config import BaseConfig
 from nfqr.mcmc.hmc.hmc import HMC_REGISTRY
 from nfqr.target_systems import OBSERVABLE_REGISTRY
-
-MLMC_PATH = REPO_ROOT / "mlmc"
-MLMC_PATH.mkdir(exist_ok=True)
 
 
 class MCMCConfig(BaseConfig):

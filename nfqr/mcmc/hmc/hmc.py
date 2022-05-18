@@ -18,6 +18,10 @@ from nfqr.target_systems.config import ActionConfig
 from nfqr.target_systems.observable import ObservableRecorder
 from nfqr.target_systems.rotor.rotor import QuantumRotor
 
+from nfqr.utils.misc import create_logger
+
+logger = create_logger(__name__)
+
 ConfigType = TypeVar("ConfigType", bound="HMCConfig")
 
 
@@ -111,7 +115,10 @@ class HMC(MCMC):
 
     def initialize(self):
 
+        logger.info("Initializing HMC")
         self.hmc.initialize()
+
+        logger.info(f"Burnin steps :{self.n_burnin_steps}")
         self.hmc.burnin(self.n_burnin_steps, self.n_traj_steps, self.step_size)
 
         return self.hmc.current_config

@@ -134,7 +134,7 @@ def estimate_nmcmc_acc_rate(model, target, trove_size, n_steps):
 
     shutil.rmtree(rec_tmp)
 
-    return nmcmc.acceptance_ratio
+    return nmcmc.acceptance_rate
 
 
 def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps):
@@ -163,7 +163,7 @@ def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps):
 
         nmcmc.run()
         stats = rec.aggregate()
-        stats["acc_rate"] = nmcmc.acceptance_ratio
+        stats["acc_rate"] = nmcmc.acceptance_rate
 
     shutil.rmtree(rec_tmp)
 

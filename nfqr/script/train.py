@@ -12,6 +12,7 @@ from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.train.config import TrainConfig
 from nfqr.train.model_lit import LitFlow
 from nfqr.utils.misc import create_logger
+import torch 
 
 logger = create_logger(__name__)
 
@@ -50,7 +51,9 @@ if __name__ == "__main__":
             }
         ),
         logger=tb_logger,
-        accelerator='gpu', devices=1,auto_lr_find=True
+        accelerator="gpu" if torch.cuda.is_available() else "cpu",
+        devices=1,
+        auto_lr_find=True
     )
 
     logger.info("Train Config for task {}:\n {}".format(os.environ["task_id"],train_config))

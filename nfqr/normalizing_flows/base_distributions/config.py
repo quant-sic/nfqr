@@ -17,4 +17,4 @@ class BaseDistConfig(BaseModel):
     loc_requires_grad: bool = False
     concentration_requires_grad: bool = False
     loc: Union[None, List[float]] = None
-    concentration_unconstrained: Union[None, List[float]] = None
+    concentration: Union[None, List[float],float] = None

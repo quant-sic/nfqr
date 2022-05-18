@@ -3,6 +3,7 @@ import torch
 
 from nfqr.mcmc.ac.ac import NoFluctuationsError, PrimaryAnalysis
 from nfqr.utils.misc import create_logger
+from tqdm.autonotebook import tqdm
 
 logger = create_logger(__name__)
 
@@ -38,7 +39,7 @@ class MCMC(object):
             yield self.current_config
 
     def run(self):
-        for _ in self:
+        for _ in tqdm(self):
             pass
 
     def get_stats(self):
@@ -59,7 +60,7 @@ def basic_integrated_ac(history):
     ac = ac[N - 1 :] / np.arange(N, 0, -1)
     normed_ac = ac / ac[0]
 
-    integration_length = int(0.1 * N)
+    integration_length = int(.01 * N)
     tau_int = normed_ac[:integration_length].sum()
 
     return tau_int
