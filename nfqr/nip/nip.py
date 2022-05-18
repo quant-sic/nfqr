@@ -1,12 +1,12 @@
-from distutils.log import error
 import math
 
+import numpy as np
 import torch
+from tqdm.autonotebook import tqdm
 
+from nfqr.target_systems import OBSERVABLE_REGISTRY
+from nfqr.target_systems.observable import ObservableRecorder
 from nfqr.utils.misc import create_logger
-
-# from tqdm.autonotebook import tqdm
-
 
 logger = create_logger(__name__)
 
@@ -15,17 +15,24 @@ def get_impsamp_statistics(history, unnormalized_weights):
     with torch.no_grad():
 
         weights = unnormalized_weights / unnormalized_weights.mean()
+        print(unnormalized_weights.mean())
+        print(np.isnan(unnormalized_weights))
 
         mean = (weights * history).mean()
         ess = calc_ess_q(unnormalized_weights=unnormalized_weights)
 
-        error = (weights * history).std()/math.sqrt(len(history))
+        error = (weights * history).std() / math.sqrt(len(history))
 
         sq_mean = (weights * history**2).mean()
-        std = torch.sqrt(abs(sq_mean - mean**2)/len(history))
+        std = torch.sqrt(abs(sq_mean - mean**2) / len(history))
         error_ess = std / math.sqrt(ess)
 
-        return {"mean": mean.item(), "error": error.item(),"error_ess": error_ess.item(), "ess_q": ess.item()}
+        return {
+            "mean": mean.item(),
+            "error": error.item(),
+            "error_ess": error_ess.item(),
+            "ess_q": ess.item(),
+        }
 
 
 def calc_imp_weights(
@@ -62,20 +69,30 @@ def calc_ess_q(unnormalized_weights):
 
 
 class NeuralImportanceSampler:
-    def __init__(self, model, observables_rec, target, n_iter, batch_size=2000):
+    def __init__(
+        self, model, observables, target, n_iter, target_system="qr", batch_size=2000
+    ):
         self.batch_size = batch_size
         self.model = model
         self.target = target
         self.n_iter = n_iter
 
-        self.observables_rec = observables_rec
+        self._observables_rec = ObservableRecorder(
+            {obs: OBSERVABLE_REGISTRY[target_system][obs] for obs in observables},
+            stats_function=get_impsamp_statistics,
+            delete_existing_data=True,
+        )
 
         # set model to evaluation mode
         self.model.eval()
 
+    @property
+    def observables_rec(self):
+        return self._observables_rec
+
     def run(self):
 
-        for _ in range(self.n_iter):
+        for _ in tqdm(range(self.n_iter), desc="Running NIP"):
             self.step()
 
     @torch.no_grad()
