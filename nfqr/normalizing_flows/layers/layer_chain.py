@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import torch
 from numpy import pi
@@ -18,7 +18,7 @@ logger = create_logger(__name__)
 
 class LayerChainConfig(BaseModel):
 
-    dim: Tuple[int]
+    dim: Union[List[int], Tuple[int]]
     layers_config: Union[None, CouplingConfig, List[CouplingConfig]]
     split_type: SPLIT_TYPES
     num_layers: int
@@ -28,7 +28,7 @@ class LayerChain(Module):
     def __init__(
         self,
         dim: Tuple[int],
-        layers_config: Union[CouplingConfig, List[CouplingConfig]],
+        layers_config: List[Dict],
         split_type: SPLIT_TYPES,
         num_layers: int,
         **kwargs

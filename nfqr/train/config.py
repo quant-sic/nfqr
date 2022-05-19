@@ -12,6 +12,14 @@ from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConf
 ConfigType = TypeVar("ConfigType", bound="TrainConfig")
 
 
+class DimsNotMatchingError(Exception):
+    def __init__(self, a, b, message) -> None:
+        self.a = a
+        self.b = b
+        self.message = message
+        super().__init__(message)
+
+
 class TrainerConfig(BaseModel):
 
     batch_size: int
@@ -91,11 +99,25 @@ class TrainConfig(BaseConfig):
         if "dim" not in values["flow_config"]["layer_chain_config"]:
             values["flow_config"]["layer_chain_config"]["dim"] = dim
         else:
-            assert dim == values["flow_config"]["layer_chain_config"]["dim"]
+            if not dim == values["flow_config"]["layer_chain_config"]["dim"]:
+                raise DimsNotMatchingError(
+                    dim,
+                    values["flow_config"]["layer_chain_config"]["dim"],
+                    "Dim of top level ({}) and flow_config->layer_chain_config->dim ({}) do not match".format(
+                        dim, values["flow_config"]["layer_chain_config"]["dim"]
+                    ),
+                )
 
         if "dim" not in values["flow_config"]["base_dist_config"]:
             values["flow_config"]["base_dist_config"]["dim"] = dim
         else:
-            assert dim == values["flow_config"]["base_dist_config"]["dim"]
+            if not dim == values["flow_config"]["base_dist_config"]["dim"]:
+                raise DimsNotMatchingError(
+                    dim,
+                    values["flow_config"]["base_dist_config"]["dim"],
+                    "Dim of top level ({}) and flow_config->base_dist_config->dim ({}) do not match".format(
+                        dim, values["flow_config"]["base_dist_config"]["dim"]
+                    ),
+                )
 
         return values

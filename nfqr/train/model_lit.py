@@ -27,8 +27,6 @@ class LitFlow(pl.LightningModule):
     ) -> None:
         super().__init__()
 
-        self.save_hyperparameters()
-
         self.learning_rate = learning_rate
 
         self.model = BareFlow(**dict(flow_config))
