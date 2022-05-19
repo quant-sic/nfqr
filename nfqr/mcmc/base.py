@@ -59,6 +59,6 @@ class MCMC(Sampler):
         )
 
         stats = get_mcmc_statistics(prepared_observable_data)
-        stats_postprocessed = self.observables[obs].postprocess(stats)
+        stats_postprocessed = self.observables_rec.observables[obs].postprocess(stats)
 
         return stats_postprocessed

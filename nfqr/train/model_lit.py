@@ -92,12 +92,12 @@ class LitFlow(pl.LightningModule):
     def on_train_epoch_end(self):
 
         stats_nmcmc = self.estimate_obs_nmcmc(
-            batch_size=5000,
-            n_iter=1,
+            batch_size=10000,
+            n_iter=10,
         )
 
         stats_nip = self.estimate_obs_nip(
-            batch_size=5000,
+            batch_size=10000,
             n_iter=10,
         )
 
