@@ -1,15 +1,18 @@
-from functools import cached_property
+from functools import cached_property, partial
 from typing import List, Literal, Tuple
 
 import pytorch_lightning as pl
 import torch
+from pytorch_lightning.utilities.types import TRAIN_DATALOADERS
 
+from nfqr.data.datasampler import FlowSampler
 from nfqr.eval.evaluation import estimate_obs_nip, estimate_obs_nmcmc
 from nfqr.normalizing_flows.flow import BareFlow, FlowConfig
 from nfqr.normalizing_flows.loss.loss import elbo
 from nfqr.normalizing_flows.target_density import TargetDensity
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
 from nfqr.target_systems.rotor import SusceptibilityExact
+from nfqr.train.config import TrainerConfig
 
 
 class LitFlow(pl.LightningModule):
@@ -21,6 +24,7 @@ class LitFlow(pl.LightningModule):
         action: ACTION_REGISTRY.enum,
         observables: List[OBSERVABLE_REGISTRY.enum],
         action_config: ActionConfig,
+        trainer_config: TrainerConfig,
         train_setup: Literal["reverse"] = "reverse",
         learning_rate=0.001,
         **kwargs,
@@ -42,6 +46,11 @@ class LitFlow(pl.LightningModule):
 
         if train_setup == "reverse":
             self.training_step = self._training_step_reverse
+            self.train_dataloader = partial(
+                self._train_dataloader_reverse,
+                batch_size=trainer_config.batch_size,
+                num_batches=trainer_config.num_batches,
+            )
 
     @cached_property
     def observables_fn(self):
@@ -49,6 +58,16 @@ class LitFlow(pl.LightningModule):
             obs: OBSERVABLE_REGISTRY[self.target_system][obs]()
             for obs in self.observables
         }
+
+    def _train_dataloader_reverse(self, batch_size, num_batches) -> TRAIN_DATALOADERS:
+
+        train_loader = FlowSampler(
+            batch_size=batch_size,
+            num_batches=num_batches,
+            model=self.model,
+        )
+
+        return train_loader
 
     def _training_step_reverse(self, batch, *args, **kwargs):
 
@@ -62,9 +81,10 @@ class LitFlow(pl.LightningModule):
             self.log(name, observable.evaluate(x_samples).mean())
 
         self.log("loss", loss)
-        self.log("loss_std", elbo_values.std())
+        loss_std = elbo_values.std()
+        self.log("loss_std", loss_std)
 
-        return {"loss": loss}
+        return {"loss": loss, "loss_std": loss_std}
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
@@ -110,6 +130,8 @@ class LitFlow(pl.LightningModule):
             "loss_epoch",
             sum(map(lambda output: output["loss"], train_outputs)) / len(train_outputs),
         )
+
+        # add beta scheduling
 
     def estimate_obs_nip(self, batch_size, n_iter):
 
