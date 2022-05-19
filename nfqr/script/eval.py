@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--exp_dir", type=Path)
 
-    parser.add_argument("--batch_size", type=int, default=5000)
+    parser.add_argument("--batch_size", type=int, default=10000)
     parser.add_argument("--n_iter", type=int, default=20)
 
     parser.add_argument("--methods", type=str,default="nip,nmcmc")

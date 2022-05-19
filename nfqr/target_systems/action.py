@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
-from pyparsing import Optional
+from typing import Optional
 
 
 class Action(ABC):

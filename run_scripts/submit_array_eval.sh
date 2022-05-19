@@ -18,6 +18,6 @@ export CUDA=1
 
 source /home/dechentf/MA/nfqr/nfqr-env/bin/activate
 
-echo /home/dechentf/MA/nfqr/nfqr-env/bin/python3 /home/dechentf/MA/nfqr/nfqr/script/eval.py --exp_dir $1 --observables $2
+echo /home/dechentf/MA/nfqr/nfqr-env/bin/python3 /home/dechentf/MA/nfqr/nfqr/script/eval.py --exp_dir $1 --observables $2 --n_iter $3
 
 /home/dechentf/MA/nfqr/nfqr-env/bin/python3 /home/dechentf/MA/nfqr/nfqr/script/eval.py --exp_dir $1 --observables $2 --n_iter $3
