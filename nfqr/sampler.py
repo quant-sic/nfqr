@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
+from nfqr.recorder import ObservableRecorder
 from nfqr.target_systems import OBSERVABLE_REGISTRY
-from nfqr.target_systems.observable import ObservableRecorder
 
 
 class Sampler(ABC):

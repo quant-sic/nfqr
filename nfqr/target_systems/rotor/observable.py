@@ -1,9 +1,62 @@
+import math
+
 import numpy as np
+import torch
 from scipy import integrate as sint
 from scipy import special as sp_special
 
+from nfqr.registry import StrRegistry
+from nfqr.target_systems.observable import Observable
 
-class SusceptibilityExact:
+ROTOR_OBSERVABLE_REGISTRY = StrRegistry("qr")
+
+
+@ROTOR_OBSERVABLE_REGISTRY.register("Q")
+class TopologicalCharge(Observable):
+    def __init__(self, diffs=False):
+        super().__init__()
+        self.diffs = diffs
+
+    @classmethod
+    def use_diffs(cls):
+        return cls(diffs=True)
+
+    def evaluate(self, config):
+        if not self.diffs:
+            _config = torch.roll(config, shifts=1, dims=-1) - config
+        else:
+            _config = config
+
+        return ((_config + math.pi) % (2 * math.pi) - math.pi).sum(dim=-1) / (
+            2 * math.pi
+        )
+
+
+ROTOR_OBSERVABLE_REGISTRY.register("Q_diffs", TopologicalCharge.use_diffs)
+
+
+@ROTOR_OBSERVABLE_REGISTRY.register("Chi_t")
+class TopologicalSusceptibility(Observable):
+    def __init__(self, diffs=False):
+        super().__init__()
+
+        self.charge = TopologicalCharge(diffs=diffs)
+
+    @classmethod
+    def use_diffs(cls):
+        return cls(diffs=True)
+
+    def evaluate(self, config):
+
+        charge = self.charge.evaluate(config)
+        susceptibility = charge**2
+        return susceptibility
+
+
+ROTOR_OBSERVABLE_REGISTRY.register("Chi_t_diffs", TopologicalSusceptibility.use_diffs)
+
+
+class SusceptibilityExact(object):
     """Class for computing  the exact value of topological susceptibility
     (scaled by volume) for the quenched 2d Schwinger model.
 

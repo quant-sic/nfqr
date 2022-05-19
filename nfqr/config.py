@@ -1,10 +1,10 @@
-from pydantic import BaseModel
-
 """Base config for dataset-/task-specific training configs."""
 
 import json
 from pathlib import Path
 from typing import Any, Dict, Type, TypeVar, Union
+
+from pydantic import BaseModel
 
 ConfigType = TypeVar("ConfigType", bound="BaseConfig")
 
@@ -16,7 +16,7 @@ class BaseConfig(BaseModel):
 
     def save(self, directory: Path) -> None:
         """Saves the config to specified directory."""
-        directory.mkdir(parents=True,exist_ok=True)
+        directory.mkdir(parents=True, exist_ok=True)
         with open(self._config_path(directory), "w") as f:
             f.write(self.json(indent=2))
 
@@ -38,4 +38,3 @@ class BaseConfig(BaseModel):
     @classmethod
     def _config_path(cls, directory: Path) -> Path:
         return directory.joinpath(cls._name + ".json")
-

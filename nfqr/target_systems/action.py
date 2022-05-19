@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
 
+from pydantic import BaseModel
+from pyparsing import Optional
+
 
 class Action(ABC):
     @abstractmethod
@@ -9,3 +12,8 @@ class Action(ABC):
     @abstractmethod
     def map_to_range(self, config):
         pass
+
+
+class ActionConfig(BaseModel):
+
+    beta: Optional[float]

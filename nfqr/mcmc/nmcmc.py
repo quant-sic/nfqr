@@ -1,12 +1,9 @@
 import math
-from webbrowser import get
 
 import torch
 from numpy.random import rand
 
-from nfqr.mcmc.base import MCMC, get_mcmc_statistics
-from nfqr.target_systems import OBSERVABLE_REGISTRY
-from nfqr.target_systems.observable import ObservableRecorder
+from nfqr.mcmc.base import MCMC
 
 
 class NeuralMCMC(MCMC):

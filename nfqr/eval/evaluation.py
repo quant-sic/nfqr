@@ -6,7 +6,7 @@ import torch
 from pydantic import validator
 
 from nfqr.config import BaseConfig
-from nfqr.globals import TEMP_DIR
+from nfqr.globals import TMP_DIR
 from nfqr.mcmc.nmcmc import NeuralMCMC
 from nfqr.nip import NeuralImportanceSampler, calc_ess_q_from_unnormalized_log_weights
 from nfqr.target_systems import OBSERVABLE_REGISTRY
@@ -36,13 +36,19 @@ class EvalConfig(BaseConfig):
         return v
 
 
+def get_tmp_path_from_name_and_environ(name):
+
+    tmp_path = TMP_DIR / "{}/{}/{}".format(
+        os.environ["job_id"], os.environ["task_id"], name
+    )
+    return tmp_path
+
+
 def estimate_ess_nip(model, target, batch_size, n_iter):
 
     model.eval()
 
-    rec_tmp = TEMP_DIR / "{}/{}/estimate_nip".format(
-        os.environ["job_id"], os.environ["task_id"]
-    )
+    rec_tmp = get_tmp_path_from_name_and_environ("estimate_nip")
 
     nip_sampler = NeuralImportanceSampler(
         model=model,
@@ -69,9 +75,7 @@ def estimate_obs_nip(model, target, observables, batch_size, n_iter):
 
     model.eval()
 
-    rec_tmp = TEMP_DIR / "{}/{}/estimate_obs_nip".format(
-        os.environ["job_id"], os.environ["task_id"]
-    )
+    rec_tmp = get_tmp_path_from_name_and_environ("estimate_obs_nip")
 
     nip_sampler = NeuralImportanceSampler(
         model=model,
@@ -94,9 +98,7 @@ def estimate_obs_nip(model, target, observables, batch_size, n_iter):
 
 def estimate_nmcmc_acc_rate(model, target, trove_size, n_steps):
 
-    rec_tmp = TEMP_DIR / "{}/{}/estimate_nmcmc_acc_rate".format(
-        os.environ["job_id"], os.environ["task_id"]
-    )
+    rec_tmp = get_tmp_path_from_name_and_environ("estimate_nmcmc_acc_rate")
 
     nmcmc = NeuralMCMC(
         model=model,
@@ -115,9 +117,8 @@ def estimate_nmcmc_acc_rate(model, target, trove_size, n_steps):
 
 def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps):
 
-    rec_tmp = TEMP_DIR / "{}/{}/estimate_obs_nmcmc".format(
-        os.environ["job_id"], os.environ["task_id"]
-    )
+    rec_tmp = get_tmp_path_from_name_and_environ("estimate_obs_nmcmc")
+
     nmcmc = NeuralMCMC(
         model=model,
         target=target,

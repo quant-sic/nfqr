@@ -8,9 +8,8 @@ from nfqr.eval.evaluation import estimate_obs_nip, estimate_obs_nmcmc
 from nfqr.normalizing_flows.flow import BareFlow, FlowConfig
 from nfqr.normalizing_flows.loss.loss import elbo
 from nfqr.normalizing_flows.target_density import TargetDensity
-from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY
-from nfqr.target_systems.config import ActionConfig
-from nfqr.target_systems.rotor.utils import SusceptibilityExact
+from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
+from nfqr.target_systems.rotor import SusceptibilityExact
 
 
 class LitFlow(pl.LightningModule):

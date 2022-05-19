@@ -5,7 +5,7 @@ from timeit import timeit
 import torch
 
 from nfqr.mcmc.hmc.hmc_cpp import hmc_cpp
-from nfqr.target_systems.rotor.rotor import QuantumRotor, TopologicalSusceptibility
+from nfqr.target_systems.rotor import QuantumRotor, TopologicalSusceptibility
 
 
 def test_qr_action_single_config():

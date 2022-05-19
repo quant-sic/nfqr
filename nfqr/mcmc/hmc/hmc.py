@@ -13,8 +13,7 @@ from nfqr.config import BaseConfig
 from nfqr.mcmc.base import MCMC
 from nfqr.mcmc.hmc.hmc_cpp import hmc_cpp
 from nfqr.registry import StrRegistry
-from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY
-from nfqr.target_systems.config import ActionConfig
+from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
 from nfqr.utils.misc import create_logger
 
 logger = create_logger(__name__)

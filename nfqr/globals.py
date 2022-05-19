@@ -11,8 +11,8 @@ def get_repo_root():
     return Path(repo.working_tree_dir)
 
 
-TEMP_DIR = get_repo_root() / "tmp"
-TEMP_DIR.mkdir(exist_ok=True)
+TMP_DIR = get_repo_root() / "tmp"
+TMP_DIR.mkdir(exist_ok=True)
 
 REPO_ROOT = get_repo_root()
 

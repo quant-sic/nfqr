@@ -4,9 +4,9 @@ import shutil
 from hmc import HMC
 from tqdm.autonotebook import tqdm
 
-from nfqr.globals import TEMP_DIR
-from nfqr.target_systems.config import ActionConfig
-from nfqr.target_systems.rotor.utils import SusceptibilityExact
+from nfqr.globals import TMP_DIR
+from nfqr.target_systems import ActionConfig
+from nfqr.target_systems.rotor import SusceptibilityExact
 
 
 def test_hmc_single_config():
@@ -16,7 +16,7 @@ def test_hmc_single_config():
 
     for beta, dim in tqdm(itertools.product(betas, dims)):
 
-        tmp_test_path = TEMP_DIR / "test_hmc"
+        tmp_test_path = TMP_DIR / "test_hmc"
         if tmp_test_path.is_dir():
             shutil.rmtree(tmp_test_path)
 
@@ -50,7 +50,7 @@ def test_hmc_batch():
 
     for beta, dim in tqdm(itertools.product(betas, dims)):
 
-        tmp_test_path = TEMP_DIR / "test_hmc"
+        tmp_test_path = TMP_DIR / "test_hmc"
         if tmp_test_path.is_dir():
             shutil.rmtree(tmp_test_path)
 
