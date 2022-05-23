@@ -57,24 +57,19 @@ ROTOR_OBSERVABLE_REGISTRY.register("Chi_t_diffs", TopologicalSusceptibility.use_
 
 
 class SusceptibilityExact(object):
-    """Class for computing  the exact value of topological susceptibility
-    (scaled by volume) for the quenched 2d Schwinger model.
+    """ """
 
-    :arg beta: coupling constant beta
-    :arg P: number of plaquettes
-    """
+    def __init__(self, beta, D, accuracy=1e-6):
 
-    def __init__(self, beta, P, accuracy=1e-6):
-
-        self.nmax = self._get_n_max(accuracy=accuracy, beta=beta)
+        self.nmax = self._get_n_max(accuracy=accuracy, beta=beta, D=D)
         self.beta = beta
-        self.P = P
+        self.D = D
 
         Isum = 0
         self._w = {}
         for n in range(-self.nmax, self.nmax + 1):
             rho = sp_special.ive(n, self.beta) / sp_special.ive(0, self.beta)
-            self._w[n] = rho**self.P
+            self._w[n] = rho**self.D
             Isum += self._w[n]
 
         for n in range(-self.nmax, self.nmax + 1):
@@ -86,30 +81,37 @@ class SusceptibilityExact(object):
         for n in range(-self.nmax, self.nmax + 1):
             tmpA = self._ddI(self.beta, n) / self._I(self.beta, n)
             tmpB = self._dI(self.beta, n) / self._I(self.beta, n)
-            S += self.P * self._w[n] * (tmpA - (self.P - 1) * tmpB**2)
+            S += self.D * self._w[n] * (tmpA - (self.D - 1) * tmpB**2)
         return S
 
-    def _I(self, x, n):
+    @staticmethod
+    def _I(x, n):
         return sp_special.ive(n, x)
 
-    def _dI(self, x, n):
+    @staticmethod
+    def _dI(x, n):
         def integrand(phi):
             return phi * np.sin(n * phi) * np.exp(x * (np.cos(phi) - 1.0))
 
         intPhi = sint.quad(integrand, -np.pi, np.pi)
         return -1.0 / (4.0 * np.pi**2) * intPhi[0]
 
-    def _ddI(self, x, n):
+    @staticmethod
+    def _ddI(x, n):
         def integrand(phi):
             return phi**2 * np.cos(n * phi) * np.exp(x * (np.cos(phi) - 1.0))
 
         intPhi = sint.quad(integrand, -np.pi, np.pi)
         return 1.0 / (8.0 * np.pi**3) * intPhi[0]
 
-    def _get_n_max(self, accuracy, beta):
+    @staticmethod
+    def _get_n_max(accuracy, beta, D):
 
-        eps = 1
+        upper_bound = 1
         for i in range(1, 100):
-            eps *= np.sqrt(1 + ((i + 0.5) / beta) ** 2) - (i + 0.5) / beta
+            upper_bound *= (
+                np.sqrt(1 + ((i + 0.5) / beta) ** 2) - (i + 0.5) / beta
+            ) ** (D - 2)
+            eps = (D - 1 + 0.25) * upper_bound
             if eps < accuracy:
                 return i

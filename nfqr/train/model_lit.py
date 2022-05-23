@@ -1,15 +1,52 @@
-from functools import cached_property
-from typing import List, Literal, Tuple
+from collections import defaultdict
+from dataclasses import dataclass, field
+from functools import cached_property, partial
+from typing import Dict, List, Literal, Tuple, Union
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
+from pytorch_lightning.utilities.types import TRAIN_DATALOADERS
+from scipy import stats
 
+from nfqr.data.datasampler import FlowSampler
 from nfqr.eval.evaluation import estimate_obs_nip, estimate_obs_nmcmc
 from nfqr.normalizing_flows.flow import BareFlow, FlowConfig
 from nfqr.normalizing_flows.loss.loss import elbo
 from nfqr.normalizing_flows.target_density import TargetDensity
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
 from nfqr.target_systems.rotor import SusceptibilityExact
+from nfqr.train.config import TrainerConfig
+from nfqr.train.scheduler import BetaScheduler, BetaSchedulerConfig
+
+
+@dataclass
+class Metrics:
+
+    metrics_dict: Dict = field(default_factory=lambda: defaultdict(list))
+
+    def add_batch_wise(
+        self,
+        _metrics_dict: Dict[str, Union[int, float]],
+    ):
+
+        for _key, _value in _metrics_dict.items():
+            if isinstance(_value, torch.Tensor):
+                _value = _value.item()
+            self.metrics_dict[_key] += [_value]
+
+    def last_slope(self, key: str, window_length: int):
+
+        data = self.metrics_dict[key][-window_length:]
+        slope = stats.linregress(np.arange(len(data)), data).slope
+
+        slope_per_window = slope * len(data)
+        return slope_per_window
+
+    def last_mean(self, key: str, window_length: int):
+
+        data = self.metrics_dict[key][-window_length:]
+        return sum(data) / len(data)
 
 
 class LitFlow(pl.LightningModule):
@@ -21,6 +58,7 @@ class LitFlow(pl.LightningModule):
         action: ACTION_REGISTRY.enum,
         observables: List[OBSERVABLE_REGISTRY.enum],
         action_config: ActionConfig,
+        trainer_config: TrainerConfig,
         train_setup: Literal["reverse"] = "reverse",
         learning_rate=0.001,
         **kwargs,
@@ -38,10 +76,31 @@ class LitFlow(pl.LightningModule):
         self.observables = observables
         self.target_system = target_system
 
-        self.sus_exact = SusceptibilityExact(action_config.beta, *dim).evaluate()
-
         if train_setup == "reverse":
             self.training_step = self._training_step_reverse
+            self.train_dataloader = partial(
+                self._train_dataloader_reverse,
+                batch_size=trainer_config.batch_size,
+                num_batches=trainer_config.num_batches,
+            )
+
+        self.trainer_config = trainer_config
+        self.dim = dim
+
+        self.metrics = Metrics()
+
+        self.schedulers = []
+        for scheduler_config in trainer_config.scheduler_configs:
+            if isinstance(scheduler_config, BetaSchedulerConfig):
+                self.schedulers += [
+                    BetaScheduler(
+                        self.metrics, self.target.dist.action, **dict(scheduler_config)
+                    )
+                ]
+
+    @property
+    def sus_exact(self):
+        return SusceptibilityExact(self.target.dist.action.beta, *self.dim).evaluate()
 
     @cached_property
     def observables_fn(self):
@@ -49,6 +108,16 @@ class LitFlow(pl.LightningModule):
             obs: OBSERVABLE_REGISTRY[self.target_system][obs]()
             for obs in self.observables
         }
+
+    def _train_dataloader_reverse(self, batch_size, num_batches) -> TRAIN_DATALOADERS:
+
+        train_loader = FlowSampler(
+            batch_size=batch_size,
+            num_batches=num_batches,
+            model=self.model,
+        )
+
+        return train_loader
 
     def _training_step_reverse(self, batch, *args, **kwargs):
 
@@ -58,11 +127,20 @@ class LitFlow(pl.LightningModule):
         elbo_values = elbo(log_q=log_q_x, log_p=log_p)
         loss = elbo_values.mean()
 
+        metrics_dict = {}
         for name, observable in self.observables_fn.items():
-            self.log(name, observable.evaluate(x_samples).mean())
+            metrics_dict[name] = observable.evaluate(x_samples).mean()
 
-        self.log("loss", loss)
-        self.log("loss_std", elbo_values.std())
+        metrics_dict.update({"loss": loss, "loss_std": elbo_values.std()})
+        self.metrics.add_batch_wise(metrics_dict)
+
+        for scheduler in self.schedulers:
+            scheduler.step()
+
+        self.log("beta", self.target.dist.action.beta)
+
+        for key, value in metrics_dict.items():
+            self.log(key, value)
 
         return {"loss": loss}
 
@@ -72,17 +150,17 @@ class LitFlow(pl.LightningModule):
     def on_train_epoch_end(self):
 
         stats_nmcmc = self.estimate_obs_nmcmc(
-            batch_size=10000,
-            n_iter=10,
+            batch_size=self.trainer_config.batch_size_eval,
+            n_iter=self.trainer_config.n_iter_eval,
         )
 
         stats_nip = self.estimate_obs_nip(
-            batch_size=10000,
-            n_iter=10,
+            batch_size=self.trainer_config.batch_size_eval,
+            n_iter=self.trainer_config.n_iter_eval,
         )
 
-        for sampler, stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
-            for key, values in stats.items():
+        for sampler, _stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
+            for key, values in _stats.items():
                 if not isinstance(values, dict):
                     values = {"valid": values}
                 for stat, value in values.items():
@@ -95,6 +173,16 @@ class LitFlow(pl.LightningModule):
 
         self.log("lr", self.learning_rate)
 
+        self.log(
+            "loss_epoch",
+            self.metrics.last_mean("loss", self.trainer_config.num_batches),
+        )
+
+        self.log(
+            "loss_std_epoch",
+            self.metrics.last_mean("loss_std", self.trainer_config.num_batches),
+        )
+
         # if "von_mises" in self.config.flow_config.base_dist_config.type:
         #     with torch.no_grad():
         #         self.log(
@@ -103,13 +191,6 @@ class LitFlow(pl.LightningModule):
         #                 self.model.base_distribution.concentration
         #             ),
         #         )
-
-    def training_epoch_end(self, train_outputs):
-
-        self.log(
-            "loss_epoch",
-            sum(map(lambda output: output["loss"], train_outputs)) / len(train_outputs),
-        )
 
     def estimate_obs_nip(self, batch_size, n_iter):
 
