@@ -1,13 +1,13 @@
 import json
-from multiprocessing.sharedctypes import Value
 from pathlib import Path
-from typing import List, Literal, Tuple, Type, TypeVar, Union
+from typing import List, Literal, Optional, Tuple, Type, TypeVar, Union
 
 from pydantic import BaseModel, root_validator
 
 from nfqr.config import BaseConfig
 from nfqr.normalizing_flows.flow import FlowConfig
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
+from nfqr.train.scheduler import BetaSchedulerConfig
 
 ConfigType = TypeVar("ConfigType", bound="TrainConfig")
 
@@ -28,6 +28,11 @@ class TrainerConfig(BaseModel):
     log_every_n_steps: int = 50
     task_parameters: Union[List[str], None] = None
     accumulate_grad_batches: int = 1
+
+    scheduler_configs: Optional[List[BetaSchedulerConfig]]
+
+    n_iter_eval: int = 1
+    batch_size_eval: int = 10000
 
 
 class TrainConfig(BaseConfig):
