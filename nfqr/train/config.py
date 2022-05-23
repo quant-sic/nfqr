@@ -62,7 +62,10 @@ class TrainConfig(BaseConfig):
                     _dict[key] = set_task_par(value)
 
                 if key in raw_config["trainer_config"]["task_parameters"]:
-                    num_pars_dict[key] = len(_dict[key])
+                    try:
+                        num_pars_dict[key] = len(_dict[key])
+                    except TypeError as e:
+                        raise RuntimeError("Len could not be evaluated for {}".format(_dict[key]))
                     _dict[key] = _dict[key][task_id]
 
             return _dict

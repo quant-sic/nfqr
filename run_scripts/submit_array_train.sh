@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #$ -l cuda=1 
-# $ -l h="!"node34"&!"node30"&!"node47"&!"node44"&!"node03
+#$ -l h="!"node34"&!"node30"&!"node47"&!"node44"
 #$ -binding linear:4  # request 4 cpus (8 with Hyperthreading) (some recommend 4 per GPU)
 #$ -N running       # set consistent base name for output and error file (allows for easy deletion alias)
 #$ -q all.q    # don't fill the qlogin queue (can some add why and when to use?)
@@ -15,6 +15,8 @@ export num_tasks=$SGE_TASK_LAST
 export task_id=$((SGE_TASK_ID - 1))
 export job_id=$JOB_ID
 export CUDA=1
+
+env
 
 source /home/dechentf/MA/nfqr/nfqr-env/bin/activate
 

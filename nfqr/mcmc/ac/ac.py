@@ -119,23 +119,28 @@ def err_rho(N, t_max, w_opt, rho):
     Returns a vector with the error on the normalised autocorrelation.
     """
 
-    err_rho_out = err_rho_cpp.err_rho(
-        N, t_max, w_opt, torch.from_numpy(rho).clone().to(torch.float32)
-    ).numpy()
+    if t_max*w_opt >=1e10:
+        logger.info("Skipping AC error calculation, as Chain size is too large")
+        return np.zeros(t_max + 1)
+    else:
+        logger.info("AC error calculation with ~{} memory accesses".format(t_max*w_opt))
+        err_rho_out = err_rho_cpp.err_rho(
+            N, t_max, w_opt, torch.from_numpy(rho).clone().to(torch.float32)
+        ).numpy()
 
-    # ext_rho = np.zeros(2 * t_max + w_opt + 1)
-    # err_rho = np.zeros(t_max + 1)
-    # ext_rho[: t_max + 1] = rho[:]
+        # ext_rho = np.zeros(2 * t_max + w_opt + 1)
+        # err_rho = np.zeros(t_max + 1)
+        # ext_rho[: t_max + 1] = rho[:]
 
-    # for w in tqdm(range(t_max + 1), desc="Error rho"):
-    #     for k in range(max(1, w - w_opt), w + w_opt + 1):
-    #         err_rho[w] += (
-    #             ext_rho[k + w] + ext_rho[abs(k - w)] - 2.0 * ext_rho[w] * ext_rho[k]
-    #         ) ** 2
+        # for w in tqdm(range(t_max + 1), desc="Error rho"):
+        #     for k in range(max(1, w - w_opt), w + w_opt + 1):
+        #         err_rho[w] += (
+        #             ext_rho[k + w] + ext_rho[abs(k - w)] - 2.0 * ext_rho[w] * ext_rho[k]
+        #         ) ** 2
 
-    #     err_rho[w] = math.sqrt(err_rho[w] / N)
+        #     err_rho[w] = math.sqrt(err_rho[w] / N)
 
-    return err_rho_out
+        return err_rho_out
 
 
 # -------------------------------------------------------------------------------
