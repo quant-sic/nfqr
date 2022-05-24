@@ -29,7 +29,7 @@ class TrainerConfig(BaseModel):
     task_parameters: Union[List[str], None] = None
     accumulate_grad_batches: int = 1
 
-    scheduler_configs: Optional[List[BetaSchedulerConfig]]
+    scheduler_configs: Optional[List[BetaSchedulerConfig]] = []
 
     n_iter_eval: int = 1
     batch_size_eval: int = 10000
@@ -88,10 +88,9 @@ class TrainConfig(BaseConfig):
 
             if not num_pars == num_tasks:
                 raise ValueError(
-                    "Number of started tasks {} does not match number of tasks configured {}".format(
-                        num_tasks, len(raw_config["trainer_config"]["task_parameters"])
-                    )
+                    "Number of started tasks {} does not match number of tasks configured {}".format(num_tasks,num_pars_dict)
                 )
+                
 
         return cls(**raw_config)
 

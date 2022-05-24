@@ -31,17 +31,14 @@ class NeuralMCMC(MCMC):
         self.model.eval()
 
         self.trove_size = trove_size
-        self.trove = 0
+        self._trove = None
         self.previous_weight = 0.0
+        self._n_skipped = 0
 
     def step(self):
 
-        with torch.no_grad():
-            if self.n_current_steps % self.trove_size == 0:
-                self._replentish_trove()
-
-        idx = self.n_current_steps % self.trove_size
-        weight_proposed = self.trove["weights"][idx]
+        idx = self.get_idx_in_trove_and_replenish()
+        weight_proposed = self.trove["log_weights"][idx]
         log_ratio = (weight_proposed - self.previous_weight).item()
 
         if log_ratio >= 0 or math.log(rand()) < log_ratio:
@@ -50,6 +47,35 @@ class NeuralMCMC(MCMC):
             self.current_config = self.trove["configs"][idx].unsqueeze(0)
 
         self.observables_rec.record_config(self.current_config)
+
+    @MCMC.n_skipped.getter
+    def n_skipped(self):
+        return self._n_skipped
+
+    @property
+    def trove(self):
+
+        if self._trove is None:
+            self._replenish_trove()
+        
+        return self._trove
+
+
+    @property
+    def idx_in_trove(self):
+        return (self.n_current_steps+self._n_skipped) % self.trove_size
+
+    def get_idx_in_trove_and_replenish(self):
+
+        # gets next idx in trove which should not be skipped
+        while (self.trove["skip"][self.idx_in_trove]).item():
+            self._n_skipped +=1
+
+            if  self.idx_in_trove == 0:
+                self._replenish_trove()
+
+        return self.idx_in_trove
+
 
     @property
     def acceptance_rate(self):
@@ -63,9 +89,13 @@ class NeuralMCMC(MCMC):
         self.current_config = config
         self.previous_weight = self.target.log_prob(config) - log_prob
 
-    def _replentish_trove(self):
-        configs, log_probs = self.model.sample_with_abs_log_det((self.trove_size,))
-        self.trove = {
+    def _replenish_trove(self):
+        with torch.no_grad():
+            configs, log_probs = self.model.sample_with_abs_log_det((self.trove_size,))
+        log_weights = self.target.log_prob(configs) - log_probs
+
+        self._trove = {
             "configs": configs,
-            "weights": self.target.log_prob(configs) - log_probs,
+            "log_weights": log_weights,
+            "skip": torch.isnan(log_weights) | torch.isinf(log_weights)
         }

@@ -71,3 +71,9 @@ class NeuralImportanceSampler(Sampler):
         #     stats = self.stats_function(prepared_observable_data)
 
         return stats_postprocessed
+
+    @property
+    def _stats(self):
+        return {
+            "obs_stats":self.aggregate()
+        }
