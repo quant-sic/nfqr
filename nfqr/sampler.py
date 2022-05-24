@@ -21,7 +21,7 @@ class Sampler(ABC):
 
     @abstractmethod
     def _evaluate_obs(self):
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def aggregate(self):
 
@@ -30,3 +30,10 @@ class Sampler(ABC):
             stats[obs] = self._evaluate_obs(obs)
 
         return stats
+
+    @abstractmethod
+    def _stats(self):
+        raise NotImplementedError()
+        
+    def get_stats(self):
+        return self._stats
