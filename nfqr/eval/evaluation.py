@@ -16,13 +16,13 @@ class EvalConfig(BaseConfig):
 
     _name: str = "eval_config"
 
-    n_iter: List[int]=1
-    batch_size: List[int]=10000
+    n_iter: List[int] = 1
+    batch_size: List[int] = 10000
 
-    methods:List[Literal["nip","nmcmc"]] = ["nip","nmcmc"]
+    methods: List[Literal["nip", "nmcmc"]] = ["nip", "nmcmc"]
     observables: List[OBSERVABLE_REGISTRY.enum] = ["Chi_t"]
 
-    @validator("observables","methods", pre=True)
+    @validator("observables", "methods", pre=True)
     @classmethod
     def str_to_list(cls, v):
         if isinstance(v, str):
@@ -30,28 +30,35 @@ class EvalConfig(BaseConfig):
 
         return v
 
-    @validator("n_iter","batch_size", pre=True)
+    @validator("n_iter", "batch_size", pre=True)
     @classmethod
     def int_to_list(cls, v):
         if isinstance(v, int):
             return [v]
-        if not isinstance(v,(list,int)):
+        if not isinstance(v, (list, int)):
             raise ValueError("n_iter and batch_size must be int or list of ints")
 
         return v
 
     @root_validator
     @classmethod
-    def match_n_iter_and_batch_size(cls,values):
-        lengths = set([len(values["n_iter"]),len(values["batch_size"])])
+    def match_n_iter_and_batch_size(cls, values):
+        lengths = set([len(values["n_iter"]), len(values["batch_size"])])
 
-        if not len(lengths)==1:
+        if not len(lengths) == 1:
             if 1 in lengths:
-                for key in ("n_iter","batch_size"):
+                for key in ("n_iter", "batch_size"):
                     if len(values[key]) == 1:
-                        values[key] = values[key]*max(lengths)
-        
+                        values[key] = values[key] * max(lengths)
+
         return values
+
+
+ObsStats = Dict[OBSERVABLE_REGISTRY.enum, Dict[str, float]]
+EvalStats = Union[
+    List[Dict[str, Union[ObsStats, float, int]]], Dict[str, Union[ObsStats, float, int]]
+]
+
 
 class EvalResult(BaseConfig):
 
@@ -59,20 +66,10 @@ class EvalResult(BaseConfig):
 
     observables: List[OBSERVABLE_REGISTRY.enum]
 
-    n_samples: Union[int,List[int]]
+    n_samples: Union[int, List[int]]
 
-    nip: Optional[
-        Union[
-            List[Dict[OBSERVABLE_REGISTRY.enum, Dict[str, float]]],
-            Dict[OBSERVABLE_REGISTRY.enum, Dict[str, float]]
-            ]
-        ]
-    nmcmc: Optional[
-        Union[
-            List[Dict[Union[str, OBSERVABLE_REGISTRY.enum], Union[float, Dict[str, float]]]]
-            ,Dict[Union[str, OBSERVABLE_REGISTRY.enum], Union[float, Dict[str, float]]]
-            ]
-        ]
+    nip: Optional[EvalStats]
+    nmcmc: Optional[EvalStats]
 
     exact_sus: Optional[float]
 
