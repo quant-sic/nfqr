@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from pydantic import BaseModel
 from typing import Optional
 
+import torch
 
 class Action(ABC):
     @abstractmethod
@@ -13,6 +14,16 @@ class Action(ABC):
     def map_to_range(self, config):
         pass
 
+class ClusterAction(Action):
+    @abstractmethod
+    def bonding_prob(
+        self, config_left: torch.Tensor, config_right: torch.Tensor, reflection
+    ) -> torch.Tensor:
+        pass
+
+    @abstractmethod
+    def flip(self, config: torch.Tensor, reflection: torch.Tensor) -> torch.Tensor:
+        pass
 
 class ActionConfig(BaseModel):
 

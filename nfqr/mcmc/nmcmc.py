@@ -4,7 +4,9 @@ import torch
 from numpy.random import rand
 
 from nfqr.mcmc.base import MCMC
+from nfqr.utils.misc import create_logger
 
+logger = create_logger(__name__)
 
 class NeuralMCMC(MCMC):
     def __init__(
@@ -37,14 +39,13 @@ class NeuralMCMC(MCMC):
 
     def step(self):
 
-        idx = self.get_idx_in_trove_and_replenish()
-        weight_proposed = self.trove["log_weights"][idx]
-        log_ratio = (weight_proposed - self.previous_weight).item()
+        log_weight_of_proposed_config,proposed_config = self._get_next_tranche()
+        log_ratio = (log_weight_of_proposed_config - self.previous_weight).item()
 
         if log_ratio >= 0 or math.log(rand()) < log_ratio:
             self.n_accepted += 1
-            self.previous_weight = weight_proposed
-            self.current_config = self.trove["configs"][idx].unsqueeze(0)
+            self.previous_weight = log_weight_of_proposed_config
+            self.current_config = proposed_config.unsqueeze(0)
 
         self.observables_rec.record_config(self.current_config)
 
@@ -52,29 +53,23 @@ class NeuralMCMC(MCMC):
     def n_skipped(self):
         return self._n_skipped
 
-    @property
-    def trove(self):
+    def _get_next_tranche(self):
 
-        if self._trove is None:
+        if self._trove is None or self.idx_in_trove==0:
             self._replenish_trove()
-        
-        return self._trove
 
+        # gets next idx in trove which should not be skipped
+        while (self._trove["skip"][self.idx_in_trove]).item():
+            self._n_skipped +=1
+
+            if self.idx_in_trove==0:
+                self._replenish_trove()
+
+        return self._trove["log_weights"][self.idx_in_trove],self._trove["configs"][self.idx_in_trove]
 
     @property
     def idx_in_trove(self):
         return (self.n_current_steps+self._n_skipped) % self.trove_size
-
-    def get_idx_in_trove_and_replenish(self):
-
-        # gets next idx in trove which should not be skipped
-        while (self.trove["skip"][self.idx_in_trove]).item():
-            self._n_skipped +=1
-
-            if  self.idx_in_trove == 0:
-                self._replenish_trove()
-
-        return self.idx_in_trove
 
 
     @property
@@ -90,6 +85,7 @@ class NeuralMCMC(MCMC):
         self.previous_weight = self.target.log_prob(config) - log_prob
 
     def _replenish_trove(self):
+
         with torch.no_grad():
             configs, log_probs = self.model.sample_with_abs_log_det((self.trove_size,))
         log_weights = self.target.log_prob(configs) - log_probs
