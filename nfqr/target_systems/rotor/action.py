@@ -4,13 +4,13 @@ import jax.numpy as jnp
 import torch
 
 from nfqr.registry import StrRegistry
-from nfqr.target_systems.action import Action
+from nfqr.target_systems.action import Action,ClusterAction
 
 ROTOR_ACTION_REGISTRY = StrRegistry("qr")
 
 
 @ROTOR_ACTION_REGISTRY.register("qr")
-class QuantumRotor(Action):
+class QuantumRotor(ClusterAction):
     def __init__(self, beta: float, diffs=False) -> None:
         super().__init__()
         self.beta = beta

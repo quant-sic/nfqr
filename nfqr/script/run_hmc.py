@@ -39,7 +39,7 @@ if __name__ == "__main__":
         result_config = MCMCConfig(
             hmc_type=hmc_config.hmc_type,
             observables=hmc_config.observables,
-            acceptance_rate=stats["acceptance_rate"],
+            acceptance_rate=stats["acc_rate"],
             n_steps=stats["n_steps"],
             obs_stats=stats["obs_stats"],
             sus_exact=sus_exact,
