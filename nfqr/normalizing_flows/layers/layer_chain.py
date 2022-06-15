@@ -18,7 +18,7 @@ logger = create_logger(__name__)
 
 class LayerChainConfig(BaseModel):
 
-    dim: Union[List[int], Tuple[int]]
+    dim: List[int]
     layers_config: Union[None, CouplingConfig, List[CouplingConfig]]
     split_type: SPLIT_TYPES
     num_layers: int
@@ -27,7 +27,7 @@ class LayerChainConfig(BaseModel):
 class LayerChain(Module):
     def __init__(
         self,
-        dim: Tuple[int],
+        dim: List[int],
         layers_config: List[Dict],
         split_type: SPLIT_TYPES,
         num_layers: int,

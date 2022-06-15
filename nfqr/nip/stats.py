@@ -1,6 +1,5 @@
 import math
 
-import numpy as np
 import torch
 
 from nfqr.utils.misc import create_logger
@@ -82,3 +81,30 @@ def calc_ess_q_from_unnormalized_log_weights(unnormalized_log_weights):
     weights = cleaned_weights / cleaned_weights.mean()
 
     return calc_ess_q(weights)
+
+
+def calc_ess_p_from_unnormalized_log_weights(unnormalized_log_weights, quantile=1):
+
+    cleaned_log_weights = remove_nans_and_infs(unnormalized_log_weights)
+
+    log_weights_shifted = cleaned_log_weights - cleaned_log_weights.max()
+    weights_shifted = log_weights_shifted.exp()
+    quantile_mask = weights_shifted < torch.quantile(weights_shifted, q=quantile)
+
+    weights_sum = torch.exp(torch.logsumexp(log_weights_shifted[quantile_mask], dim=-1))
+
+    inv_log_weights_shifted = -cleaned_log_weights - (-cleaned_log_weights).max()
+
+    scale_factor = ((-cleaned_log_weights).max() - cleaned_log_weights.max()).exp()
+
+    weights_sum_inv = torch.exp(
+        torch.logsumexp(inv_log_weights_shifted[quantile_mask], dim=-1)
+    )
+
+    ess_p = (
+        scale_factor
+        * (quantile_mask.float().mean() * len(log_weights_shifted)) ** 2
+        / (weights_sum * weights_sum_inv)
+    )
+
+    return ess_p

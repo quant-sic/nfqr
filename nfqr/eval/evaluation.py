@@ -8,7 +8,11 @@ from pydantic import root_validator, validator
 from nfqr.config import BaseConfig
 from nfqr.globals import TMP_DIR
 from nfqr.mcmc.nmcmc import NeuralMCMC
-from nfqr.nip import NeuralImportanceSampler, calc_ess_q_from_unnormalized_log_weights
+from nfqr.nip import (
+    NeuralImportanceSampler,
+    calc_ess_p_from_unnormalized_log_weights,
+    calc_ess_q_from_unnormalized_log_weights,
+)
 from nfqr.target_systems import OBSERVABLE_REGISTRY
 
 
@@ -90,11 +94,40 @@ def get_tmp_path_from_name_and_environ(name):
     return tmp_path
 
 
-def estimate_ess_nip(model, target, batch_size, n_iter):
+def estimate_ess_p_nip(model, data_sampler, target, batch_size, n_iter, quantile=1):
 
     model.eval()
 
-    rec_tmp = get_tmp_path_from_name_and_environ("estimate_nip")
+    rec_tmp = get_tmp_path_from_name_and_environ("estimate_nip_ess_p")
+
+    nip_sampler = NeuralImportanceSampler(
+        model=model,
+        target=target,
+        n_iter=n_iter,
+        batch_size=batch_size,
+        observables=[],
+        out_dir=rec_tmp,
+        mode="p",
+        sampler=data_sampler,
+    )
+
+    with torch.no_grad():
+
+        nip_sampler.run()
+        ess_p = calc_ess_p_from_unnormalized_log_weights(
+            nip_sampler.unnormalized_log_weights, quantile=quantile
+        )
+
+    shutil.rmtree(rec_tmp)
+
+    return ess_p
+
+
+def estimate_ess_q_nip(model, target, batch_size, n_iter):
+
+    model.eval()
+
+    rec_tmp = get_tmp_path_from_name_and_environ("estimate_nip_ess_q")
 
     nip_sampler = NeuralImportanceSampler(
         model=model,

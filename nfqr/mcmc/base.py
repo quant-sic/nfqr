@@ -41,7 +41,7 @@ class MCMC(Sampler):
             yield self.current_config
 
     def run(self):
-        for _ in tqdm(self,total=self.n_steps, desc="Running MCMC"):
+        for _ in tqdm(self, total=self.n_steps, desc="Running MCMC"):
             pass
 
     @property
@@ -54,7 +54,7 @@ class MCMC(Sampler):
             "acc_rate": self.acceptance_rate,
             "n_steps": self.n_current_steps,
             "obs_stats": self.aggregate(),
-            "n_skipped": self.n_skipped
+            "n_skipped": self.n_skipped,
         }
 
     def _evaluate_obs(self, obs):

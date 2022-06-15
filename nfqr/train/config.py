@@ -50,7 +50,7 @@ class TrainConfig(BaseConfig):
 
     action_config: ActionConfig
 
-    dim: Tuple[int]
+    dim: List[int]
     trainer_config: TrainerConfig
 
     @classmethod
@@ -62,28 +62,34 @@ class TrainConfig(BaseConfig):
             raw_config = json.load(f)
 
         num_pars_dict = {}
-        
+
         def set_task_par(list_or_dict):
 
-            if isinstance(list_or_dict,(list,dict)):
+            if isinstance(list_or_dict, (list, dict)):
 
-                if isinstance(list_or_dict,dict):
+                if isinstance(list_or_dict, dict):
                     iterator = list_or_dict.copy().items()
-                elif isinstance(list_or_dict,list):
+                elif isinstance(list_or_dict, list):
                     iterator = enumerate(list_or_dict.copy())
 
                 for key, value in iterator:
                     if isinstance(value, dict):
                         list_or_dict[key] = set_task_par(value)
-                    
-                    elif isinstance(value,list):
-                        list_or_dict[key] = [set_task_par(list_item) for list_item in value]
+
+                    elif isinstance(value, list):
+                        list_or_dict[key] = [
+                            set_task_par(list_item) for list_item in value
+                        ]
 
                     if key in raw_config["trainer_config"]["task_parameters"]:
                         try:
                             num_pars_dict[key] = len(list_or_dict[key])
                         except TypeError:
-                            raise RuntimeError("Len could not be evaluated for {}".format(list_or_dict[key]))
+                            raise RuntimeError(
+                                "Len could not be evaluated for {}".format(
+                                    list_or_dict[key]
+                                )
+                            )
                         list_or_dict[key] = list_or_dict[key][task_id]
 
             return list_or_dict
@@ -91,7 +97,6 @@ class TrainConfig(BaseConfig):
         if raw_config["trainer_config"]["task_parameters"] is not None:
             raw_config = set_task_par(raw_config)
 
-        
         # check for inconsistencies in task array setup and config
         if not len(set(num_pars_dict.values())) == 1:
             raise ValueError(
@@ -102,9 +107,10 @@ class TrainConfig(BaseConfig):
 
             if not num_pars == num_tasks:
                 raise ValueError(
-                    "Number of started tasks {} does not match number of tasks configured {}".format(num_tasks,num_pars_dict)
+                    "Number of started tasks {} does not match number of tasks configured {}".format(
+                        num_tasks, num_pars_dict
+                    )
                 )
-                
 
         return cls(**raw_config)
 

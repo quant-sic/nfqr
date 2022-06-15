@@ -52,7 +52,7 @@ class Metrics:
 class LitFlow(pl.LightningModule):
     def __init__(
         self,
-        dim: Tuple[int],
+        dim: List[int],
         flow_config: FlowConfig,
         target_system: ACTION_REGISTRY.enum,
         action: ACTION_REGISTRY.enum,
@@ -147,24 +147,32 @@ class LitFlow(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
-    def log_all_values_in_stats_dict(self,node:Union[Dict,int,float],str_path_to_node:str):
+    def log_all_values_in_stats_dict(
+        self, node: Union[Dict, int, float], str_path_to_node: str
+    ):
         """
         Recursively logs all leaves in stats dict
         """
-        if isinstance(node,dict):
-            for key,_node in node.items():
-                self.log_all_values_in_stats_dict(_node,f"{str_path_to_node}/{key}")
+        if isinstance(node, dict):
+            for key, _node in node.items():
+                self.log_all_values_in_stats_dict(_node, f"{str_path_to_node}/{key}")
 
-        elif isinstance(node,(int,float,torch.Tensor)):
-            self.log(str_path_to_node,node)
+        elif isinstance(node, (int, float, torch.Tensor)):
+            self.log(str_path_to_node, node)
 
-            if "Chi_t" in str_path_to_node.split("/")[-2] and "mean" in str_path_to_node.split("/")[-1]:
-                self.log(f"{str_path_to_node}/abs_diff_to_exact",abs(node - self.sus_exact))
-                self.log(f"{str_path_to_node}/sus_exact",self.sus_exact)
+            if (
+                "Chi_t" in str_path_to_node.split("/")[-2]
+                and "mean" in str_path_to_node.split("/")[-1]
+            ):
+                self.log(
+                    f"{str_path_to_node}/abs_diff_to_exact", abs(node - self.sus_exact)
+                )
+                self.log(f"{str_path_to_node}/sus_exact", self.sus_exact)
 
         else:
-            raise ValueError(f"Unknown node type in stats dict {type(node)} for node {node}")
-
+            raise ValueError(
+                f"Unknown node type in stats dict {type(node)} for node {node}"
+            )
 
     def on_train_epoch_end(self):
 
@@ -179,7 +187,7 @@ class LitFlow(pl.LightningModule):
         )
 
         for sampler, _stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
-            self.log_all_values_in_stats_dict(_stats,sampler)
+            self.log_all_values_in_stats_dict(_stats, sampler)
 
         self.log("lr", self.learning_rate)
 

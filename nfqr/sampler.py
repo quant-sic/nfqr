@@ -34,6 +34,6 @@ class Sampler(ABC):
     @abstractmethod
     def _stats(self):
         raise NotImplementedError()
-        
+
     def get_stats(self):
         return self._stats

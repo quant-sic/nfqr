@@ -18,3 +18,6 @@ REPO_ROOT = get_repo_root()
 
 EXPERIMENTS_DIR = REPO_ROOT / "experiments"
 EXPERIMENTS_DIR.mkdir(exist_ok=True)
+
+DATASETS_DIR = REPO_ROOT / "datasets"
+DATASETS_DIR.mkdir(exist_ok=True)

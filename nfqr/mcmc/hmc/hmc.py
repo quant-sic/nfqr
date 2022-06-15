@@ -1,35 +1,29 @@
-import json
-from pathlib import Path
-from typing import List, Literal, Optional, Type, TypeVar, Union
+from typing import List, Tuple
 
 import numpy as np
 import numpyro
 import torch
 from jax import random as jax_random
-from pydantic import validator
 from tqdm.autonotebook import tqdm
 
-from nfqr.config import BaseConfig
 from nfqr.mcmc.base import MCMC
 from nfqr.mcmc.hmc.hmc_cpp import hmc_cpp
 from nfqr.registry import StrRegistry
-from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
+from nfqr.target_systems import ActionConfig
 from nfqr.utils.misc import create_logger
 
 logger = create_logger(__name__)
-
-ConfigType = TypeVar("ConfigType", bound="HMCConfig")
 
 
 HMC_REGISTRY = StrRegistry("hmc")
 
 
-@HMC_REGISTRY.register("hmc_leapfrog")
+@HMC_REGISTRY.register("leapfrog")
 class HMC(MCMC):
     def __init__(
         self,
         n_steps: int,
-        dim: int,
+        dim: List[int],
         action_config: ActionConfig,
         n_burnin_steps: int,
         observables,
@@ -83,9 +77,9 @@ class HMC(MCMC):
                 raise ValueError("Unknown Action")
 
             if alg == "cpp_batch":
-                self.hmc = hmc_cpp.HMC_Batch(cpp_obs, cpp_action, dim, batch_size)
+                self.hmc = hmc_cpp.HMC_Batch(cpp_obs, cpp_action, dim[0], batch_size)
             elif alg == "cpp_single":
-                self.hmc = hmc_cpp.HMC_Single_Config(cpp_obs, cpp_action, dim)
+                self.hmc = hmc_cpp.HMC_Single_Config(cpp_obs, cpp_action, dim[0])
             else:
                 raise ValueError("Unknown Algorithm")
         elif "python" in alg:
@@ -201,60 +195,3 @@ class HMC_NUMPYRO(MCMC):
 
     def step(self):
         self.current_config = self.samples_iter.__next__()
-
-
-class HMCConfig(BaseConfig):
-
-    _name: str = "hmc_config"
-
-    hmc_type: HMC_REGISTRY.enum
-
-    observables: List[OBSERVABLE_REGISTRY.enum]
-    n_steps: int
-    dim: int
-    action_config: ActionConfig
-    n_burnin_steps: int
-    out_dir: Union[str, Path]
-    n_traj_steps: Optional[int] = 20
-    step_size: Optional[float] = 0.01
-    autotune_step: Optional[bool] = True
-    alg: Optional[Literal["cpp_batch", "cpp_single"]] = "cpp_single"
-    batch_size: Optional[int] = 1
-    n_samples_at_a_time: Optional[int] = 10000
-    target_system: Optional[ACTION_REGISTRY.enum] = "qr"
-    action: Optional[ACTION_REGISTRY.enum] = "qr"
-
-    task_parameters: Union[List[str], None] = None
-
-    @validator("observables", pre=True)
-    @classmethod
-    def str_to_list(cls, v):
-        if isinstance(v, str):
-            return v.split(",")
-
-        return v
-
-    @classmethod
-    def from_directory_for_task(
-        cls: Type[ConfigType], directory: Union[str, Path], task_id
-    ) -> ConfigType:
-        """Load config from json with task id."""
-        with open(str(cls._config_path(Path(directory)))) as f:
-            raw_config = json.load(f)
-
-        def set_task_par(_dict):
-            for key, value in _dict.items():
-                if isinstance(value, dict):
-                    _dict[key] = set_task_par(value)
-
-                if key in raw_config["task_parameters"]:
-                    _dict[key] = _dict[key][task_id]
-
-            return _dict
-
-        if raw_config["task_parameters"] is not None:
-            raw_config = set_task_par(raw_config)
-
-        raw_config["out_dir"] = directory / f"mcmc/task_{task_id}"
-
-        return cls(**raw_config)

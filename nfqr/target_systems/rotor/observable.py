@@ -7,6 +7,9 @@ from scipy import special as sp_special
 
 from nfqr.registry import StrRegistry
 from nfqr.target_systems.observable import Observable
+from nfqr.utils import create_logger
+
+logger = create_logger(__name__)
 
 ROTOR_OBSERVABLE_REGISTRY = StrRegistry("qr")
 

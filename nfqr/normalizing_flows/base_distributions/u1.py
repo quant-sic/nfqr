@@ -25,8 +25,8 @@ class UniformBaseDistribution(BaseDistribution, Module):
         self.dim = dim
 
         # define parameters, such that .to method of module moves distribution to device
-        self.left = parameter.Parameter(torch.tensor(left),requires_grad=False)
-        self.right = parameter.Parameter(torch.tensor(right),requires_grad=False)
+        self.left = parameter.Parameter(torch.tensor(left), requires_grad=False)
+        self.right = parameter.Parameter(torch.tensor(right), requires_grad=False)
 
         self.dist = torch.distributions.uniform.Uniform(self.left, self.right)
 
@@ -41,7 +41,7 @@ class UniformBaseDistribution(BaseDistribution, Module):
 class VonMisesBaseDistribution(BaseDistribution, Module):
     def __init__(
         self,
-        dim: Tuple[int],
+        dim: List[int],
         loc_requires_grad: bool = False,
         concentration_requires_grad: bool = False,
         loc: Union[None, List[float]] = None,
@@ -59,8 +59,8 @@ class VonMisesBaseDistribution(BaseDistribution, Module):
             self.expand_sample_shape = False
 
         if not isinstance(loc, torch.Tensor):
-            if isinstance(loc,float):
-                loc=[loc]
+            if isinstance(loc, float):
+                loc = [loc]
             loc = torch.tensor(loc)
 
         self.constraint_transform = nf_constraints_standard(
@@ -68,9 +68,11 @@ class VonMisesBaseDistribution(BaseDistribution, Module):
         )
 
         if not isinstance(concentration, torch.Tensor):
-            if isinstance(concentration,float):
-                concentration=[concentration]
-            concentration_unconstrained = self.constraint_transform.inv(torch.tensor(concentration))
+            if isinstance(concentration, float):
+                concentration = [concentration]
+            concentration_unconstrained = self.constraint_transform.inv(
+                torch.tensor(concentration)
+            )
 
         self.loc = parameter.Parameter(loc, requires_grad=loc_requires_grad)
         self.concentration_unconstrained = parameter.Parameter(
@@ -78,11 +80,10 @@ class VonMisesBaseDistribution(BaseDistribution, Module):
             requires_grad=concentration_requires_grad,
         )
 
-
     @classmethod
     def all_pars_joint(
         cls,
-        dim: Tuple[int],
+        dim: List[int],
         loc_requires_grad: bool = False,
         concentration_requires_grad: bool = False,
         **kwargs

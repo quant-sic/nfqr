@@ -12,7 +12,7 @@ BASE_DIST_REGISTRY = JointStrRegistry("base_dist", (U1_BASE_DIST_REGISTRY,))
 class BaseDistConfig(BaseModel):
 
     dist_type: BASE_DIST_REGISTRY.enum
-    dim: Union[List[int], Tuple[int]]
+    dim: List[int]
 
     loc_requires_grad: bool = False
     concentration_requires_grad: bool = False

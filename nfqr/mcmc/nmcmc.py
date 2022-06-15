@@ -8,6 +8,7 @@ from nfqr.utils.misc import create_logger
 
 logger = create_logger(__name__)
 
+
 class NeuralMCMC(MCMC):
     def __init__(
         self,
@@ -39,7 +40,7 @@ class NeuralMCMC(MCMC):
 
     def step(self):
 
-        log_weight_of_proposed_config,proposed_config = self._get_next_tranche()
+        log_weight_of_proposed_config, proposed_config = self._get_next_tranche()
         log_ratio = (log_weight_of_proposed_config - self.previous_weight).item()
 
         if log_ratio >= 0 or math.log(rand()) < log_ratio:
@@ -55,22 +56,24 @@ class NeuralMCMC(MCMC):
 
     def _get_next_tranche(self):
 
-        if self._trove is None or self.idx_in_trove==0:
+        if self._trove is None or self.idx_in_trove == 0:
             self._replenish_trove()
 
         # gets next idx in trove which should not be skipped
         while (self._trove["skip"][self.idx_in_trove]).item():
-            self._n_skipped +=1
+            self._n_skipped += 1
 
-            if self.idx_in_trove==0:
+            if self.idx_in_trove == 0:
                 self._replenish_trove()
 
-        return self._trove["log_weights"][self.idx_in_trove],self._trove["configs"][self.idx_in_trove]
+        return (
+            self._trove["log_weights"][self.idx_in_trove],
+            self._trove["configs"][self.idx_in_trove],
+        )
 
     @property
     def idx_in_trove(self):
-        return (self.n_current_steps+self._n_skipped) % self.trove_size
-
+        return (self.n_current_steps + self._n_skipped) % self.trove_size
 
     @property
     def acceptance_rate(self):
@@ -93,5 +96,5 @@ class NeuralMCMC(MCMC):
         self._trove = {
             "configs": configs,
             "log_weights": log_weights,
-            "skip": torch.isnan(log_weights) | torch.isinf(log_weights)
+            "skip": torch.isnan(log_weights) | torch.isinf(log_weights),
         }

@@ -1,1 +1,1 @@
-from .misc import create_logger
+from .misc import NumpyEncoder, create_logger

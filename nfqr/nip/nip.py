@@ -1,7 +1,9 @@
+from typing import Literal
+
 import torch
 from tqdm.autonotebook import tqdm
 
-from nfqr.nip.stats import calc_imp_weights, get_impsamp_statistics
+from nfqr.nip.stats import get_impsamp_statistics
 from nfqr.sampler import Sampler
 from nfqr.utils.misc import create_logger
 
@@ -18,6 +20,8 @@ class NeuralImportanceSampler(Sampler):
         out_dir,
         target_system="qr",
         batch_size=2000,
+        mode: Literal["q", "p"] = "q",
+        sampler=None,
     ):
         super(NeuralImportanceSampler, self).__init__(
             observables=observables, target_system=target_system, out_dir=out_dir
@@ -31,13 +35,38 @@ class NeuralImportanceSampler(Sampler):
         # set model to evaluation mode
         self.model.eval()
 
+        self.mode = mode
+
+        if mode == "q":
+            self.step = self.step_q
+        elif mode == "p":
+            self.step = self.step_p
+            if sampler is None:
+                raise ValueError("In p mode, sampler must not be None")
+            else:
+                self.sampler = sampler
+                if not self.sampler.batch_size == self.batch_size:
+                    logger.info(
+                        f"Sampler yields batch_size {sampler.batch_size}, which is different than set batch_size {self.batch_size}"
+                    )
+        else:
+            raise ValueError("Unknown mode")
+
     def run(self):
 
         for _ in tqdm(range(self.n_iter), desc="Running NIP"):
             self.step()
 
     @torch.no_grad()
-    def step(self):
+    def step_p(self):
+
+        x_samples = self.sampler.sample(next(self.model.parameters()).device).detach()
+        log_weights = self.target.log_prob(x_samples) - self.model.log_prob(x_samples)
+
+        self.observables_rec.record_config_with_log_weight(x_samples, log_weights)
+
+    @torch.no_grad()
+    def step_q(self):
 
         x_samples, log_q_x = self.model.sample_with_abs_log_det((self.batch_size,))
         log_p = self.target.log_prob(x_samples)
@@ -74,6 +103,4 @@ class NeuralImportanceSampler(Sampler):
 
     @property
     def _stats(self):
-        return {
-            "obs_stats":self.aggregate()
-        }
+        return {"obs_stats": self.aggregate()}

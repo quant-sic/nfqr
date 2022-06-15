@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import logging
-import math
 
 import numpy as np
 import torch
@@ -119,11 +118,13 @@ def err_rho(N, t_max, w_opt, rho):
     Returns a vector with the error on the normalised autocorrelation.
     """
 
-    if t_max*w_opt >=1e10:
+    if t_max * w_opt >= 1e10:
         logger.info("Skipping AC error calculation, as Chain size is too large")
         return np.zeros(t_max + 1)
     else:
-        logger.info("AC error calculation with ~{} memory accesses".format(t_max*w_opt))
+        logger.info(
+            "AC error calculation with ~{} memory accesses".format(t_max * w_opt)
+        )
         err_rho_out = err_rho_cpp.err_rho(
             N, t_max, w_opt, torch.from_numpy(rho).clone().to(torch.float32)
         ).numpy()
@@ -267,10 +268,10 @@ def gamma(fbb, fbr, fb, delpro, r, n, n_rep, stau=1.5, rep_equal=False):
         flag = True
         g_int = 0.0
 
-    if rep_equal:
-        weight = None
-    else:
-        weight = n_rep
+    # if rep_equal:
+    #     weight = None
+    # else:
+    #     weight = n_rep
 
     gamma_fbb = np.zeros(t_max + 2, dtype=np.float64)
 
@@ -609,7 +610,7 @@ class DerivedAnalysis(Analysis):
         r = self.num_rep
         n = self.size
         n_rep = self.rep_sizes
-        n_alpha = self.num_obs
+        # n_alpha = self.num_obs
         fbb = self.applied.value
         fbr = self.applied.rep_value
         fb = self.applied.rep_mean

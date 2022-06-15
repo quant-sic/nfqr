@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import torch
 
 from nfqr.registry import StrRegistry
-from nfqr.target_systems.action import Action,ClusterAction
+from nfqr.target_systems.action import ClusterAction
 
 ROTOR_ACTION_REGISTRY = StrRegistry("qr")
 
@@ -38,7 +38,7 @@ class QuantumRotor(ClusterAction):
 
     @staticmethod
     def map_to_range(config: torch.Tensor) -> torch.Tensor:
-        return config % (2 * math.pi) - math.pi
+        return config % (2 * math.pi)
 
     def bonding_prob(
         self, config_left: torch.Tensor, config_right: torch.Tensor, reflection
