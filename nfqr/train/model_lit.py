@@ -1,7 +1,8 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property, partial
-from typing import Dict, List, Literal, Tuple, Union
+from pathlib import Path
+from typing import Dict, List, Literal, Union
 
 import numpy as np
 import pytorch_lightning as pl
@@ -9,8 +10,13 @@ import torch
 from pytorch_lightning.utilities.types import TRAIN_DATALOADERS
 from scipy import stats
 
+from nfqr.data import ConditionConfig, MCMCConfig, MCMCPSampler, MCMCSamplerConfig
 from nfqr.data.datasampler import FlowSampler
-from nfqr.eval.evaluation import estimate_obs_nip, estimate_obs_nmcmc
+from nfqr.eval.evaluation import (
+    estimate_ess_p_nip,
+    estimate_obs_nip,
+    estimate_obs_nmcmc,
+)
 from nfqr.normalizing_flows.flow import BareFlow, FlowConfig
 from nfqr.normalizing_flows.loss.loss import elbo
 from nfqr.normalizing_flows.target_density import TargetDensity
@@ -109,6 +115,36 @@ class LitFlow(pl.LightningModule):
             for obs in self.observables
         }
 
+    @cached_property
+    def ess_p_sampler(self):
+
+        mcmc_sampler_config = MCMCSamplerConfig(
+            mcmc_config=MCMCConfig(
+                mcmc_alg="cluster",
+                mcmc_type="wolff",
+                observables="Chi_t",
+                n_steps=1,
+                dim=self.dim,
+                action_config=ActionConfig(beta=1.0),
+                n_burnin_steps=1,
+                n_traj_steps=3,
+                out_dir=Path("./"),
+            ),
+            condition_config=ConditionConfig(),
+            batch_size=5000,
+        )
+
+        p_sampler = MCMCPSampler(
+            sampler_configs=[mcmc_sampler_config],
+            batch_size=5000,
+            elements_per_dataset=100000,
+            subset_distribution=[1.0],
+            num_workers=1,
+            shuffle=False,
+        )
+
+        return p_sampler
+
     def _train_dataloader_reverse(self, batch_size, num_batches) -> TRAIN_DATALOADERS:
 
         train_loader = FlowSampler(
@@ -185,6 +221,10 @@ class LitFlow(pl.LightningModule):
             batch_size=self.trainer_config.batch_size_eval,
             n_iter=self.trainer_config.n_iter_eval,
         )
+        stats_nip["ess_p"] = self.estimate_ess_p_nip(
+            batch_size=self.trainer_config.batch_size_eval,
+            n_iter=self.trainer_config.n_iter_eval,
+        )
 
         for sampler, _stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
             self.log_all_values_in_stats_dict(_stats, sampler)
@@ -233,3 +273,15 @@ class LitFlow(pl.LightningModule):
         )
 
         return stats_nmcmc
+
+    def estimate_ess_p_nip(self, batch_size, n_iter):
+
+        ess_p = estimate_ess_p_nip(
+            model=self.model,
+            data_sampler=self.ess_p_sampler,
+            target=self.target,
+            batch_size=batch_size,
+            n_iter=n_iter,
+        )
+
+        return ess_p
