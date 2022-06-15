@@ -221,10 +221,6 @@ class LitFlow(pl.LightningModule):
             batch_size=self.trainer_config.batch_size_eval,
             n_iter=self.trainer_config.n_iter_eval,
         )
-        stats_nip["ess_p"] = self.estimate_ess_p_nip(
-            batch_size=self.trainer_config.batch_size_eval,
-            n_iter=self.trainer_config.n_iter_eval,
-        )
 
         for sampler, _stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
             self.log_all_values_in_stats_dict(_stats, sampler)
@@ -258,6 +254,11 @@ class LitFlow(pl.LightningModule):
             observables=self.observables,
             batch_size=batch_size,
             n_iter=n_iter,
+        )
+
+        stats_nip["ess_p"] = self.estimate_ess_p_nip(
+            batch_size=self.trainer_config.batch_size_eval,
+            n_iter=self.trainer_config.n_iter_eval,
         )
 
         return stats_nip
