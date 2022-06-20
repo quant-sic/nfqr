@@ -1,5 +1,6 @@
 import math
 
+import numpy as np
 import torch
 
 from nfqr.utils.misc import create_logger
@@ -76,35 +77,38 @@ def calc_ess_q(weights):
 
 def calc_ess_q_from_unnormalized_log_weights(unnormalized_log_weights):
 
-    cleaned_log_weights = remove_nans_and_infs(unnormalized_log_weights)
+    cleaned_log_weights, _ = remove_nans_and_infs(unnormalized_log_weights)
     cleaned_weights = calc_imp_weights(cleaned_log_weights)
     weights = cleaned_weights / cleaned_weights.mean()
 
     return calc_ess_q(weights)
 
 
-def calc_ess_p_from_unnormalized_log_weights(unnormalized_log_weights, quantile=1):
+def calc_ess_p_from_unnormalized_log_weights(
+    unnormalized_log_weights, cut_quantiles=[0.5, 0.95]
+):
 
-    cleaned_log_weights = remove_nans_and_infs(unnormalized_log_weights)
+    cleaned_log_weights, _ = remove_nans_and_infs(unnormalized_log_weights)
+    cleaned_log_weights = cleaned_log_weights.to(torch.float64)
 
-    log_weights_shifted = cleaned_log_weights - cleaned_log_weights.max()
-    weights_shifted = log_weights_shifted.exp()
-    quantile_mask = weights_shifted < torch.quantile(weights_shifted, q=quantile)
+    quantile_mask = (
+        cleaned_log_weights >= torch.quantile(cleaned_log_weights, q=cut_quantiles[0])
+    ) & (cleaned_log_weights <= torch.quantile(cleaned_log_weights, q=cut_quantiles[1]))
 
-    weights_sum = torch.exp(torch.logsumexp(log_weights_shifted[quantile_mask], dim=-1))
+    filtered_weights = cleaned_log_weights[quantile_mask]
 
-    inv_log_weights_shifted = -cleaned_log_weights - (-cleaned_log_weights).max()
+    w_shifted = filtered_weights - filtered_weights.max()
+    w_inv_shifted = -filtered_weights - (-filtered_weights).max()
 
-    scale_factor = ((-cleaned_log_weights).max() - cleaned_log_weights.max()).exp()
+    log_weights_sum = torch.logsumexp(w_shifted, dim=-1)
+    log_weights_sum_inv = torch.logsumexp(w_inv_shifted, dim=-1)
 
-    weights_sum_inv = torch.exp(
-        torch.logsumexp(inv_log_weights_shifted[quantile_mask], dim=-1)
+    log_scale_factor = (
+        filtered_weights.max()
+        + (-filtered_weights).max()
+        - 2 * np.log(len(filtered_weights))
     )
 
-    ess_p = (
-        scale_factor
-        * (quantile_mask.float().mean() * len(log_weights_shifted)) ** 2
-        / (weights_sum * weights_sum_inv)
-    )
+    ess_p = (-log_scale_factor - log_weights_sum - log_weights_sum_inv).exp()
 
     return ess_p
