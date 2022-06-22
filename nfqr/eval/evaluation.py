@@ -14,7 +14,9 @@ from nfqr.nip import (
     calc_ess_q_from_unnormalized_log_weights,
 )
 from nfqr.target_systems import OBSERVABLE_REGISTRY
+from nfqr.utils import create_logger
 
+logger = create_logger(__name__)
 
 class EvalConfig(BaseConfig):
 

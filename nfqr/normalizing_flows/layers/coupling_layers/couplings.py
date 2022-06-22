@@ -72,7 +72,7 @@ class BareCoupling(CouplingLayer):
 
         unconstrained_params = self.conditioner(conditioner_input)
 
-        x[..., transformed_input], ld = self.diffeomorphism.inverse(
+        x[..., self.transformed_mask], ld = self.diffeomorphism.inverse(
             transformed_input, *unconstrained_params, ret_logabsdet=True
         )
 

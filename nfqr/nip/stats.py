@@ -85,7 +85,7 @@ def calc_ess_q_from_unnormalized_log_weights(unnormalized_log_weights):
 
 def calc_ess_p_from_unnormalized_log_weights(unnormalized_log_weights, quantile=1):
 
-    cleaned_log_weights = remove_nans_and_infs(unnormalized_log_weights)
+    cleaned_log_weights,_ = remove_nans_and_infs(unnormalized_log_weights)
 
     log_weights_shifted = cleaned_log_weights - cleaned_log_weights.max()
     weights_shifted = log_weights_shifted.exp()
