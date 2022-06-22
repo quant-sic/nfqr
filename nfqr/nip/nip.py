@@ -77,7 +77,7 @@ class NeuralImportanceSampler(Sampler):
 
     @property
     def unnormalized_log_weights(self):
-        self.observables_rec["log_weights"]
+        return self.observables_rec["log_weights"]
 
     def _evaluate_obs(self, obs):
 

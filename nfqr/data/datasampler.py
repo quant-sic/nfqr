@@ -265,6 +265,7 @@ class MCMCPSampler(object):
         infinite: bool = True,
     ) -> None:
 
+        self.batch_size = batch_size
         mcmc_samplers = [MCMCSampler(**dict(conf)) for conf in sampler_configs]
 
         self.lmdb_pool = SamplesDataset(
