@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
+from nfqr.data.condition import SampleCondition
 from nfqr.globals import DATASETS_DIR
 from nfqr.utils import NumpyEncoder, create_logger
 
@@ -195,6 +196,22 @@ class LmdbDataset(Dataset):
     def close(self) -> None:
         self.env.close()
 
+    def isequal(self, values_dict: dict, n_elements) -> bool:
+        def _item_is_equal(k, v_other):
+            v_meta = self.meta.get(k, "")
+
+            if k == "condition":
+                return SampleCondition.from_str(v_meta) == SampleCondition.from_str(
+                    v_other
+                )
+            else:
+                return v_meta == v_other
+
+        return (
+            all(_item_is_equal(k, v) for k, v in values_dict.items())
+            and self.max_size >= n_elements
+        )
+
 
 def get_lmdb_dataset(values_dict, n_elements):
 
@@ -204,10 +221,7 @@ def get_lmdb_dataset(values_dict, n_elements):
 
         lmdb_dataset = LmdbDataset(dset_path, max_size=max_size)
 
-        if (
-            all(lmdb_dataset.meta.get(k, "") == v for k, v in values_dict.items())
-            and lmdb_dataset.max_size >= n_elements
-        ):
+        if lmdb_dataset.isequal(values_dict=values_dict, n_elements=n_elements):
             logger.info(f"Using existing dataset: {dset_path.name}")
             return lmdb_dataset
 

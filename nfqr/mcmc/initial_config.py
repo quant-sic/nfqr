@@ -4,7 +4,7 @@ from nfqr.target_systems import TRAJECTORY_SAMPLER_REGISTRY
 from nfqr.target_systems.rotor import RotorTrajectorySamplerConfig
 
 
-class InitialConfig(object):
+class InitialConfigSampler(object):
     def __init__(
         self,
         trajectory_sampler_config: RotorTrajectorySamplerConfig,
@@ -22,7 +22,7 @@ class InitialConfig(object):
         return config
 
 
-class InitialConfigConfig(BaseModel):
+class InitialConfigSamplerConfig(BaseModel):
 
     trajectory_sampler_config: RotorTrajectorySamplerConfig
     target_system: str = "qr"

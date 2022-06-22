@@ -1,13 +1,14 @@
-from typing import List
+from typing import List, Union
 
 import numpy as np
 import numpyro
 import torch
 from jax import random as jax_random
-from tqdm.autonotebook import tqdm
+from tqdm.auto import tqdm
 
 from nfqr.mcmc.base import MCMC
 from nfqr.mcmc.hmc.hmc_cpp import hmc_cpp
+from nfqr.mcmc.initial_config import InitialConfigSampler
 from nfqr.registry import StrRegistry
 from nfqr.target_systems import ACTION_REGISTRY, ActionConfig
 from nfqr.utils.misc import create_logger
@@ -36,6 +37,7 @@ class HMC(MCMC):
         batch_size=10000,
         n_samples_at_a_time=10000,
         action="qr",
+        initial_config_sampler_config=None,
         **kwargs,
     ) -> None:
         super(HMC, self).__init__(
@@ -49,7 +51,7 @@ class HMC(MCMC):
         self.batch_size = batch_size
         self.n_burnin_steps = n_burnin_steps
         self.n_steps = n_steps
-        self.step_size = step_size
+        self.initial_step_size = step_size
         self.n_traj_steps = n_traj_steps
         self.n_samples_at_a_time = n_samples_at_a_time
 
@@ -95,8 +97,21 @@ class HMC(MCMC):
         else:
             raise ValueError("Unknown hmc_engine")
 
-        if autotune_step:
+        self.initial_config_sampler = InitialConfigSampler(
+            **dict(initial_config_sampler_config)
+        )
+
+        self.autotune_step = autotune_step
+
+    @property
+    def step_size(self):
+        if not hasattr(self, "_step_size") and self.autotune_step:
             self.autotune_step_size(0.8)
+
+        else:
+            self._step_size = self.initial_step_size
+
+        return self._step_size
 
     @property
     def data_specs(self):
@@ -113,13 +128,19 @@ class HMC(MCMC):
     def acceptance_rate(self):
         return self.hmc.acceptance_rate
 
-    def initialize(self):
+    def initialize(self, burn_in=True, log=True):
 
-        logger.info("Initializing HMC")
-        self.hmc.initialize()
+        if log:
+            logger.info("Initializing HMC")
+        if "python" in self.hmc_engine:
+            self.hmc.initialize(self.initial_config_sampler.sample("cpu"))
+        else:
+            self.hmc.initialize()
 
-        logger.info(f"Burnin steps :{self.n_burnin_steps}")
-        self.hmc.burnin(self.n_burnin_steps, self.n_traj_steps, self.step_size)
+        if burn_in and self.n_burnin_steps:
+            if log:
+                logger.info(f"Burnin steps :{self.n_burnin_steps}")
+            self.hmc.burnin(self.n_burnin_steps, self.n_traj_steps, self.step_size)
 
         return self.hmc.current_config
 
@@ -156,22 +177,21 @@ class HMC(MCMC):
 
         n_autotune_samples = 1000
         tolerance = 0.05  # Tolerance
-        step_size_original = 0.01
-        step_size_min = 0.01 * step_size_original
-        step_size_max = 100 * step_size_original
+        step_size_min = 0.01 * self.initial_step_size
+        step_size_max = 100 * self.initial_step_size
         converged = False
         tune_steps = 100
 
         pbar = tqdm(range(tune_steps))
         for _ in pbar:
 
-            self.hmc.initialize()
-            self.step_size = 0.5 * (step_size_min + step_size_max)
+            self.initialize(burn_in=False, log=False)
+            self._step_size = 0.5 * (step_size_min + step_size_max)
 
             self.hmc.advance(
                 n_steps=n_autotune_samples,
                 n_traj_steps=self.n_traj_steps,
-                step_size=self.step_size,
+                step_size=self._step_size,
             )
 
             acceptance_rate = (
@@ -180,20 +200,20 @@ class HMC(MCMC):
                 else self.hmc.acceptance_rate
             )
             if acceptance_rate > desired_acceptance_percentage:
-                step_size_min = self.step_size
+                step_size_min = self._step_size
             else:
-                step_size_max = self.step_size
+                step_size_max = self._step_size
 
             if abs(acceptance_rate - desired_acceptance_percentage) < tolerance:
                 converged = True
                 break
 
             pbar.set_description(
-                f"step_size: {self.step_size}, Acceptance Rate {acceptance_rate}"
+                f"step_size: {self._step_size}, Acceptance Rate {acceptance_rate}"
             )
 
         if not converged:
-            self.step_size = step_size_original
+            self._step_size = self.initial_step_size
 
 
 class HMC_PYTHON(object):
@@ -201,7 +221,6 @@ class HMC_PYTHON(object):
         self,
         action,
         dim,
-        initial_configs: torch.Tensor = None,
         batch_size: int = 1,
         bias: float = 0.0,
     ) -> None:
@@ -215,17 +234,16 @@ class HMC_PYTHON(object):
         self.dim = dim
 
         self.bias = bias
-        self.initial_configs = initial_configs
 
     def reset_n_accepted(self):
         self.n_accepted = torch.zeros(self.batch_size, dtype=torch.float32)
 
-    def initialize(self):
+    def initialize(self, initial_configs=Union[None, torch.Tensor]):
 
         self.reset_n_accepted()
 
-        if self.initial_configs is not None:
-            self.current_config = self.initial_configs.detach().clone()
+        if initial_configs is not None:
+            self.current_config = initial_configs.detach().clone()
         else:
             # bias breaks the Z_2 symmetry in initalization. This speeds up thermalization in broken phase.
             self.current_config = (
@@ -285,12 +303,12 @@ class HMC_PYTHON(object):
         q = config.clone()
         p = torch.randn(q.shape, device=config.device)
 
-        h = 0.5 * torch.sum(p**2, dim=-1) + self.action(q)
+        h = 0.5 * torch.sum(p**2, dim=-1) + self.action.evaluate(q)
 
         for _ in range(n_traj_steps):
             q, p = self._leapfrog(q=q, p=p, step_size=step_size)
 
-        hp = 0.5 * torch.sum(p**2, dim=-1) + self.action(q)
+        hp = 0.5 * torch.sum(p**2, dim=-1) + self.action.evaluate(q)
 
         log_ratio = h - hp
 

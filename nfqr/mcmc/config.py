@@ -2,11 +2,11 @@ import json
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Type, TypeVar, Union
 
-from pydantic import BaseModel, validator
+from pydantic import validator
 
 from nfqr.config import BaseConfig
 from nfqr.mcmc.hmc.hmc import HMC_REGISTRY
-from nfqr.mcmc.initial_config import InitialConfigConfig
+from nfqr.mcmc.initial_config import InitialConfigSamplerConfig
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
 
 from .cluster import CLUSTER_REGISTRY
@@ -52,13 +52,13 @@ class MCMCConfig(BaseConfig):
     n_traj_steps: Optional[int] = 20
     step_size: Optional[float] = 0.01
     autotune_step: Optional[bool] = True
-    hmc_engine: Optional[Literal["cpp_batch", "cpp_single"]] = "cpp_single"
+    hmc_engine: Optional[Literal["cpp_batch", "cpp_single", "python"]] = "cpp_single"
     batch_size: Optional[int] = 1
     n_samples_at_a_time: Optional[int] = 10000
     target_system: Optional[ACTION_REGISTRY.enum] = "qr"
     action: Optional[ACTION_REGISTRY.enum] = "qr"
 
-    initial_config_sampler_config: Optional[InitialConfigConfig]
+    initial_config_sampler_config: Optional[InitialConfigSamplerConfig]
 
     task_parameters: Union[List[str], None] = None
 
