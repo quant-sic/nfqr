@@ -5,12 +5,10 @@ from typing import Dict, List, Tuple, Union
 import lmdb
 import numpy as np
 import torch
-from torch.utils.data import BatchSampler, Dataset
+from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
-from nfqr.data.condition import SampleCondition
 from nfqr.globals import DATASETS_DIR
-from nfqr.mcmc.base import MCMC
 from nfqr.utils import NumpyEncoder, create_logger
 
 logger = create_logger(__name__)
@@ -231,94 +229,6 @@ def get_lmdb_dataset(values_dict, n_elements):
     new_dataset.meta = values_dict
 
     return new_dataset
-
-
-# class MCMCDataset(object):
-#     def __init__(self, mcmc: MCMC, condition: SampleCondition) -> None:
-#         super().__init__()
-
-#         self.mcmc = mcmc
-#         self.condition = condition
-
-#         self.mcmc.initialize()
-
-#     @torch.no_grad()
-#     def __getitem__(self, item=None, max_tries=1000):
-
-#         # Important to handle this
-#         for n_try in range(max_tries):
-
-#             if self.index_in_batch and (self.index_in_batch + 1) % self.batch_size == 0:
-
-#                 self.wolff_cluster.step(self.config)
-
-#                 self.index_in_batch = 0
-#             else:
-#                 self.index_in_batch += 1
-
-#             ret_config = self.config[[self.index_in_batch]]
-
-#             if self.condition is None or self.condition(ret_config):
-#                 break
-
-#             if n_try >= max_tries - 1:
-#                 self.config = self.wolff_algorithm.initialize()
-#                 ret_config = self.config[[self.index_in_batch]]
-
-#         return ret_config.detach().clone().float().view(*self.lat_shape)
-
-
-# class WolffClusterDataset(Dataset):
-#     def __init__(
-#         self,
-#         wolff_cluster: WolffCluster,
-#         accept_condition=None,
-#     ):
-
-#         self.index_in_batch = 0
-#         self.accept_condition = accept_condition
-
-#         self.wolff_cluster = wolff_cluster
-#         # initialize config
-#         self.config = self.wolff_cluster.initialize()
-
-#     def sample(self, device):
-
-#         batch = []
-#         for _ in range(self.batch_size):
-#             batch += [self.__getitem__()]
-
-#         sample = torch.stack(batch, dim=0).to(device=device)
-#         return sample
-
-#     @torch.no_grad()
-#     def __getitem__(self, item=None, max_tries=1000):
-
-#         # Important to handle this
-#         for n_try in range(max_tries):
-
-#             if self.index_in_batch and (self.index_in_batch + 1) % self.batch_size == 0:
-
-#                 self.wolff_cluster.step(self.config)
-
-#                 self.index_in_batch = 0
-#             else:
-#                 self.index_in_batch += 1
-
-#             ret_config = self.config[[self.index_in_batch]]
-
-#             if self.condition is None or self.condition(ret_config):
-#                 break
-
-#             if n_try >= max_tries - 1:
-#                 self.config = self.wolff_algorithm.initialize()
-#                 ret_config = self.config[[self.index_in_batch]]
-
-#         return ret_config.detach().clone().float().view(*self.lat_shape)
-
-#     def __len__(self):
-#         # Set to arbitrary high number as dataloader will not give a batch larger than n_steps otherwise
-#         return int(1e7)
 
 
 # class HMCDataset(Dataset):

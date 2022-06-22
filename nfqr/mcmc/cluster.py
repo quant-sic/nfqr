@@ -4,6 +4,7 @@ import random
 import torch
 
 from nfqr.mcmc.base import MCMC
+from nfqr.mcmc.initial_config import InitialConfig
 from nfqr.registry import StrRegistry
 from nfqr.target_systems import ACTION_REGISTRY
 from nfqr.target_systems.action import ClusterAction
@@ -24,6 +25,7 @@ class WolffCluster(MCMC):
         n_steps,
         observables,
         out_dir,
+        initial_config_sampler_config=None,
         n_traj_steps=1,
         n_burnin_steps=0,
         batch_size=1,
@@ -50,6 +52,10 @@ class WolffCluster(MCMC):
         self.batch_size = batch_size
         self.n_traj_steps = n_traj_steps
         self.target_system = target_system
+
+        self.initial_config_sampler = InitialConfig(
+            **dict(initial_config_sampler_config)
+        )
 
     @property
     def data_specs(self):
@@ -148,13 +154,10 @@ class WolffCluster(MCMC):
                 )
 
                 index = neighbor
-                
 
     def initialize(self):
 
-        self.current_config = (
-            torch.rand(self.batch_size, *self.dim, dtype=torch.float64) * 2 * math.pi
-        )
+        self.current_config = self.initial_config_sampler.sample(device="cpu")
 
         for _ in range(self.n_burnin_steps):
             self.cluster_update_batch()

@@ -85,7 +85,7 @@ def calc_ess_q_from_unnormalized_log_weights(unnormalized_log_weights):
 
 
 def calc_ess_p_from_unnormalized_log_weights(
-    unnormalized_log_weights, cut_quantiles=[0.5, 0.95]
+    unnormalized_log_weights, cut_quantiles=[0, 1]
 ):
 
     cleaned_log_weights, _ = remove_nans_and_infs(unnormalized_log_weights)
@@ -104,11 +104,12 @@ def calc_ess_p_from_unnormalized_log_weights(
     log_weights_sum_inv = torch.logsumexp(w_inv_shifted, dim=-1)
 
     log_scale_factor = (
-        filtered_weights.max()
-        + (-filtered_weights).max()
-        - 2 * np.log(len(filtered_weights))
+        2 * np.log(len(filtered_weights))
+        - filtered_weights.max()
+        - (-filtered_weights).max()
     )
 
-    ess_p = (-log_scale_factor - log_weights_sum - log_weights_sum_inv).exp()
+    log_ess_p = log_scale_factor - log_weights_sum - log_weights_sum_inv
+    ess_p = log_ess_p.exp()
 
-    return ess_p
+    return {"log_ess_p": log_ess_p, "ess_p": ess_p}

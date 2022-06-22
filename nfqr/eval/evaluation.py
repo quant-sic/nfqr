@@ -94,7 +94,9 @@ def get_tmp_path_from_name_and_environ(name):
     return tmp_path
 
 
-def estimate_ess_p_nip(model, data_sampler, target, batch_size, n_iter, quantile=1):
+def estimate_ess_p_nip(
+    model, data_sampler, target, batch_size, n_iter, cut_quantiles=([0, 1],)
+):
 
     model.eval()
 
@@ -114,13 +116,18 @@ def estimate_ess_p_nip(model, data_sampler, target, batch_size, n_iter, quantile
     with torch.no_grad():
 
         nip_sampler.run()
-        ess_p = calc_ess_p_from_unnormalized_log_weights(
-            nip_sampler.unnormalized_log_weights, quantile=quantile
-        )
+        ess_p_dict = {}
+
+        for _cut_quantiles in cut_quantiles:
+            ess_p_dict[
+                f"{cut_quantiles[0]}-{cut_quantiles[1]}"
+            ] = calc_ess_p_from_unnormalized_log_weights(
+                nip_sampler.unnormalized_log_weights, cut_quantiles=_cut_quantiles
+            )
 
     shutil.rmtree(rec_tmp)
 
-    return ess_p
+    return ess_p_dict
 
 
 def estimate_ess_q_nip(model, target, batch_size, n_iter):
