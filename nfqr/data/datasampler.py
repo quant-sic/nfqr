@@ -132,23 +132,25 @@ class MCMCSampler(object):
     def sampler_specs(self):
         return {**self.mcmc.data_specs, "condition": str(self.condition)}
 
-    def sample_batch(self, max_batch_repetitions=10):
+    def sample_batch(self, max_batch_repetitions=10, n_times_reinit=3):
 
         batch = []
 
-        for _ in range(self.batch_size * max_batch_repetitions):
+        for _ in range(n_times_reinit):
+            for _ in range(self.batch_size * max_batch_repetitions):
 
-            self.mcmc.step(record_observables=False)
+                self.mcmc.step(record_observables=False)
 
-            if self.condition.evaluate(self.mcmc.current_config):
-                batch += [self.mcmc.current_config.detach().clone()]
-                if len(batch) >= self.batch_size:
-                    break
+                if self.condition.evaluate(self.mcmc.current_config):
+                    batch += [self.mcmc.current_config.detach().clone()]
+                    if len(batch) >= self.batch_size:
+                        return torch.concat(batch, dim=0)
+
+            logger.info("MCMC is being reinitialized")
+            self.mcmc.initialize()
 
         if not len(batch) >= self.batch_size:
             raise RuntimeError("Not enough samples that fulfill condition produced")
-
-        return torch.concat(batch, dim=0)
 
     def sample(self):
         return self.sample_batch()
@@ -264,14 +266,16 @@ class MCMCPSampler(object):
     ) -> None:
 
         mcmc_samplers = [MCMCSampler(**dict(conf)) for conf in sampler_configs]
-        lmdb_pool = SamplesDataset(
+
+        self.lmdb_pool = SamplesDataset(
             samplers=mcmc_samplers,
             refresh_rate=0,
             elements_per_dataset=elements_per_dataset,
             min_fill_level=1.0,
         )
+
         self.sampler = LMDBDatasetSampler(
-            common_dataset=lmdb_pool,
+            common_dataset=self.lmdb_pool,
             subset_distribution=subset_distribution,
             num_workers=num_workers,
             batch_size=batch_size,
@@ -281,3 +285,7 @@ class MCMCPSampler(object):
 
     def sample(self, device):
         return self.sampler.sample(device)
+
+    @property
+    def dataset(self):
+        return self.lmdb_pool

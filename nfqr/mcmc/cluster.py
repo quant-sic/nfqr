@@ -4,7 +4,7 @@ import random
 import torch
 
 from nfqr.mcmc.base import MCMC
-from nfqr.mcmc.initial_config import InitialConfig
+from nfqr.mcmc.initial_config import InitialConfigSampler
 from nfqr.registry import StrRegistry
 from nfqr.target_systems import ACTION_REGISTRY
 from nfqr.target_systems.action import ClusterAction
@@ -53,7 +53,7 @@ class WolffCluster(MCMC):
         self.n_traj_steps = n_traj_steps
         self.target_system = target_system
 
-        self.initial_config_sampler = InitialConfig(
+        self.initial_config_sampler = InitialConfigSampler(
             **dict(initial_config_sampler_config)
         )
 
