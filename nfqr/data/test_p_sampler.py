@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import torch
+from tqdm.auto import tqdm
 
 from nfqr.data.config import ConditionConfig, MCMCSamplerConfig
 from nfqr.data.datasampler import MCMCPSampler
@@ -111,7 +112,6 @@ def test_sus_exact():
         num_workers=1,
         shuffle=False,
     )
-    from tqdm.auto import tqdm
 
     samples = []
     num_batches = 10

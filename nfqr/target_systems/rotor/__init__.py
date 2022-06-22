@@ -5,3 +5,7 @@ from .observable import (
     TopologicalCharge,
     TopologicalSusceptibility,
 )
+from .trajectories_samplers import (
+    ROTOR_TRAJECTORIES_REGISTRY,
+    RotorTrajectorySamplerConfig,
+)
