@@ -97,7 +97,7 @@ def get_tmp_path_from_name_and_environ(name):
 
 
 def estimate_ess_p_nip(
-    model, data_sampler, target, batch_size, n_iter, cut_quantiles=([0, 1],)
+    model, data_sampler, target, batch_size, n_iter, cut_quantiles=([0, 1],[0.05,0.95],[0.1,0.9])
 ):
 
     model.eval()
@@ -122,7 +122,7 @@ def estimate_ess_p_nip(
 
         for _cut_quantiles in cut_quantiles:
             ess_p_dict[
-                f"{cut_quantiles[0]}-{cut_quantiles[1]}"
+                f"{_cut_quantiles[0]}-{_cut_quantiles[1]}"
             ] = calc_ess_p_from_unnormalized_log_weights(
                 nip_sampler.unnormalized_log_weights, cut_quantiles=_cut_quantiles
             )

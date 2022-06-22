@@ -21,10 +21,10 @@ from nfqr.normalizing_flows.flow import BareFlow, FlowConfig
 from nfqr.normalizing_flows.loss.loss import elbo
 from nfqr.normalizing_flows.target_density import TargetDensity
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
-from nfqr.target_systems.rotor import SusceptibilityExact
+from nfqr.target_systems.rotor import SusceptibilityExact,RotorTrajectorySamplerConfig
 from nfqr.train.config import TrainerConfig
 from nfqr.train.scheduler import BetaScheduler, BetaSchedulerConfig
-
+from nfqr.mcmc.initial_config import InitialConfigConfig
 
 @dataclass
 class Metrics:
@@ -126,9 +126,10 @@ class LitFlow(pl.LightningModule):
                 n_steps=1,
                 dim=self.dim,
                 action_config=ActionConfig(beta=self.target.dist.action.beta),
-                n_burnin_steps=10000,
+                n_burnin_steps=25000,
                 n_traj_steps=3,
                 out_dir=Path("./"),
+                initial_config_sampler_config=InitialConfigConfig(trajectory_sampler_config=RotorTrajectorySamplerConfig(dim=self.dim,traj_type="hot"))
             ),
             condition_config=ConditionConfig(),
             batch_size=5000,
@@ -136,11 +137,11 @@ class LitFlow(pl.LightningModule):
 
         p_sampler = MCMCPSampler(
             sampler_configs=[mcmc_sampler_config],
-            batch_size=5000,
-            elements_per_dataset=100000,
+            batch_size=self.trainer_config.batch_size_eval,
+            elements_per_dataset=250000,
             subset_distribution=[1.0],
             num_workers=1,
-            shuffle=False,
+            shuffle=True,
         )
 
         return p_sampler
