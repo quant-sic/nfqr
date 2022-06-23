@@ -1,10 +1,11 @@
 import json
 from pathlib import Path
-from typing import List, Literal, Optional, Tuple, Type, TypeVar, Union
+from typing import List, Literal, Optional, Type, TypeVar, Union
 
 from pydantic import BaseModel, root_validator
 
 from nfqr.config import BaseConfig
+from nfqr.data.config import PSamplerConfig
 from nfqr.normalizing_flows.flow import FlowConfig
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
 from nfqr.train.scheduler import BetaSchedulerConfig
@@ -47,6 +48,8 @@ class TrainConfig(BaseConfig):
     action: ACTION_REGISTRY.enum
     observables: List[OBSERVABLE_REGISTRY.enum]
     train_setup: Literal["reverse"] = "reverse"
+
+    p_sampler_config: PSamplerConfig = None
 
     action_config: ActionConfig
 

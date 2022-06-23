@@ -1,22 +1,27 @@
 import os
 import shutil
+from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
 import torch
 from pydantic import root_validator, validator
 
 from nfqr.config import BaseConfig
+from nfqr.data import ConditionConfig, MCMCConfig, PSampler, TrajectorySamplerConfig
 from nfqr.globals import TMP_DIR
+from nfqr.mcmc.initial_config import InitialConfigSamplerConfig
 from nfqr.mcmc.nmcmc import NeuralMCMC
 from nfqr.nip import (
     NeuralImportanceSampler,
     calc_ess_p_from_unnormalized_log_weights,
     calc_ess_q_from_unnormalized_log_weights,
 )
-from nfqr.target_systems import OBSERVABLE_REGISTRY
+from nfqr.target_systems import OBSERVABLE_REGISTRY, ActionConfig
+from nfqr.target_systems.rotor import RotorTrajectorySamplerConfig
 from nfqr.utils import create_logger
 
 logger = create_logger(__name__)
+
 
 class EvalConfig(BaseConfig):
 
@@ -97,7 +102,12 @@ def get_tmp_path_from_name_and_environ(name):
 
 
 def estimate_ess_p_nip(
-    model, data_sampler, target, batch_size, n_iter, cut_quantiles=([0, 1],[0.05,0.95],[0.1,0.9])
+    model,
+    data_sampler,
+    target,
+    batch_size,
+    n_iter,
+    cut_quantiles=([0, 1], [0.05, 1], [0.1, 1]),
 ):
 
     model.eval()
@@ -224,3 +234,38 @@ def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps):
     shutil.rmtree(rec_tmp)
 
     return stats
+
+
+def get_ess_p_sampler(dim, beta, batch_size):
+
+    mcmc_sampler_config = TrajectorySamplerConfig(
+        mcmc_config=MCMCConfig(
+            mcmc_alg="cluster",
+            mcmc_type="wolff",
+            observables="Chi_t",
+            n_steps=1,
+            dim=dim,
+            action_config=ActionConfig(beta=beta),
+            n_burnin_steps=25000,
+            n_traj_steps=3,
+            out_dir=Path("./"),
+            initial_config_sampler_config=InitialConfigSamplerConfig(
+                trajectory_sampler_config=RotorTrajectorySamplerConfig(
+                    dim=dim, traj_type="hot"
+                )
+            ),
+        ),
+        condition_config=ConditionConfig(),
+        batch_size=5000,
+    )
+
+    p_sampler = PSampler(
+        sampler_configs=[mcmc_sampler_config],
+        batch_size=batch_size,
+        elements_per_dataset=250000,
+        subset_distribution=[1.0],
+        num_workers=1,
+        shuffle=True,
+    )
+
+    return p_sampler

@@ -1,7 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property, partial
-from pathlib import Path
 from typing import Dict, List, Literal, Union
 
 import numpy as np
@@ -10,21 +9,22 @@ import torch
 from pytorch_lightning.utilities.types import TRAIN_DATALOADERS
 from scipy import stats
 
-from nfqr.data import ConditionConfig, MCMCConfig, MCMCPSampler, MCMCSamplerConfig
-from nfqr.data.datasampler import FlowSampler
+from nfqr.data.config import PSamplerConfig
+from nfqr.data.datasampler import FlowSampler, PSampler
 from nfqr.eval.evaluation import (
     estimate_ess_p_nip,
     estimate_obs_nip,
     estimate_obs_nmcmc,
+    get_ess_p_sampler,
 )
 from nfqr.normalizing_flows.flow import BareFlow, FlowConfig
 from nfqr.normalizing_flows.loss.loss import elbo
 from nfqr.normalizing_flows.target_density import TargetDensity
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
-from nfqr.target_systems.rotor import SusceptibilityExact,RotorTrajectorySamplerConfig
+from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.train.config import TrainerConfig
 from nfqr.train.scheduler import BetaScheduler, BetaSchedulerConfig
-from nfqr.mcmc.initial_config import InitialConfigConfig
+
 
 @dataclass
 class Metrics:
@@ -65,8 +65,9 @@ class LitFlow(pl.LightningModule):
         observables: List[OBSERVABLE_REGISTRY.enum],
         action_config: ActionConfig,
         trainer_config: TrainerConfig,
-        train_setup: Literal["reverse"] = "reverse",
+        train_setup: Literal["reverse", "forward"] = "reverse",
         learning_rate=0.001,
+        p_sampler_config: PSamplerConfig = None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -89,6 +90,18 @@ class LitFlow(pl.LightningModule):
                 batch_size=trainer_config.batch_size,
                 num_batches=trainer_config.num_batches,
             )
+
+        if train_setup == "forward":
+            self.training_step = self._training_step_forward
+            self.train_dataloader = partial(
+                self._train_dataloader_forward,
+                batch_size=trainer_config.batch_size,
+                num_batches=trainer_config.num_batches,
+            )
+            assert (
+                p_sampler_config is not None
+            ), "P sampler config cannot be None in forward mode"
+            self.p_sampler_config = p_sampler_config
 
         self.trainer_config = trainer_config
         self.dim = dim
@@ -117,34 +130,11 @@ class LitFlow(pl.LightningModule):
 
     @cached_property
     def ess_p_sampler(self):
-
-        mcmc_sampler_config = MCMCSamplerConfig(
-            mcmc_config=MCMCConfig(
-                mcmc_alg="cluster",
-                mcmc_type="wolff",
-                observables="Chi_t",
-                n_steps=1,
-                dim=self.dim,
-                action_config=ActionConfig(beta=self.target.dist.action.beta),
-                n_burnin_steps=25000,
-                n_traj_steps=3,
-                out_dir=Path("./"),
-                initial_config_sampler_config=InitialConfigConfig(trajectory_sampler_config=RotorTrajectorySamplerConfig(dim=self.dim,traj_type="hot"))
-            ),
-            condition_config=ConditionConfig(),
-            batch_size=5000,
-        )
-
-        p_sampler = MCMCPSampler(
-            sampler_configs=[mcmc_sampler_config],
+        return get_ess_p_sampler(
+            dim=self.dim,
+            beta=self.target.dist.action.beta,
             batch_size=self.trainer_config.batch_size_eval,
-            elements_per_dataset=250000,
-            subset_distribution=[1.0],
-            num_workers=1,
-            shuffle=True,
         )
-
-        return p_sampler
 
     def _train_dataloader_reverse(self, batch_size, num_batches) -> TRAIN_DATALOADERS:
 
@@ -156,19 +146,12 @@ class LitFlow(pl.LightningModule):
 
         return train_loader
 
-    def _training_step_reverse(self, batch, *args, **kwargs):
-
-        x_samples, log_q_x = batch
-        log_p = self.target.log_prob(x_samples)
-
-        elbo_values = elbo(log_q=log_q_x, log_p=log_p)
-        loss = elbo_values.mean()
-
+    def train_step_logging(self, losses, x_samples):
         metrics_dict = {}
         for name, observable in self.observables_fn.items():
             metrics_dict[name] = observable.evaluate(x_samples).mean()
 
-        metrics_dict.update({"loss": loss, "loss_std": elbo_values.std()})
+        metrics_dict.update({"loss": losses.mean(), "loss_std": losses.std()})
         self.metrics.add_batch_wise(metrics_dict)
 
         for scheduler in self.schedulers:
@@ -178,6 +161,44 @@ class LitFlow(pl.LightningModule):
 
         for key, value in metrics_dict.items():
             self.log(key, value)
+
+    def _training_step_reverse(self, batch, *args, **kwargs):
+
+        x_samples, log_q_x = batch
+        log_p = self.target.log_prob(x_samples)
+
+        elbo_values = elbo(log_q=log_q_x, log_p=log_p)
+        loss = elbo_values.mean()
+
+        self.train_step_logging(losses=elbo_values, x_samples=x_samples)
+
+        return {"loss": loss}
+
+    def _train_dataloader_forward(self, batch_size, num_batches) -> TRAIN_DATALOADERS:
+
+        kwargs_dict = dict(self.p_sampler_config)
+        kwargs_dict.update(
+            {
+                "batch_size": batch_size,
+                "num_batches": num_batches,
+                "shuffle": True,
+                "infinite": False,
+            }
+        )
+        p_sampler = PSampler(**kwargs_dict)
+
+        return p_sampler
+
+    def _training_step_forward(self, batch, *args, **kwargs):
+
+        x_samples = batch
+        log_q_x = self.model.log_prob(x_samples)
+
+        losses = -log_q_x
+
+        loss = losses.mean()
+
+        self.train_step_logging(losses=losses, x_samples=x_samples)
 
         return {"loss": loss}
 

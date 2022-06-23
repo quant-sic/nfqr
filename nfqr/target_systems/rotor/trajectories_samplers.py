@@ -39,6 +39,16 @@ class DiscreteClassicalRotorTrajectorySampler(object):
         self.noise_std = noise_std
         self.batch_size = batch_size
 
+    @property
+    def data_specs(self):
+        return {
+            "dim": self.dim,
+            "noise_std": self.noise_std,
+            "k": self.k,
+            "target_system": "qr",
+            "data_sampler": "rotor_classical",
+        }
+
     def sample(self, device):
 
         if self.k is None:
@@ -66,6 +76,14 @@ class HotRotorTrajectoriesSampler(object):
     def __init__(self, dim, batch_size=1, **kwargs) -> None:
         self.dim = dim
         self.batch_size = batch_size
+
+    @property
+    def data_specs(self):
+        return {
+            "dim": self.dim,
+            "target_system": "qr",
+            "data_sampler": "rotor_hot",
+        }
 
     def sample(self, device):
         config = torch.rand(self.batch_size, *self.dim, device=device) * 2 * pi

@@ -3,8 +3,8 @@ from pathlib import Path
 import torch
 from tqdm.auto import tqdm
 
-from nfqr.data.config import ConditionConfig, MCMCSamplerConfig
-from nfqr.data.datasampler import MCMCPSampler
+from nfqr.data.config import ConditionConfig, TrajectorySamplerConfig
+from nfqr.data.datasampler import PSampler
 from nfqr.mcmc import MCMC_REGISTRY
 from nfqr.mcmc.config import MCMCConfig
 from nfqr.mcmc.initial_config import InitialConfigSamplerConfig
@@ -44,7 +44,7 @@ def test_condition():
                 ),
             )
 
-            mcmc_sampler_config_1 = MCMCSamplerConfig(
+            mcmc_sampler_config_1 = TrajectorySamplerConfig(
                 mcmc_config=mcmc_config,
                 condition_config=ConditionConfig(
                     params={
@@ -56,7 +56,7 @@ def test_condition():
                 ),
                 batch_size=batch_size,
             )
-            mcmc_sampler_config_0 = MCMCSamplerConfig(
+            mcmc_sampler_config_0 = TrajectorySamplerConfig(
                 mcmc_config=mcmc_config,
                 condition_config=ConditionConfig(
                     params={
@@ -69,7 +69,7 @@ def test_condition():
                 batch_size=batch_size,
             )
 
-            p_sampler = MCMCPSampler(
+            p_sampler = PSampler(
                 sampler_configs=[mcmc_sampler_config_0, mcmc_sampler_config_1],
                 batch_size=10000,
                 elements_per_dataset=25000,
@@ -92,7 +92,7 @@ def test_sus_exact():
     dim = [10]
     beta = 1.5
 
-    mcmc_sampler_config = MCMCSamplerConfig(
+    mcmc_sampler_config = TrajectorySamplerConfig(
         mcmc_config=MCMCConfig(
             mcmc_alg="cluster",
             mcmc_type="wolff",
@@ -108,7 +108,7 @@ def test_sus_exact():
         batch_size=batch_size,
     )
 
-    p_sampler = MCMCPSampler(
+    p_sampler = PSampler(
         sampler_configs=[mcmc_sampler_config],
         batch_size=10000,
         elements_per_dataset=50000,

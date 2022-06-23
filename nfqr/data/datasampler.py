@@ -1,6 +1,5 @@
-from asyncio.log import logger
-from tkinter import N
-from typing import List, Union
+from functools import cached_property
+from typing import List, Literal, Union
 
 import numpy as np
 import torch
@@ -16,8 +15,15 @@ from nfqr.data.condition import SampleCondition
 from nfqr.data.dataset import SamplesDataset, lmdb_worker_init_fn
 from nfqr.mcmc import MCMC_REGISTRY
 from nfqr.mcmc.config import MCMCConfig
+from nfqr.target_systems.rotor import (
+    ROTOR_TRAJECTORIES_REGISTRY,
+    RotorTrajectorySamplerConfig,
+)
+from nfqr.utils import create_logger
 
-from .config import ConditionConfig, MCMCSamplerConfig
+from .config import ConditionConfig, TrajectorySamplerConfig
+
+logger = create_logger(__name__)
 
 
 class MultipleDatasetsBatchSampler(BatchSampler):
@@ -112,34 +118,47 @@ class FlowSampler(object):
         return self.num_batches
 
 
-class MCMCSampler(object):
+class TrajectorySampler(object):
     def __init__(
         self,
-        mcmc_config: MCMCConfig,
+        sampler_config: Union[MCMCConfig, RotorTrajectorySamplerConfig],
         condition_config: ConditionConfig,
         batch_size: int,
         num_batches: int = 1,
     ) -> None:
         self.num_batches = num_batches
-        self.mcmc = MCMC_REGISTRY[mcmc_config.mcmc_alg][mcmc_config.mcmc_type](
-            **dict(mcmc_config)
-        )
+
+        if isinstance(sampler_config, MCMCConfig):
+            self.sampler = MCMC_REGISTRY[sampler_config.mcmc_alg][
+                sampler_config.mcmc_type
+            ](**dict(sampler_config))
+            self.sampler.initialize()
+            self.sample_batch = self._sample_batch_mcmc
+
+        elif isinstance(sampler_config, RotorTrajectorySamplerConfig):
+            self.sampler = ROTOR_TRAJECTORIES_REGISTRY[sampler_config.traj_type](
+                **dict(sampler_config)
+            )
+            self.sample_batch = self._sample_batch_traj
+
+        else:
+            raise ValueError(f"Unkown Sampler config type {type(sampler_config)}")
+
         self.condition = SampleCondition(**dict(condition_config))
         self.batch_size = batch_size
-        self.mcmc.initialize()
 
     @property
     def sampler_specs(self):
-        return {**self.mcmc.data_specs, "condition": str(self.condition)}
+        return {**self.sampler.data_specs, "condition": str(self.condition)}
 
-    def sample_batch(self, max_batch_repetitions=10, n_times_reinit=3):
+    def _sample_batch_mcmc(self, max_batch_repetitions=10, n_times_reinit=3):
 
         batch = []
 
         for _ in range(n_times_reinit):
             for _ in range(self.batch_size * max_batch_repetitions):
 
-                self.mcmc.step(record_observables=False)
+                self.sampler.step(record_observables=False)
 
                 if self.condition.evaluate(self.mcmc.current_config):
                     batch += [self.mcmc.current_config.detach().clone()]
@@ -148,6 +167,23 @@ class MCMCSampler(object):
 
             logger.info("MCMC is being reinitialized")
             self.mcmc.initialize()
+
+        if not len(batch) >= self.batch_size:
+            raise RuntimeError("Not enough samples that fulfill condition produced")
+
+    def _sample_batch_traj(self, max_batch_repetitions=10):
+
+        batch = []
+
+        for _ in range(self.batch_size * max_batch_repetitions):
+
+            with torch.no_grad():
+                config = self.sampler.sample(device="cpu")
+
+            if self.condition.evaluate(config):
+                batch += [config.detach().clone()]
+                if len(batch) >= self.batch_size:
+                    return torch.concat(batch, dim=0)
 
         if not len(batch) >= self.batch_size:
             raise RuntimeError("Not enough samples that fulfill condition produced")
@@ -219,7 +255,7 @@ class LMDBDatasetSampler(object):
                 drop_last=True,
             )
 
-            _dl = DataLoader(
+            self._dl = DataLoader(
                 dataset=dataset,
                 worker_init_fn=lmdb_worker_init_fn,
                 batch_sampler=batch_sampler,
@@ -238,35 +274,44 @@ class LMDBDatasetSampler(object):
                 shuffle=shuffle,
             )
 
-            _dl = DataLoader(
+            self._dl = DataLoader(
                 common_dataset,
                 worker_init_fn=lmdb_worker_init_fn,
                 batch_sampler=batch_sampler,
                 num_workers=num_workers,
             )
 
-        if infinite:
-            self.dl = ExtendedDLIterator(_dl)
-            self.sample = lambda device: self.dl.sample(device)
+        self.infinite = infinite
+
+    def __len__(self):
+        if self.infinite:
+            raise RuntimeError("Sampler has infinite length")
         else:
-            self.dl = _dl.__iter__()
-            self.sample = lambda device: self.dl.__next__().to(device)
+            return len(self._dl)
+
+    def __iter__(self):
+        if self.infinite:
+            return ExtendedDLIterator(self._dl)
+        else:
+            return self._dl.__iter__()
 
 
-class MCMCPSampler(object):
+class PSampler(object):
     def __init__(
         self,
-        sampler_configs: List[MCMCSamplerConfig],
+        sampler_configs: List[TrajectorySamplerConfig],
         batch_size: int,
         elements_per_dataset: int,
         subset_distribution: List[float],
         num_workers: int,
+        num_batches: int = None,
         shuffle: bool = True,
         infinite: bool = True,
     ) -> None:
 
         self.batch_size = batch_size
-        mcmc_samplers = [MCMCSampler(**dict(conf)) for conf in sampler_configs]
+
+        mcmc_samplers = [TrajectorySampler(**dict(conf)) for conf in sampler_configs]
 
         self.lmdb_pool = SamplesDataset(
             samplers=mcmc_samplers,
@@ -282,11 +327,22 @@ class MCMCPSampler(object):
             batch_size=batch_size,
             shuffle=shuffle,
             infinite=infinite,
+            num_batches=num_batches,
         )
 
+    @cached_property
+    def sampler_iter(self):
+        return self.sampler.__iter__()
+
     def sample(self, device):
-        return self.sampler.sample(device)
+        return self.sampler_iter.__next__().to(device)
 
     @property
     def dataset(self):
         return self.lmdb_pool
+
+    def __iter__(self):
+        yield from self.sampler.__iter__()
+
+    def __len__(self):
+        return len(self.sampler)
