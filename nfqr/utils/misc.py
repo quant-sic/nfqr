@@ -3,6 +3,27 @@ import logging
 
 import numpy as np
 
+def set_par_list_or_dict(list_or_dict,set_fn):
+
+    if isinstance(list_or_dict, (list, dict)):
+
+        if isinstance(list_or_dict, dict):
+            iterator = list_or_dict.copy().items()
+        elif isinstance(list_or_dict, list):
+            iterator = enumerate(list_or_dict.copy())
+
+        for key, value in iterator:
+            if isinstance(value, dict):
+                list_or_dict[key] = set_par(value,set_fn)
+
+            elif isinstance(value, list):
+                list_or_dict[key] = [
+                    set_par(list_item,set_fn) for list_item in value
+                ]
+
+            list_or_dict = set_fn(key,list_or_dict)
+
+    return list_or_dict
 
 def create_logger(app_name, level: int = logging.INFO) -> logging.Logger:
     """
