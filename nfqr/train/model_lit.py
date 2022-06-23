@@ -146,6 +146,14 @@ class LitFlow(pl.LightningModule):
 
         return train_loader
 
+    def _training_step(self, batch, step_fn, *args, **kwargs):
+        fn_out = step_fn(batch, *args, **kwargs)
+
+        for scheduler in self.schedulers:
+            scheduler.step()
+
+        self.train_step_logging(losses=fn_out["losses"], x_samples=fn_out["x_samples"])
+
     def train_step_logging(self, losses, x_samples):
         metrics_dict = {}
         for name, observable in self.observables_fn.items():
@@ -153,9 +161,6 @@ class LitFlow(pl.LightningModule):
 
         metrics_dict.update({"loss": losses.mean(), "loss_std": losses.std()})
         self.metrics.add_batch_wise(metrics_dict)
-
-        for scheduler in self.schedulers:
-            scheduler.step()
 
         self.log("beta", self.target.dist.action.beta)
 
@@ -168,11 +173,8 @@ class LitFlow(pl.LightningModule):
         log_p = self.target.log_prob(x_samples)
 
         elbo_values = elbo(log_q=log_q_x, log_p=log_p)
-        loss = elbo_values.mean()
 
-        self.train_step_logging(losses=elbo_values, x_samples=x_samples)
-
-        return {"loss": loss}
+        return {"losses": elbo_values, "x_samples": x_samples}
 
     def _train_dataloader_forward(self, batch_size, num_batches) -> TRAIN_DATALOADERS:
 
@@ -196,11 +198,7 @@ class LitFlow(pl.LightningModule):
 
         losses = -log_q_x
 
-        loss = losses.mean()
-
-        self.train_step_logging(losses=losses, x_samples=x_samples)
-
-        return {"loss": loss}
+        return {"losses": losses}
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
