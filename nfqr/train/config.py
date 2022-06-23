@@ -48,7 +48,7 @@ class TrainConfig(BaseConfig):
     target_system: ACTION_REGISTRY.enum
     action: ACTION_REGISTRY.enum
     observables: List[OBSERVABLE_REGISTRY.enum]
-    train_setup: Literal["reverse"] = "reverse"
+    train_setup: Literal["reverse","forward"] = "reverse"
 
     p_sampler_config: PSamplerConfig = None
 
@@ -86,12 +86,12 @@ class TrainConfig(BaseConfig):
             raw_config = set_par_list_or_dict(raw_config,set_fn=partial(choose_task_par,task_id=task_id))
 
         # check for inconsistencies in task array setup and config
-        if not len(set(num_pars_dict.values())) == 1:
+        if not len(set(num_pars_dict.values())) <= 1:
             raise ValueError(
                 f"Inconsistent number of tasks for parameters. {num_pars_dict}"
             )
         else:
-            num_pars = list(num_pars_dict.values())[0]
+            num_pars = list(num_pars_dict.values())[0] if list(num_pars_dict.values()) else 1
 
             if not num_pars == num_tasks:
                 raise ValueError(

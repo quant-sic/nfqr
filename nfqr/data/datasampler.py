@@ -121,28 +121,28 @@ class FlowSampler(object):
 class TrajectorySampler(object):
     def __init__(
         self,
-        sampler_config: Union[MCMCConfig, RotorTrajectorySamplerConfig],
+        trajectory_sampler_config: Union[MCMCConfig, RotorTrajectorySamplerConfig],
         condition_config: ConditionConfig,
         batch_size: int,
         num_batches: int = 1,
     ) -> None:
         self.num_batches = num_batches
 
-        if isinstance(sampler_config, MCMCConfig):
-            self.sampler = MCMC_REGISTRY[sampler_config.mcmc_alg][
-                sampler_config.mcmc_type
-            ](**dict(sampler_config))
+        if isinstance(trajectory_sampler_config, MCMCConfig):
+            self.sampler = MCMC_REGISTRY[trajectory_sampler_config.mcmc_alg][
+                trajectory_sampler_config.mcmc_type
+            ](**dict(trajectory_sampler_config))
             self.sampler.initialize()
             self.sample_batch = self._sample_batch_mcmc
 
-        elif isinstance(sampler_config, RotorTrajectorySamplerConfig):
-            self.sampler = ROTOR_TRAJECTORIES_REGISTRY[sampler_config.traj_type](
-                **dict(sampler_config)
+        elif isinstance(trajectory_sampler_config, RotorTrajectorySamplerConfig):
+            self.sampler = ROTOR_TRAJECTORIES_REGISTRY[trajectory_sampler_config.traj_type](
+                **dict(trajectory_sampler_config)
             )
             self.sample_batch = self._sample_batch_traj
 
         else:
-            raise ValueError(f"Unkown Sampler config type {type(sampler_config)}")
+            raise ValueError(f"Unkown Sampler config type {type(trajectory_sampler_config)}")
 
         self.condition = SampleCondition(**dict(condition_config))
         self.batch_size = batch_size
@@ -299,7 +299,7 @@ class LMDBDatasetSampler(object):
 class PSampler(object):
     def __init__(
         self,
-        sampler_configs: List[TrajectorySamplerConfig],
+        trajectory_sampler_configs: List[TrajectorySamplerConfig],
         batch_size: int,
         elements_per_dataset: int,
         subset_distribution: List[float],
@@ -311,7 +311,7 @@ class PSampler(object):
 
         self.batch_size = batch_size
 
-        mcmc_samplers = [TrajectorySampler(**dict(conf)) for conf in sampler_configs]
+        mcmc_samplers = [TrajectorySampler(**dict(conf)) for conf in trajectory_sampler_configs]
 
         self.lmdb_pool = SamplesDataset(
             samplers=mcmc_samplers,

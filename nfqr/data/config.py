@@ -17,18 +17,18 @@ class TrajectorySamplerConfig(BaseModel):
 
     _name: str = "trajectory_sampler_config"
 
-    sampler_config: Union[MCMCConfig, RotorTrajectorySamplerConfig]
+    trajectory_sampler_config: Union[MCMCConfig, RotorTrajectorySamplerConfig]
     num_batches: Optional[int] = 1
     condition_config: ConditionConfig
-    batch_size: int
+    sampler_batch_size: int = 1
 
 
 class PSamplerConfig(BaseModel):
 
     _name: str = "p_sampler_config"
 
-    sampler_configs: List[TrajectorySamplerConfig]
-    batch_size: int
+    trajectory_sampler_configs: List[TrajectorySamplerConfig]
+    batch_size: int=1
     elements_per_dataset: int
     subset_distribution: List[float] = None
     num_workers: int

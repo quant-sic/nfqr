@@ -14,11 +14,11 @@ def set_par_list_or_dict(list_or_dict,set_fn):
 
         for key, value in iterator:
             if isinstance(value, dict):
-                list_or_dict[key] = set_par(value,set_fn)
+                list_or_dict[key] = set_par_list_or_dict(value,set_fn)
 
             elif isinstance(value, list):
                 list_or_dict[key] = [
-                    set_par(list_item,set_fn) for list_item in value
+                    set_par_list_or_dict(list_item,set_fn) for list_item in value
                 ]
 
             list_or_dict = set_fn(key,list_or_dict)
