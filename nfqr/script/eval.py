@@ -6,7 +6,7 @@ from nfqr.eval.evaluation import EvalConfig,EvalResult
 from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.train.config import TrainConfig
 from nfqr.train.model_lit import LitFlow
-from tqdm.autonotebook import tqdm
+from tqdm import tqdm
 
 if __name__ == "__main__":
 

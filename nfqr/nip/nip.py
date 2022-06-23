@@ -1,7 +1,7 @@
 from typing import Literal
 
 import torch
-from tqdm.autonotebook import tqdm
+from tqdm import tqdm
 
 from nfqr.nip.stats import get_impsamp_statistics
 from nfqr.sampler import Sampler

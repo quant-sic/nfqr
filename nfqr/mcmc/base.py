@@ -1,4 +1,4 @@
-from tqdm.autonotebook import tqdm
+from tqdm import tqdm
 
 from nfqr.mcmc.stats import get_mcmc_statistics
 from nfqr.sampler import Sampler

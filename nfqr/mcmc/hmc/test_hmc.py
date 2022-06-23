@@ -2,7 +2,7 @@ import itertools
 import shutil
 
 from hmc import HMC
-from tqdm.autonotebook import tqdm
+from tqdm import tqdm
 
 from nfqr.globals import TMP_DIR
 from nfqr.target_systems import ActionConfig

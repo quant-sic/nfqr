@@ -6,7 +6,7 @@ import lmdb
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from nfqr.data.condition import SampleCondition
 from nfqr.globals import DATASETS_DIR
@@ -191,8 +191,6 @@ class LmdbDataset(Dataset):
             v_meta = self.meta.get(k, "")
 
             if k == "condition":
-                logger.info(v_meta)
-                logger.info(type(v_meta))
                 return SampleCondition.from_str_or_dict(v_meta) == SampleCondition.from_str_or_dict(
                     v_other
                 )

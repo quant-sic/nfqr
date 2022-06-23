@@ -160,13 +160,13 @@ class TrajectorySampler(object):
 
                 self.sampler.step(record_observables=False)
 
-                if self.condition.evaluate(self.mcmc.current_config):
-                    batch += [self.mcmc.current_config.detach().clone()]
+                if self.condition.evaluate(self.sampler.current_config):
+                    batch += [self.sampler.current_config.detach().clone()]
                     if len(batch) >= self.batch_size:
                         return torch.concat(batch, dim=0)
 
             logger.info("MCMC is being reinitialized")
-            self.mcmc.initialize()
+            self.sampler.initialize()
 
         if not len(batch) >= self.batch_size:
             raise RuntimeError("Not enough samples that fulfill condition produced")
