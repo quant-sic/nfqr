@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from scipy.special import gammainc
 from torch.utils import cpp_extension
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from nfqr.globals import REPO_ROOT
 from nfqr.utils.misc import create_logger

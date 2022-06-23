@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import torch
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from nfqr.data.config import ConditionConfig, TrajectorySamplerConfig
 from nfqr.data.datasampler import PSampler

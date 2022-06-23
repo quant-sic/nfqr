@@ -4,7 +4,7 @@ import numpy as np
 import numpyro
 import torch
 from jax import random as jax_random
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 from nfqr.mcmc.base import MCMC
 from nfqr.mcmc.hmc.hmc_cpp import hmc_cpp

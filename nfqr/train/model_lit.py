@@ -1,6 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property, partial
+from optparse import Values
 from typing import Dict, List, Literal, Union
 
 import numpy as np
@@ -155,9 +156,14 @@ class LitFlow(pl.LightningModule):
         self.train_step_logging(losses=fn_out["losses"], x_samples=fn_out["x_samples"])
 
     def train_step_logging(self, losses, x_samples):
+        
+        tensorboard = self.logger.experiment
+
         metrics_dict = {}
-        for name, observable in self.observables_fn.items():
-            metrics_dict[name] = observable.evaluate(x_samples).mean()
+        for obs_name, obs_fn in self.observables_fn.items():
+            obs_values = obs_fn.evaluate(x_samples)
+            metrics_dict[obs_name] = obs_values.mean()
+            tensorboard.add_histogram(tag=obs_name,values=obs_values)
 
         metrics_dict.update({"loss": losses.mean(), "loss_std": losses.std()})
         self.metrics.add_batch_wise(metrics_dict)
@@ -194,9 +200,10 @@ class LitFlow(pl.LightningModule):
     def _training_step_forward(self, batch, *args, **kwargs):
 
         x_samples = batch
-        log_q_x = self.model.log_prob(x_samples)
 
-        losses = -log_q_x
+        nlog_q_x = -self.model.log_prob(x_samples.clone().detach())
+
+        losses = nlog_q_x
 
         return {"losses": losses}
 
@@ -214,6 +221,12 @@ class LitFlow(pl.LightningModule):
                 self.log_all_values_in_stats_dict(_node, f"{str_path_to_node}/{key}")
 
         elif isinstance(node, (int, float, torch.Tensor)):
+
+            if isinstance(node, int):
+                node = float(node)
+            elif isinstance(node,torch.Tensor):
+                node = node.to(torch.float32)
+
             self.log(str_path_to_node, node)
 
             if (
