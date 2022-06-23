@@ -123,7 +123,7 @@ class TrajectorySampler(object):
         self,
         sampler_config: Union[MCMCConfig, RotorTrajectorySamplerConfig],
         condition_config: ConditionConfig,
-        batch_size: int,
+        sampler_batch_size: int,
         num_batches: int = 1,
     ) -> None:
         self.num_batches = num_batches
@@ -145,7 +145,7 @@ class TrajectorySampler(object):
             raise ValueError(f"Unkown Sampler config type {type(sampler_config)}")
 
         self.condition = SampleCondition(**dict(condition_config))
-        self.batch_size = batch_size
+        self.batch_size = sampler_batch_size
 
     @property
     def sampler_specs(self):

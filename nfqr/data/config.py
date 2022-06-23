@@ -20,7 +20,7 @@ class TrajectorySamplerConfig(BaseModel):
     sampler_config: Union[MCMCConfig, RotorTrajectorySamplerConfig]
     num_batches: Optional[int] = 1
     condition_config: ConditionConfig
-    batch_size: int
+    sampler_batch_size: int
 
 
 class PSamplerConfig(BaseModel):
