@@ -239,7 +239,7 @@ def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps):
 def get_ess_p_sampler(dim, beta, batch_size):
 
     mcmc_sampler_config = TrajectorySamplerConfig(
-        mcmc_config=MCMCConfig(
+        trajectory_sampler_config=MCMCConfig(
             mcmc_alg="cluster",
             mcmc_type="wolff",
             observables="Chi_t",
@@ -260,7 +260,7 @@ def get_ess_p_sampler(dim, beta, batch_size):
     )
 
     p_sampler = PSampler(
-        sampler_configs=[mcmc_sampler_config],
+        trajectory_sampler_configs=[mcmc_sampler_config],
         batch_size=batch_size,
         elements_per_dataset=250000,
         subset_distribution=[1.0],

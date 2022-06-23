@@ -14,16 +14,6 @@ from nfqr.utils import NumpyEncoder, create_logger
 
 logger = create_logger(__name__)
 
-DATASET_ATTRS = [
-    "target_system",
-    "dim",
-    "beta",
-    "data_sampler",
-    "n_burnin_steps",
-    "n_traj_steps",
-    "condition",
-]
-
 
 class LmdbDataset(Dataset):
     def __init__(self, dataset_path: Path, max_size: int) -> None:
@@ -201,7 +191,9 @@ class LmdbDataset(Dataset):
             v_meta = self.meta.get(k, "")
 
             if k == "condition":
-                return SampleCondition.from_str(v_meta) == SampleCondition.from_str(
+                logger.info(v_meta)
+                logger.info(type(v_meta))
+                return SampleCondition.from_str_or_dict(v_meta) == SampleCondition.from_str_or_dict(
                     v_other
                 )
             else:

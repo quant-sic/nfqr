@@ -1,4 +1,5 @@
 import json
+from multiprocessing.sharedctypes import Value
 from typing import Dict, Union
 
 import torch
@@ -30,6 +31,16 @@ class SampleCondition(object):
     def from_str(cls, _str: str):
         params = json.loads(_str)
         return cls(params)
+
+    @classmethod
+    def from_str_or_dict(cls, _str_or_dict: Union[str,Dict,None]):
+        if isinstance(_str_or_dict,dict) or _str_or_dict is None:
+            return cls(_str_or_dict)
+        elif isinstance(_str_or_dict,str):
+            params = json.loads(_str_or_dict)
+            return cls(params)
+        else:
+            raise ValueError(f"Unknown parameter type {type(_str_or_dict)}")
 
     def __eq__(self, other):
         if any(d is None for d in (self.params, other.params)):
