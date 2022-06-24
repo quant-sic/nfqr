@@ -27,6 +27,7 @@ from nfqr.utils import create_logger
 
 logger = create_logger(__name__)
 
+
 @dataclass
 class Metrics:
 
@@ -115,7 +116,10 @@ class LitFlow(pl.LightningModule):
         _losses = []
         for loss_config in self.loss_configs:
             loss = LOSS_REGISTRY[loss_config.loss_type](
-                **dict(loss_config.specific_loss_config),batch_size = self.trainer_config.batch_size,num_batches=self.trainer_config.num_batches,model=self.model
+                **dict(loss_config.specific_loss_config),
+                batch_size=self.trainer_config.batch_size,
+                num_batches=self.trainer_config.num_batches,
+                model=self.model,
             )
             if "target" in dir(loss):
                 loss.target = self.target

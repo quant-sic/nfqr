@@ -2,18 +2,19 @@ from typing import Literal, Union
 
 from pydantic import BaseModel
 
-from nfqr.data import PSampler, PSamplerConfig
+from nfqr.data import FlowSampler, PSampler, PSamplerConfig
 from nfqr.registry import StrRegistry
-from nfqr.data import FlowSampler
 
 LOSS_REGISTRY = StrRegistry("loss")
 
 
 @LOSS_REGISTRY.register("reverse")
 class ReverseKL(object):
-    def __init__(self,model,batch_size,num_batches, **kwargs) -> None:
+    def __init__(self, model, batch_size, num_batches, **kwargs) -> None:
         self.model = model
-        self._sampler = FlowSampler(batch_size=batch_size,num_batches=num_batches,model=model)
+        self._sampler = FlowSampler(
+            batch_size=batch_size, num_batches=num_batches, model=model
+        )
 
     @property
     def sampler(self):
@@ -45,15 +46,17 @@ class ReverseKL(object):
 
 @LOSS_REGISTRY.register("forward")
 class ForwardKL(object):
-    def __init__(self,model, p_sampler_config,batch_size,num_batches, **kwargs) -> None:
-        
+    def __init__(
+        self, model, p_sampler_config, batch_size, num_batches, **kwargs
+    ) -> None:
+
         p_sampler_config.infinite = False
         p_sampler_config.shuffle = True
         p_sampler_config.batch_size = batch_size
         p_sampler_config.num_batches = num_batches
 
         self._p_sampler = PSampler(**dict(p_sampler_config))
-        
+
         self.model = model
 
     @property
@@ -81,4 +84,4 @@ class ForwardKLConfig(BaseModel):
 class LossConfig(BaseModel):
 
     loss_type: LOSS_REGISTRY.enum
-    specific_loss_config: Union[ForwardKLConfig,ReverseKLConfig]
+    specific_loss_config: Union[ForwardKLConfig, ReverseKLConfig]
