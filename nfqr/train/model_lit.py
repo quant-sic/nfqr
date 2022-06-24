@@ -23,7 +23,9 @@ from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConf
 from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.train.config import TrainerConfig
 from nfqr.train.scheduler import SCHEDULER_REGISTRY, BetaScheduler, BetaSchedulerConfig
+from nfqr.utils import create_logger
 
+logger = create_logger(__name__)
 
 @dataclass
 class Metrics:
@@ -113,10 +115,8 @@ class LitFlow(pl.LightningModule):
         _losses = []
         for loss_config in self.loss_configs:
             loss = LOSS_REGISTRY[loss_config.loss_type](
-                **dict(loss_config.specific_loss_config)
+                **dict(loss_config.specific_loss_config),batch_size = self.trainer_config.batch_size,num_batches=self.trainer_config.num_batches,model=self.model
             )
-            if "model" in dir(loss):
-                loss.model = self.model
             if "target" in dir(loss):
                 loss.target = self.target
 
@@ -164,16 +164,8 @@ class LitFlow(pl.LightningModule):
 
         train_loaders = []
         for loss in self.losses:
-            if hasattr(loss, "p_sampler"):
-                train_loaders += [loss.p_sampler]
-            elif isinstance(loss, (ReverseKL)):
-                train_loaders += [
-                    FlowSampler(
-                        batch_size=self.trainer_config.batch_size,
-                        num_batches=self.trainer_config.num_batches,
-                        model=self.model,
-                    )
-                ]
+            if hasattr(loss, "sampler"):
+                train_loaders += [loss.sampler]
             else:
                 raise ValueError("Unhandled sampler case")
 

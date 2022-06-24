@@ -4,14 +4,20 @@ from pydantic import BaseModel
 
 from nfqr.data import PSampler, PSamplerConfig
 from nfqr.registry import StrRegistry
+from nfqr.data import FlowSampler
 
 LOSS_REGISTRY = StrRegistry("loss")
 
 
 @LOSS_REGISTRY.register("reverse")
 class ReverseKL(object):
-    def __init__(self, **kwargs) -> None:
-        pass
+    def __init__(self,model,batch_size,num_batches **kwargs) -> None:
+        self.model = model
+        self._sampler = FlowSampler(batch_size=batch_size,num_batches=num_batches,model=model)
+
+    @property
+    def sampler(self):
+        return self._sampler
 
     @staticmethod
     def elbo(log_q, log_p):
@@ -39,23 +45,20 @@ class ReverseKL(object):
 
 @LOSS_REGISTRY.register("forward")
 class ForwardKL(object):
-    def __init__(self, p_sampler_config, **kwargs) -> None:
+    def __init__(self,model, p_sampler_config,batch_size,num_batches, **kwargs) -> None:
+        
+        p_sampler_config.infinite = False
+        p_sampler_config.shuffle = True
+        p_sampler_config.batch_size = batch_size
+        p_sampler_config.num_batches = num_batches
+
         self._p_sampler = PSampler(**dict(p_sampler_config))
+        
+        self.model = model
 
     @property
-    def p_sampler(self):
+    def sampler(self):
         return self._p_sampler
-
-    @property
-    def model(self):
-        if not hasattr(self, "_model"):
-            raise RuntimeError("Model not set yet")
-        else:
-            return self._model
-
-    @model.setter
-    def model(self, m):
-        self._model = m
 
     def evaluate(self, batch):
 
@@ -78,4 +81,4 @@ class ForwardKLConfig(BaseModel):
 class LossConfig(BaseModel):
 
     loss_type: LOSS_REGISTRY.enum
-    specific_loss_config: Union[ReverseKLConfig, ForwardKLConfig]
+    specific_loss_config: Union[ForwardKLConfig,ReverseKLConfig]
