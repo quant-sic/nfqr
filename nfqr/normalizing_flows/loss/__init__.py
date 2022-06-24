@@ -1,1 +1,1 @@
-from .loss import elbo
+from .loss import LOSS_REGISTRY, ForwardKLConfig, LossConfig, ReverseKLConfig
