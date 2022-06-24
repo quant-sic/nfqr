@@ -11,7 +11,7 @@ LOSS_REGISTRY = StrRegistry("loss")
 
 @LOSS_REGISTRY.register("reverse")
 class ReverseKL(object):
-    def __init__(self,model,batch_size,num_batches **kwargs) -> None:
+    def __init__(self,model,batch_size,num_batches, **kwargs) -> None:
         self.model = model
         self._sampler = FlowSampler(batch_size=batch_size,num_batches=num_batches,model=model)
 

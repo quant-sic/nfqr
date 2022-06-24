@@ -22,7 +22,7 @@ from nfqr.normalizing_flows.target_density import TargetDensity
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
 from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.train.config import TrainerConfig
-from nfqr.train.scheduler import SCHEDULER_REGISTRY, BetaScheduler, BetaSchedulerConfig
+from nfqr.train.scheduler import SCHEDULER_REGISTRY, BetaScheduler, BetaSchedulerConfig, LossScheduler
 from nfqr.utils import create_logger
 
 logger = create_logger(__name__)
@@ -171,14 +171,27 @@ class LitFlow(pl.LightningModule):
 
         return train_loaders
 
+    @cached_property
+    def loss_scheduler(self):
+        try:
+            return filter(lambda _scheduler:isinstance(_scheduler,LossScheduler),self.schedulers).__next__()
+        except StopIteration:
+            return None            
+
+
     def training_step(self, batches, *args, **kwargs):
 
         losses_out_batch = []
         for loss, batch in zip(self.losses, batches):
             losses_out_batch += [loss.evaluate(batch)]
 
-        x_samples = losses_out_batch[0]["x_samples"]
-        losses = losses_out_batch[0]["loss_batch"]
+        if self.loss_scheduler is not None:
+            metrics = self.loss_scheduler.evaluate(losses_out_batch)
+        else:
+            metrics = losses_out_batch[0]
+
+        x_samples = metrics["x_samples"]
+        losses = metrics["loss_batch"]
 
         metrics_dict = {}
         for obs_name, obs_fn in self.observables_fn.items():
