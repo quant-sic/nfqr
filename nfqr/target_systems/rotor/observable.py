@@ -34,6 +34,22 @@ class TopologicalCharge(Observable):
             2 * math.pi
         )
 
+    @classmethod
+    def k_range(cls,dim):
+
+        abs_max_k = (
+            int(dim[0] / 2) if dim[0] % 2 == 0 else int(dim[0] / 2) + 1
+        )
+        k_range = np.arange(-abs_max_k + 1, abs_max_k, 1, dtype=int)
+
+        return k_range
+
+    @classmethod
+    def hist_bin_range(cls,dim):
+
+        bin_range = cls.k_range(dim=dim) - 0.5
+
+        return bin_range
 
 ROTOR_OBSERVABLE_REGISTRY.register("Q_diffs", TopologicalCharge.use_diffs)
 

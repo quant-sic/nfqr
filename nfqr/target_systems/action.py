@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
 
-from pydantic import BaseModel
-from typing import Optional
 
 import torch
+
 
 class Action(ABC):
     @abstractmethod
@@ -25,6 +24,4 @@ class ClusterAction(Action):
     def flip(self, config: torch.Tensor, reflection: torch.Tensor) -> torch.Tensor:
         pass
 
-class ActionConfig(BaseModel):
 
-    beta: Optional[float]

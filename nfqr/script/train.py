@@ -4,11 +4,12 @@ from pathlib import Path
 
 import torch
 from pytorch_lightning import Trainer
+from pytorch_lightning.tuner.tuning import Tuner
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from nfqr.globals import EXPERIMENTS_DIR
-from nfqr.train.config import TrainConfig
+from nfqr.train.config import LitModelConfig
 from nfqr.train.model_lit import LitFlow
 from nfqr.utils.misc import create_logger
 
@@ -23,7 +24,7 @@ if __name__ == "__main__":
 
     exp_dir = EXPERIMENTS_DIR / args.exp_dir
 
-    train_config = TrainConfig.from_directory_for_task(
+    train_config = LitModelConfig.from_directory_for_task(
         exp_dir,
         task_id=int(os.environ["task_id"]),
         num_tasks=int(os.environ["num_tasks"]),
@@ -46,11 +47,24 @@ if __name__ == "__main__":
         logger=tb_logger,
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=1,
-        auto_lr_find=True
+        auto_lr_find=train_config.trainer_config.auto_lr_find,
+        default_root_dir=(exp_dir / "trainer")/log_dir
     )
 
     logger.info(
         "Train Config for task {}:\n {}".format(os.environ["task_id"], train_config)
     )
+
+    if train_config.trainer_config.auto_lr_find:
+        trainer.tune(model=flow_model,lr_find_kwargs={
+                "min_lr": 1e-8,
+                "max_lr": 5e-3,
+                "num_training": 250,
+                "mode": "exponential",
+                "early_stop_threshold": 5.0,
+                "update_attr": True,
+            })
+        if flow_model.learning_rate is None:
+            flow_model.learning_rate = train_config.trainer_config.learning_rate
 
     trainer.fit(model=flow_model)

@@ -4,7 +4,7 @@ from typing import List, Optional
 import numpy as np
 import torch
 from pydantic import BaseModel
-
+from .observable import TopologicalCharge
 from nfqr.registry import StrRegistry
 
 ROTOR_TRAJECTORIES_REGISTRY = StrRegistry("qr")
@@ -26,10 +26,7 @@ class DiscreteClassicalRotorTrajectorySampler(object):
 
             self.probs = self.probs / self.probs.sum()
 
-        abs_max_k = (
-            int(self.dim[0] / 2) if self.dim[0] % 2 == 0 else int(self.dim[0] / 2) + 1
-        )
-        self.k_range = np.arange(-abs_max_k + 1, abs_max_k, 1, dtype=int)
+        self.k_range = TopologicalCharge.k_range(self.dim)
 
         if self.k not in self.k_range:
             raise ValueError(

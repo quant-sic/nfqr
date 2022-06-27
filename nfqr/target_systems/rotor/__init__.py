@@ -9,3 +9,4 @@ from .trajectories_samplers import (
     ROTOR_TRAJECTORIES_REGISTRY,
     RotorTrajectorySamplerConfig,
 )
+from .action import QuantumRotorConfig

@@ -33,35 +33,41 @@ class DimsNotMatchingError(Exception):
 class TrainerConfig(BaseModel):
 
     batch_size: int
-    num_batches: int
+    train_num_batches: int
+    val_num_batches: int
     max_epochs: int = 100
-    log_every_n_steps: int = 50
-    task_parameters: Union[List[str], None] = None
     accumulate_grad_batches: int = 1
+
+    log_every_n_steps: int = 50
+
+    task_parameters: Union[List[str], None] = None
+    
+    learning_rate:float=0.001
+    auto_lr_find:bool=False
+
+    loss_configs: List[LossConfig]
+    loss_scheduler_config : SchedulerConfig =None
 
     scheduler_configs: Optional[List[SchedulerConfig]] = []
 
     n_iter_eval: int = 5
     batch_size_eval: int = 10000
+    
 
 
-class TrainConfig(BaseConfig):
+
+
+class LitModelConfig(BaseConfig):
 
     _name: str = "train_config"
 
     flow_config: FlowConfig
-    target_system: ACTION_REGISTRY.enum
-    action: ACTION_REGISTRY.enum
-    observables: List[OBSERVABLE_REGISTRY.enum]
-    # train_setup: Literal["reverse", "forward"] = "reverse"
-
-    p_sampler_config: PSamplerConfig = None
-
     action_config: ActionConfig
-
     dim: List[int]
+
+    observables: List[OBSERVABLE_REGISTRY.enum]
     trainer_config: TrainerConfig
-    loss_configs: List[LossConfig]
+
 
     @classmethod
     def from_directory_for_task(

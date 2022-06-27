@@ -35,6 +35,10 @@ class ReverseKL(object):
     def target(self, t):
         self._target = t
 
+    def name_batch(self,batch):
+        x_samples, log_q_x = batch
+        return {"x_samples":x_samples,"log_q_x":log_q_x}
+
     def evaluate(self, batch):
 
         x_samples, log_q_x = batch
@@ -62,6 +66,10 @@ class ForwardKL(object):
     @property
     def sampler(self):
         return self._p_sampler
+
+    def name_batch(self,batch):
+        x_samples = batch
+        return {"x_samples":x_samples}
 
     def evaluate(self, batch):
 

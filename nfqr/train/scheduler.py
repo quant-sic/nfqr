@@ -57,8 +57,10 @@ class BetaScheduler(object):
     def target_action(self, ta):
         self._target_action = ta
 
-    def log(self, logger):
-        logger.add_scalar("beta", self.target_action.beta)
+    @property
+    def log_stats(self):
+        return {"beta":self.target_action.beta}
+
 
     def step(self):
 
@@ -79,18 +81,18 @@ class BetaScheduler(object):
             # introduce additional damping or cancel change if required conditions are not met
             damping_exponent = 0
             for key, damping_c in self.damping_constant.items():
-                logger.info(
+                logger.debug(
                     f"slope {self.metrics.last_slope(key, self.metric_window_length)}"
                 )
                 slope = self.metrics.last_slope(key, self.metric_window_length)
-                logger.info(self.max_observed_change_rate[key])
-                logger.info(abs(slope) < self.max_observed_change_rate[key])
+                logger.debug(self.max_observed_change_rate[key])
+                logger.debug(abs(slope) < self.max_observed_change_rate[key])
                 slope = (
                     slope if abs(slope) < self.max_observed_change_rate[key] else np.inf
                 )
                 damping_exponent += abs(damping_c * slope)
 
-            logger.info(damping_exponent)
+            logger.debug(damping_exponent)
             self.target_action.beta += beta_change_proposed * np.exp(-damping_exponent)
 
             self.n_steps_since_change = 0
@@ -119,16 +121,30 @@ class LossScheduler(object):
         self.target_alphas = np.array(target_alphas)
         self.n_schedule_steps = n_schedule_steps
 
-        self.alpha_step_method = self.comb_methods[alpha_step_method]
+        # self.alpha_step_method = self.comb_methods[alpha_step_method]
+        self.alpha_step_method= {"max_change_comb":self.max_change_comb}[alpha_step_method]
+
 
         self.change_rate = change_rate
         self.metric_window_length = metric_window_length
         self.max_observed_change_rate = max_observed_change_rate
         self.damping_constant = damping_constant
 
-    def log(self, logger):
-        for idx, alpha in enumerate(self.alphas):
-            logger.add_scalar(f"alpha/{idx}", alpha)
+    @property
+    def metrics(self):
+        if not hasattr(self, "_metrics"):
+            raise RuntimeError("metrics not set yet")
+        else:
+            return self._metrics
+
+    @metrics.setter
+    def metrics(self, m):
+        self._metrics = m
+
+    @property
+    def log_stats(self):
+        return {f"alpha/{idx}":alpha for idx, alpha in enumerate(self.alphas)}
+
 
     @cached_property
     def sufficient_target_distance(self):
@@ -146,7 +162,7 @@ class LossScheduler(object):
         else:
             # check whether sufficiently close to target
             if (
-                (self.target_alphas - self.alphas).abs()
+                abs(self.target_alphas - self.alphas)
                 < self.sufficient_target_distance
             ).all():
                 self.alphas = self.target_alphas
@@ -208,16 +224,16 @@ class LossScheduler(object):
         # introduce additional damping or cancel change if required conditions are not met
         damping_exponent = 0
         for key, damping_c in self.damping_constant.items():
-            logger.info(
+            logger.debug(
                 f"slope {self.metrics.last_slope(key, self.metric_window_length)}"
             )
             slope = self.metrics.last_slope(key, self.metric_window_length)
-            logger.info(self.max_observed_change_rate[key])
-            logger.info(abs(slope) < self.max_observed_change_rate[key])
+            logger.debug(self.max_observed_change_rate[key])
+            logger.debug(abs(slope) < self.max_observed_change_rate[key])
             slope = slope if abs(slope) < self.max_observed_change_rate[key] else np.inf
             damping_exponent += abs(damping_c * slope)
 
-        logger.info(damping_exponent)
+        logger.debug(damping_exponent)
         self.alphas += alphas_change_proposed * np.exp(-damping_exponent)
 
     # @staticmethod
@@ -237,6 +253,19 @@ class LossScheduler(object):
                 inspect.getmembers(LossScheduler, predicate=inspect.isfunction),
             )
         )
+
+@SCHEDULER_REGISTRY.register("default_loss")
+class LossScheduler(object):
+
+    @property
+    def log_stats(self):
+        return {}
+
+    def step(self):
+        pass
+
+    def evaluate(self, losses_out):
+        return losses_out[0]
 
 
 class LossSchedulerConfig(BaseModel):
