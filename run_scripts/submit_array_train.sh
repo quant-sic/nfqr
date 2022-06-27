@@ -8,7 +8,7 @@
 #$ -V          # provide environment variables
 #$ -o /home/dechentf/MA/nfqr/pipe_out/$JOB_ID/
 #$ -e /home/dechentf/MA/nfqr/pipe_out/$JOB_ID/
-#$ -t 1-1
+#$ -t 1-15
 
 
 export num_tasks=$SGE_TASK_LAST
@@ -16,8 +16,11 @@ export task_id=$((SGE_TASK_ID - 1))
 export job_id=$JOB_ID
 export CUDA=1
 
+# echo environment
 env
 
+# activate python environment
 source /home/dechentf/MA/nfqr/nfqr-env/bin/activate
 
+# execute script
 /home/dechentf/MA/nfqr/nfqr-env/bin/python3 /home/dechentf/MA/nfqr/nfqr/script/train.py --exp_dir $1

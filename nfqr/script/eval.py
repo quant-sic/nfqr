@@ -50,7 +50,7 @@ if __name__ == "__main__":
                 )
                 stats_nmcmc_list += [stats_nmcmc]
 
-        eval_result.exact_sus = lit_model.sus_exact
+        eval_result.exact_sus = lit_model.sus_exact_final
         eval_result.nip = stats_nip_list
         eval_result.nmcmc = stats_nmcmc_list
         

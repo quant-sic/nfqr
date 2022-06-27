@@ -28,42 +28,53 @@
       "num_layers": 5
     }
   },
-  "target_system": "qr",
-  "action": "qr",
   "observables": [
+    "Q",
     "Chi_t"
   ],
-  "train_setup": "reverse",
   "action_config": {
-    "beta": [
-      1.0,
-      1.25,
-      1.5,
-      1.75,
-      2.0,
-      2.25,
-      2.5,
-      2.75,
-      3.0,
-      3.25,
-      3.5,
-      3.75,
-      4.0,
-      4.25,
-      4.5
-    ]
+    "target_system": "qr",
+    "action_type": "qr",
+    "specific_action_config": {
+      "beta": [
+        1.0,
+        1.25,
+        1.5,
+        1.75,
+        2.0,
+        2.25,
+        2.5,
+        2.75,
+        3.0,
+        3.25,
+        3.5,
+        3.75,
+        4.0,
+        4.25,
+        4.5
+      ]
+    }
   },
   "dim": [
     25
   ],
   "trainer_config": {
+    "learning_rate": 0.001,
+    "auto_lr_find": false,
     "batch_size": 5000,
-    "num_batches": 100,
+    "train_num_batches": 100,
+    "val_num_batches": 5,
     "max_epochs": 1000,
-    "log_every_n_steps": 50,
+    "log_every_n_steps": 25,
     "task_parameters": [
       "beta"
     ],
-    "accumulate_grad_batches": 2
+    "accumulate_grad_batches": 2,
+    "loss_configs": [
+      {
+        "loss_type": "reverse",
+        "specific_loss_config": {}
+      }
+    ]
   }
 }

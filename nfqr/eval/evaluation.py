@@ -236,7 +236,7 @@ def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps):
     return stats
 
 
-def get_ess_p_sampler(dim, beta, batch_size):
+def get_ess_p_sampler(dim,action_config, batch_size):
 
     mcmc_sampler_config = TrajectorySamplerConfig(
         trajectory_sampler_config=MCMCConfig(
@@ -245,7 +245,7 @@ def get_ess_p_sampler(dim, beta, batch_size):
             observables="Chi_t",
             n_steps=1,
             dim=dim,
-            action_config=ActionConfig(beta=beta),
+            action_config=action_config,
             n_burnin_steps=25000,
             n_traj_steps=3,
             out_dir=Path("./"),

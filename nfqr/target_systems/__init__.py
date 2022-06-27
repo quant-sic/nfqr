@@ -1,6 +1,6 @@
 from nfqr.registry import JointStrRegistry
 
-from .action import ActionConfig
+from .config import ActionConfig
 from .rotor import (
     ROTOR_ACTION_REGISTRY,
     ROTOR_OBSERVABLE_REGISTRY,

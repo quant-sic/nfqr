@@ -1,15 +1,14 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Dict, List, Union
+from typing import Dict, List, Union,Optional
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.utilities.types import TRAIN_DATALOADERS
+from pytorch_lightning.utilities.types import TRAIN_DATALOADERS,EVAL_DATALOADERS,STEP_OUTPUT,EPOCH_OUTPUT
 from scipy import stats
 
-from nfqr.data.datasampler import FlowSampler
 from nfqr.eval.evaluation import (
     estimate_ess_p_nip,
     estimate_obs_nip,
@@ -17,12 +16,12 @@ from nfqr.eval.evaluation import (
     get_ess_p_sampler,
 )
 from nfqr.normalizing_flows.flow import BareFlow, FlowConfig
-from nfqr.normalizing_flows.loss.loss import LOSS_REGISTRY, LossConfig, ReverseKL
+from nfqr.normalizing_flows.loss.loss import LOSS_REGISTRY, LossConfig
 from nfqr.normalizing_flows.target_density import TargetDensity
-from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
+from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig, action
 from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.train.config import TrainerConfig
-from nfqr.train.scheduler import SCHEDULER_REGISTRY, BetaScheduler, BetaSchedulerConfig, LossScheduler
+from nfqr.train.scheduler import SCHEDULER_REGISTRY, BetaScheduler, LossScheduler
 from nfqr.utils import create_logger
 
 logger = create_logger(__name__)
@@ -62,63 +61,40 @@ class LitFlow(pl.LightningModule):
         self,
         dim: List[int],
         flow_config: FlowConfig,
-        target_system: ACTION_REGISTRY.enum,
-        action: ACTION_REGISTRY.enum,
         observables: List[OBSERVABLE_REGISTRY.enum],
         action_config: ActionConfig,
         trainer_config: TrainerConfig,
-        loss_configs=List[LossConfig],
-        learning_rate=0.001,
         **kwargs,
     ) -> None:
         super().__init__()
 
-        self.learning_rate = learning_rate
-
-        self.model = BareFlow(**dict(flow_config))
-
-        self.target = TargetDensity.boltzmann_from_action(
-            ACTION_REGISTRY[target_system][action](**dict(action_config))
-        )
-
-        self.observables = observables
-        self.target_system = target_system
-
-        # if train_setup == "reverse":
-        #     self.training_step = self._training_step_reverse
-        #     self.train_dataloader = partial(
-        #         self._train_dataloader_reverse,
-        #         batch_size=trainer_config.batch_size,
-        #         num_batches=trainer_config.num_batches,
-        #     )
-
-        # if train_setup == "forward":
-        #     self.training_step = self._training_step_forward
-        #     self.train_dataloader = partial(
-        #         self._train_dataloader_forward,
-        #         batch_size=trainer_config.batch_size,
-        #         num_batches=trainer_config.num_batches,
-        #     )
-        #     assert (
-        #         p_sampler_config is not None
-        #     ), "P sampler config cannot be None in forward mode"
-        #     self.p_sampler_config = p_sampler_config
-
         self.trainer_config = trainer_config
+        self.action_config = action_config
+        self.observables = observables
         self.dim = dim
 
-        self.metrics = Metrics()
+        self.learning_rate = trainer_config.learning_rate
+        self.model = BareFlow(**dict(flow_config))
 
-        self.loss_configs = loss_configs
 
     @cached_property
-    def losses(self):
+    def target(self):
+        return TargetDensity.boltzmann_from_action(
+                ACTION_REGISTRY[self.action_config.target_system][self.action_config.action_type](**dict(self.action_config.specific_action_config))
+            )
+
+    @cached_property
+    def metrics(self):
+        return Metrics()
+
+    @cached_property
+    def train_losses(self):
         _losses = []
-        for loss_config in self.loss_configs:
+        for loss_config in self.trainer_config.loss_configs:
             loss = LOSS_REGISTRY[loss_config.loss_type](
                 **dict(loss_config.specific_loss_config),
                 batch_size=self.trainer_config.batch_size,
-                num_batches=self.trainer_config.num_batches,
+                num_batches=self.trainer_config.train_num_batches,
                 model=self.model,
             )
             if "target" in dir(loss):
@@ -129,19 +105,51 @@ class LitFlow(pl.LightningModule):
         return _losses
 
     @cached_property
+    def val_losses(self):
+        _losses = []
+        for loss_config in self.trainer_config.loss_configs:
+            loss = LOSS_REGISTRY[loss_config.loss_type](
+                **dict(loss_config.specific_loss_config),
+                batch_size=self.trainer_config.batch_size,
+                num_batches=self.trainer_config.val_num_batches,
+                model=self.model,
+            )
+            if "target" in dir(loss):
+                loss.target = self.target
+
+            _losses += [loss]
+
+        return _losses
+
+    def load_scheduler(self,config):
+        _scheduler = SCHEDULER_REGISTRY[config.scheduler_type](
+            **dict(config.specific_scheduler_config)
+        )
+        if "metrics" in dir(_scheduler):
+            _scheduler.metrics = self.metrics
+        if "target_action" in dir(_scheduler):
+            _scheduler.target_action = self.target.dist.action
+
+        return _scheduler
+
+    @cached_property
+    def loss_scheduler(self):
+        if self.trainer_config.loss_scheduler_config is None:
+            return SCHEDULER_REGISTRY["default_loss"]()
+        else:
+            return self.load_scheduler(self.trainer_config.loss_scheduler_config)
+
+    @cached_property
     def schedulers(self):
         _schedulers = []
 
         for scheduler_config in self.trainer_config.scheduler_configs:
-            _scheduler = SCHEDULER_REGISTRY[scheduler_config.scheduler_type](
-                **dict(scheduler_config.specific_scheduler_config)
-            )
-            if "metrics" in dir(_scheduler):
-                _scheduler.metrics = self.model
-            if "target_action" in dir(_scheduler):
-                _scheduler.target_action = self.target.dist.action
+            _schedulers += [self.load_scheduler(scheduler_config)]
 
-            _schedulers += [_scheduler]
+        _schedulers+=[self.loss_scheduler]
+
+        if not all(len(set(list(filter(lambda _scheduler: isinstance(_scheduler,_scheduler_class),_schedulers))))<=1 for _scheduler_class in (BetaScheduler,LossScheduler)):
+            raise RuntimeError("Only one scheduler instance per type is allowed")
 
         return _schedulers
 
@@ -150,24 +158,35 @@ class LitFlow(pl.LightningModule):
         return SusceptibilityExact(self.target.dist.action.beta, *self.dim).evaluate()
 
     @cached_property
+    def sus_exact_final(self)->float:
+        if not any(isinstance(_scheduler,BetaScheduler) for _scheduler in self.schedulers):
+            return SusceptibilityExact(self.target.dist.action.beta, *self.dim).evaluate()
+        else:
+            beta_scheduler = filter(lambda _scheduler:isinstance(_scheduler,BetaScheduler),self.schedulers).__next__()
+            return SusceptibilityExact(beta_scheduler.target_beta, *self.dim).evaluate()
+
+    @cached_property
     def observables_fn(self):
         return {
-            obs: OBSERVABLE_REGISTRY[self.target_system][obs]()
+            obs: OBSERVABLE_REGISTRY[self.action_config.target_system][obs]()
             for obs in self.observables
         }
 
     @cached_property
     def ess_p_sampler(self):
+        if any(isinstance(_scheduler,BetaScheduler) for _scheduler in self.schedulers):
+            logger.warning("Ess P sampler is not scheduled with beta. so ess p values will not be valid")
+
         return get_ess_p_sampler(
             dim=self.dim,
-            beta=self.target.dist.action.beta,
+            action_config=self.action_config,
             batch_size=self.trainer_config.batch_size_eval,
         )
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
 
         train_loaders = []
-        for loss in self.losses:
+        for loss in self.train_losses:
             if hasattr(loss, "sampler"):
                 train_loaders += [loss.sampler]
             else:
@@ -175,43 +194,41 @@ class LitFlow(pl.LightningModule):
 
         return train_loaders
 
-    @cached_property
-    def loss_scheduler(self):
-        try:
-            return filter(lambda _scheduler:isinstance(_scheduler,LossScheduler),self.schedulers).__next__()
-        except StopIteration:
-            return None            
+    def val_dataloader(self) -> EVAL_DATALOADERS:
+        val_loaders = []
+        for loss in self.val_losses:
+            if hasattr(loss, "sampler"):
+                val_loaders += [loss.sampler]
+            else:
+                raise ValueError("Unhandled sampler case")
 
+        return val_loaders
 
     def training_step(self, batches, *args, **kwargs):
 
         losses_out_batch = []
-        for loss, batch in zip(self.losses, batches):
+        for loss, batch in zip(self.train_losses, batches):
             losses_out_batch += [loss.evaluate(batch)]
 
-        if self.loss_scheduler is not None:
-            metrics = self.loss_scheduler.evaluate(losses_out_batch)
-        else:
-            metrics = losses_out_batch[0]
-
-        x_samples = metrics["x_samples"]
+        metrics = self.loss_scheduler.evaluate(losses_out_batch)
         losses = metrics["loss_batch"]
 
         metrics_dict = {}
         for obs_name, obs_fn in self.observables_fn.items():
-            obs_values = obs_fn.evaluate(x_samples)
-            metrics_dict[obs_name] = obs_values.mean()
-            self.logger.experiment.add_histogram(tag=obs_name, values=obs_values)
+            with torch.no_grad():
+                obs_values = obs_fn.evaluate(metrics["x_samples"])
+                metrics_dict[obs_name] = obs_values.mean()
 
         metrics_dict.update({"loss": losses.mean(), "loss_std": losses.std()})
         self.metrics.add_batch_wise(metrics_dict)
 
-        for scheduler in self.schedulers:
-            scheduler.step()
-            scheduler.log(self.logger.experiment)
-
         for key, value in metrics_dict.items():
             self.log(key, value)
+
+        for scheduler in self.schedulers:
+            scheduler.step()
+            for key,value in scheduler.log_stats.items():
+                self.log(key,value)
 
         return {"loss": losses.mean()}
 
@@ -251,7 +268,18 @@ class LitFlow(pl.LightningModule):
                 f"Unknown node type in stats dict {type(node)} for node {node}"
             )
 
-    def on_train_epoch_end(self):
+    def validation_step(self,batch, batch_idx, dataloader_idx=0) -> Optional[STEP_OUTPUT]:
+        
+        val_step_output={}
+        batch_dict = self.val_losses[dataloader_idx].name_batch(batch)
+
+        for obs_name, obs_fn in self.observables_fn.items():
+            with torch.no_grad():
+                val_step_output[obs_name] = obs_fn.evaluate(batch_dict["x_samples"])
+
+        return val_step_output
+
+    def validation_epoch_end(self, outputs: Union[EPOCH_OUTPUT, List[EPOCH_OUTPUT]]) -> None:
 
         stats_nmcmc = self.estimate_obs_nmcmc(
             batch_size=self.trainer_config.batch_size_eval,
@@ -266,17 +294,21 @@ class LitFlow(pl.LightningModule):
         for sampler, _stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
             self.log_all_values_in_stats_dict(_stats, sampler)
 
-        self.log("lr", self.learning_rate)
 
-        self.log(
-            "loss_epoch",
-            self.metrics.last_mean("loss", self.trainer_config.num_batches),
-        )
+        if len(self.trainer.val_dataloaders)==1:
+            outputs = [outputs]
 
-        self.log(
-            "loss_std_epoch",
-            self.metrics.last_mean("loss_std", self.trainer_config.num_batches),
-        )
+        for dataloader_idx,val_steps_output in enumerate(outputs):
+            val_steps_output_transposed=defaultdict(list)
+            
+            for output in val_steps_output:
+                for key,val in output.items():
+                    val_steps_output_transposed[key]+=[val] 
+
+            for key,val in val_steps_output_transposed.items():
+                if key in self.observables_fn.keys() and hasattr(self.observables_fn[key],"hist_bin_range"):
+                    self.logger.experiment.add_histogram(tag=f"{dataloader_idx}_{type(self.trainer.val_dataloaders[dataloader_idx]).__name__}/{key}", values=torch.concat(val),global_step = self.global_step,bins = self.observables_fn[key].hist_bin_range(self.dim))
+
 
         # if "von_mises" in self.config.flow_config.base_dist_config.type:
         #     with torch.no_grad():
@@ -287,6 +319,24 @@ class LitFlow(pl.LightningModule):
         #             ),
         #         )
 
+
+    def on_train_epoch_end(self) -> None:
+        
+        self.log("lr", self.learning_rate)
+
+        self.log(
+            "loss_epoch",
+            self.metrics.last_mean("loss", self.trainer_config.train_num_batches),
+        )
+
+        self.log(
+            "loss_std_epoch",
+            self.metrics.last_mean("loss_std", self.trainer_config.train_num_batches),
+        )
+
+        return super().on_train_epoch_end()             
+
+        
     def estimate_obs_nip(self, batch_size, n_iter):
 
         stats_nip = estimate_obs_nip(

@@ -1,6 +1,7 @@
 import math
 
 import jax.numpy as jnp
+from pydantic import BaseModel
 import torch
 
 from nfqr.registry import StrRegistry
@@ -68,3 +69,7 @@ class QuantumRotor(ClusterAction):
 
 
 ROTOR_ACTION_REGISTRY.register("qr_diffs", QuantumRotor.use_diffs)
+
+class QuantumRotorConfig(BaseModel):
+
+    beta: float

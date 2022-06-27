@@ -20,7 +20,6 @@ class WolffCluster(MCMC):
     def __init__(
         self,
         action_config,
-        action,
         dim,
         n_steps,
         observables,
@@ -29,18 +28,17 @@ class WolffCluster(MCMC):
         n_traj_steps=1,
         n_burnin_steps=0,
         batch_size=1,
-        target_system="qr",
         **kwargs,
     ):
 
         super(WolffCluster, self).__init__(
             n_steps=n_steps,
             observables=observables,
-            target_system=target_system,
+            target_system=action_config.target_system,
             out_dir=out_dir,
         )
 
-        self.action = ACTION_REGISTRY[target_system][action](**dict(action_config))
+        self.action = ACTION_REGISTRY[action_config.target_system][action_config.action_type](**dict(action_config.specific_action_config))
 
         if not isinstance(self.action, ClusterAction):
             raise ValueError(
@@ -51,7 +49,7 @@ class WolffCluster(MCMC):
         self.dim = dim
         self.batch_size = batch_size
         self.n_traj_steps = n_traj_steps
-        self.target_system = target_system
+        self.target_system = action_config.target_system
 
         self.initial_config_sampler = InitialConfigSampler(
             **dict(initial_config_sampler_config)
