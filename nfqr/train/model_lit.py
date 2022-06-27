@@ -9,7 +9,6 @@ import torch
 from pytorch_lightning.utilities.types import TRAIN_DATALOADERS
 from scipy import stats
 
-from nfqr.data.datasampler import FlowSampler
 from nfqr.eval.evaluation import (
     estimate_ess_p_nip,
     estimate_obs_nip,
@@ -17,12 +16,12 @@ from nfqr.eval.evaluation import (
     get_ess_p_sampler,
 )
 from nfqr.normalizing_flows.flow import BareFlow, FlowConfig
-from nfqr.normalizing_flows.loss.loss import LOSS_REGISTRY, LossConfig, ReverseKL
+from nfqr.normalizing_flows.loss.loss import LOSS_REGISTRY, LossConfig
 from nfqr.normalizing_flows.target_density import TargetDensity
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
 from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.train.config import TrainerConfig
-from nfqr.train.scheduler import SCHEDULER_REGISTRY, BetaScheduler, BetaSchedulerConfig
+from nfqr.train.scheduler import SCHEDULER_REGISTRY
 from nfqr.utils import create_logger
 
 logger = create_logger(__name__)
@@ -83,26 +82,6 @@ class LitFlow(pl.LightningModule):
 
         self.observables = observables
         self.target_system = target_system
-
-        # if train_setup == "reverse":
-        #     self.training_step = self._training_step_reverse
-        #     self.train_dataloader = partial(
-        #         self._train_dataloader_reverse,
-        #         batch_size=trainer_config.batch_size,
-        #         num_batches=trainer_config.num_batches,
-        #     )
-
-        # if train_setup == "forward":
-        #     self.training_step = self._training_step_forward
-        #     self.train_dataloader = partial(
-        #         self._train_dataloader_forward,
-        #         batch_size=trainer_config.batch_size,
-        #         num_batches=trainer_config.num_batches,
-        #     )
-        #     assert (
-        #         p_sampler_config is not None
-        #     ), "P sampler config cannot be None in forward mode"
-        #     self.p_sampler_config = p_sampler_config
 
         self.trainer_config = trainer_config
         self.dim = dim
