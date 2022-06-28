@@ -29,21 +29,19 @@ class HMC(MCMC):
         n_burnin_steps: int,
         observables,
         out_dir,
-        target_system: str = "qr",
         n_traj_steps=20,
         step_size=0.01,
         autotune_step=True,
         hmc_engine="cpp_batch",
         batch_size=10000,
         n_samples_at_a_time=10000,
-        action="qr",
         initial_config_sampler_config=None,
         **kwargs,
     ) -> None:
         super(HMC, self).__init__(
             n_steps=n_steps,
             observables=observables,
-            target_system=target_system,
+            target_system=action_config.target_system,
             out_dir=out_dir,
         )
 
@@ -55,8 +53,8 @@ class HMC(MCMC):
         self.n_traj_steps = n_traj_steps
         self.n_samples_at_a_time = n_samples_at_a_time
 
-        self.target_system = target_system
-        self.action = ACTION_REGISTRY[target_system][action](**dict(action_config))
+        self.target_system = action_config.target_system
+        self.action = ACTION_REGISTRY[action_config.target_system][action_config.action_type](**dict(action_config.specific_action_config))
 
         self.hmc_engine = hmc_engine
         if "cpp" in hmc_engine:
@@ -64,7 +62,7 @@ class HMC(MCMC):
             self.step = self._step_cpp
             self._trove = None
 
-            if not target_system == "qr" or not action == "qr":
+            if not action_config.target_system == "qr" or not action_config.action_type == "qr":
                 raise ValueError("For Cpp hmc_engine currently only qr is supported")
 
             if len(observables) > 1:
@@ -78,7 +76,7 @@ class HMC(MCMC):
             else:
                 raise ValueError("Unknown Observable")
 
-            if action == "qr":
+            if action_config.action_type == "qr":
                 cpp_action = hmc_cpp.QR(action_config.beta)
             else:
                 raise ValueError("Unknown Action")

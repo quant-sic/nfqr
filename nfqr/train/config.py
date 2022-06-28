@@ -22,12 +22,7 @@ logger = create_logger(__name__)
 ConfigType = TypeVar("ConfigType", bound="TrainConfig")
 
 
-class DimsNotMatchingError(Exception):
-    def __init__(self, a, b, message) -> None:
-        self.a = a
-        self.b = b
-        self.message = message
-        super().__init__(message)
+
 
 
 class TrainerConfig(BaseModel):

@@ -44,6 +44,17 @@ class ObservableRecorder(object):
         return self.save_dir_path / "log_weights"
 
     @cached_property
+    def log_p_fstream(self):
+        if self.log_p_save_path.is_file() and self.delete_existing_data:
+            os.remove(self.log_p_save_path)
+
+        return io.open(self.log_p_save_path, "ab")
+
+    @cached_property
+    def log_p_save_path(self):
+        return self.save_dir_path / "log_p"
+
+    @cached_property
     def observable_save_paths(self):
 
         observable_paths = {}
@@ -62,11 +73,16 @@ class ObservableRecorder(object):
 
         return obs_values
 
-    def record_log_weight(self, log_weight):
+    def record_log_weight(self, log_weight,log_p=None):
 
         self.log_weights_fstream.write(
             log_weight.cpu().numpy().flatten().astype(np.float32).tobytes()
         )
+
+        if log_p is not None:
+            self.log_p_fstream.write(
+                log_p.cpu().numpy().flatten().astype(np.float32).tobytes()
+            )
 
     def record_obs(self, name, obs):
         self.observable_fstreams[name].write(
@@ -79,13 +95,13 @@ class ObservableRecorder(object):
         for name, value in obs_values.items():
             self.record_obs(name, value)
 
-    def record_config_with_log_weight(self, config, log_weight):
+    def record_config_with_log_weight(self, config, log_weight,log_p=None):
 
         obs_values = self.evaluate_observables(config)
         for name, value in obs_values.items():
             self.record_obs(name, value)
 
-        self.record_log_weight(log_weight)
+        self.record_log_weight(log_weight,log_p)
 
     def flush_streams(self):
 
@@ -95,6 +111,9 @@ class ObservableRecorder(object):
 
         if "log_weights_fstream" in self.__dict__:
             self.log_weights_fstream.flush()
+
+        if "log_p_fstream" in self.__dict__:
+            self.log_p_fstream.flush()
 
     def _load_file(self, path):
         self.flush_streams()
@@ -111,7 +130,11 @@ class ObservableRecorder(object):
                 path = self.log_weights_save_path
             else:
                 raise ValueError("No weights have been recorded")
-
+        elif name == "log_p":
+            if self.log_p_save_path.is_file():
+                path = self.log_p_save_path
+            else:
+                raise ValueError("No p probs have been recorded")
         else:
             if name not in self.observable_save_paths:
                 raise ValueError("Unknown name")

@@ -2,12 +2,15 @@ import json
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Type, TypeVar, Union
 
-from pydantic import validator
+from pydantic import validator,root_validator
 
 from nfqr.config import BaseConfig
 from nfqr.mcmc.hmc.hmc import HMC_REGISTRY
 from nfqr.mcmc.initial_config import InitialConfigSamplerConfig
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
+from nfqr.target_systems.rotor.trajectories_samplers import RotorTrajectorySamplerConfig
+from nfqr.utils import DimsNotMatchingError,set_par_list_or_dict
+from functools import partial
 
 from .cluster import CLUSTER_REGISTRY
 
@@ -19,7 +22,8 @@ class MCMCResult(BaseConfig):
     _name: str = "mcmc_result"
 
     observables: List[OBSERVABLE_REGISTRY.enum]
-    hmc_type: HMC_REGISTRY.enum
+    mcmc_type: Union[CLUSTER_REGISTRY.enum, HMC_REGISTRY.enum]
+    mcmc_alg: Literal["cluster", "hmc"]
 
     acceptance_rate: float
     n_steps: int
@@ -55,10 +59,8 @@ class MCMCConfig(BaseConfig):
     hmc_engine: Optional[Literal["cpp_batch", "cpp_single", "python"]] = "cpp_single"
     batch_size: Optional[int] = 1
     n_samples_at_a_time: Optional[int] = 10000
-    target_system: Optional[ACTION_REGISTRY.enum] = "qr"
-    action: Optional[ACTION_REGISTRY.enum] = "qr"
 
-    initial_config_sampler_config: Optional[InitialConfigSamplerConfig]
+    initial_config_sampler_config: InitialConfigSamplerConfig
 
     task_parameters: Union[List[str], None] = None
 
@@ -94,3 +96,35 @@ class MCMCConfig(BaseConfig):
         raw_config["out_dir"] = directory / f"mcmc/task_{task_id}"
 
         return cls(**raw_config)
+
+    @root_validator(pre=True)
+    @classmethod
+    def add_dims(cls, values):
+
+        """
+        Adds dims to sub configs.
+        """
+
+        dim = values["dim"]
+
+        def set_dim(key, list_or_dict):
+
+            if key in ( "trajectory_sampler_config",):
+                if "dim" not in list_or_dict[key]:
+
+                    list_or_dict[key]["dim"] = dim
+                else:
+                    if not list_or_dict[key]["dim"] == dim:
+                        raise DimsNotMatchingError(
+                            dim,
+                            list_or_dict[key]["dim"],
+                            "Dim of top level ({}) and {} ({}) do not match".format(
+                                dim, key, list_or_dict[key]["dim"]
+                            ),
+                        )
+
+            return list_or_dict
+
+        set_par_list_or_dict(values, set_fn=partial(set_dim))
+
+        return values

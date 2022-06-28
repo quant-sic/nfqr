@@ -103,3 +103,10 @@ class NumpyEncoder(json.JSONEncoder):
             return None
 
         return json.JSONEncoder.default(self, obj)
+
+class DimsNotMatchingError(Exception):
+    def __init__(self, a, b, message) -> None:
+        self.a = a
+        self.b = b
+        self.message = message
+        super().__init__(message)

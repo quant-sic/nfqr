@@ -3,8 +3,8 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from nfqr.globals import EXPERIMENTS_DIR
-from nfqr.mcmc.config import MCMCConfig
-from nfqr.mcmc.hmc.hmc import HMC_REGISTRY, HMCConfig
+from nfqr.mcmc import MCMC_REGISTRY
+from nfqr.mcmc.config import MCMCConfig,MCMCResult
 from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.utils.misc import create_logger
 
@@ -19,30 +19,31 @@ if __name__ == "__main__":
 
     exp_dir = EXPERIMENTS_DIR / args.exp_dir
 
-    hmc_config = HMCConfig.from_directory_for_task(
+    mcmc_config = MCMCConfig.from_directory_for_task(
         exp_dir, task_id=int(os.environ["task_id"])
     )
 
 
-    if Path(hmc_config.out_dir).is_dir() and (Path(hmc_config.out_dir)/"mcmc_result.json").is_file():
+    if Path(mcmc_config.out_dir).is_dir() and (Path(mcmc_config.out_dir)/"mcmc_result.json").is_file():
         logger.info("Experiment already run successfully. Aborting")
     else:
-        hmc = HMC_REGISTRY[hmc_config.hmc_type](**dict(hmc_config))
-        hmc.run()
+        mcmc = MCMC_REGISTRY[mcmc_config.mcmc_alg][mcmc_config.mcmc_type](**dict(mcmc_config))
+        mcmc.run()
 
-        stats = hmc.get_stats()
+        stats = mcmc.get_stats()
 
         sus_exact = SusceptibilityExact(
-            hmc_config.action_config.beta, hmc_config.dim
+            mcmc_config.action_config.specific_action_config.beta, *mcmc_config.dim
         ).evaluate()
 
-        result_config = MCMCConfig(
-            hmc_type=hmc_config.hmc_type,
-            observables=hmc_config.observables,
+        result_config = MCMCResult(
+            mcmc_type=mcmc_config.mcmc_type,
+            mcmc_alg=mcmc_config.mcmc_alg,
+            observables=mcmc_config.observables,
             acceptance_rate=stats["acc_rate"],
             n_steps=stats["n_steps"],
             obs_stats=stats["obs_stats"],
             sus_exact=sus_exact,
         )
 
-        result_config.save(hmc_config.out_dir)
+        result_config.save(mcmc_config.out_dir)
