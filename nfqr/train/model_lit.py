@@ -16,9 +16,9 @@ from nfqr.eval.evaluation import (
     get_ess_p_sampler,
 )
 from nfqr.normalizing_flows.flow import BareFlow, FlowConfig
-from nfqr.normalizing_flows.loss.loss import LOSS_REGISTRY, LossConfig
+from nfqr.normalizing_flows.loss.loss import LOSS_REGISTRY
 from nfqr.normalizing_flows.target_density import TargetDensity
-from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig, action
+from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
 from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.train.config import TrainerConfig
 from nfqr.train.scheduler import SCHEDULER_REGISTRY, BetaScheduler, LossScheduler
