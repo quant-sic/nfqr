@@ -125,14 +125,14 @@ def calc_ess_p_from_unnormalized_log_weights(
     log_ess_p = log_scale_factor - log_weights_sum - log_weights_sum_inv
     ess_p = log_ess_p.exp()
 
-    return {"log_ess_p": log_ess_p, "ess_p": ess_p}
+    return {"log_ess_p": log_ess_p.item(), "ess_p": ess_p.item()}
 
 def calc_free_energy(unnormalized_log_weights,dim):
     
     cleaned_log_weights = remove_nans_and_infs(unnormalized_log_weights)
     cleaned_log_weights = cleaned_log_weights.to(torch.float64)
 
-    return -(cleaned_log_weights.logsumexp(dim=0) - math.log(len(cleaned_log_weights)))/np.prod(dim)
+    return (-(cleaned_log_weights.logsumexp(dim=0) - math.log(len(cleaned_log_weights)))/np.prod(dim)).item()
 
 def calc_std_free_energy( unnormalized_log_weights,dim):
 
@@ -143,7 +143,7 @@ def calc_std_free_energy( unnormalized_log_weights,dim):
     n = len(weights)
     var = 1 / n * ((weights**2).mean() - 1) / np.prod(dim)
     
-    return torch.sqrt(var)
+    return torch.sqrt(var).item()
 
 def calc_entropy(unnormalized_log_weights, log_p,dim):
     
@@ -155,7 +155,7 @@ def calc_entropy(unnormalized_log_weights, log_p,dim):
     n = len(cleaned_log_weights)
     s = cleaned_log_weights - torch.logsumexp(cleaned_log_weights, dim=0) + log_q_x
 
-    return -( (weights * s).sum() + math.log(n)) / (np.prod(dim))
+    return (-( (weights * s).sum() + math.log(n)) / (np.prod(dim))).item()
 
 def calc_std_entropy(unnormalized_log_weights, log_p,dim):
     """
@@ -175,4 +175,4 @@ def calc_std_entropy(unnormalized_log_weights, log_p,dim):
 
     var = (-1 + Eg2w2 - 2 * Egw2 * (-1 + g) + Ew2 * (1 - 2 * g + g**2)) / n
 
-    return torch.sqrt(var) / (np.prod(dim))
+    return (torch.sqrt(var) / (np.prod(dim))).item()

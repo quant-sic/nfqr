@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import shutil
 from typing import Dict, List, Tuple, Union
 
 import lmdb
@@ -209,7 +210,11 @@ def get_lmdb_dataset(values_dict, n_elements):
     max_size = n_elements * np.array(values_dict["dim"]).prod()
     for dset_path in tqdm(dset_paths, desc="Checking datasets"):
 
-        lmdb_dataset = LmdbDataset(dset_path, max_size=max_size)
+        try:
+            lmdb_dataset = LmdbDataset(dset_path, max_size=max_size)
+        except:
+            logger.info(f"Dataset {dset_path.name} seems to be corrupt and is deleted")
+            shutil.rmtree(dset_path)
 
         if lmdb_dataset.isequal(values_dict=values_dict, n_elements=n_elements):
             logger.info(f"Using existing dataset: {dset_path.name}")

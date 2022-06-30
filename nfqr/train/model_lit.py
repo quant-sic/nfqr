@@ -23,7 +23,6 @@ from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.train.config import TrainerConfig
 from nfqr.train.scheduler import SCHEDULER_REGISTRY, BetaScheduler, LossScheduler
 from nfqr.utils import create_logger
-
 logger = create_logger(__name__)
 
 

@@ -37,9 +37,7 @@ if __name__ == "__main__":
         ).evaluate()
 
         result_config = MCMCResult(
-            mcmc_type=mcmc_config.mcmc_type,
-            mcmc_alg=mcmc_config.mcmc_alg,
-            observables=mcmc_config.observables,
+            mcmc_config = mcmc_config,
             acceptance_rate=stats["acc_rate"],
             n_steps=stats["n_steps"],
             obs_stats=stats["obs_stats"],
