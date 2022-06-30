@@ -27,7 +27,7 @@ class WolffCluster(MCMC):
         initial_config_sampler_config=None,
         n_traj_steps=1,
         n_burnin_steps=0,
-        batch_size=1,
+        n_replicas=1,
         **kwargs,
     ):
 
@@ -36,9 +36,12 @@ class WolffCluster(MCMC):
             observables=observables,
             target_system=action_config.target_system,
             out_dir=out_dir,
+            n_replicas=n_replicas,
         )
 
-        self.action = ACTION_REGISTRY[action_config.target_system][action_config.action_type](**dict(action_config.specific_action_config))
+        self.action = ACTION_REGISTRY[action_config.target_system][
+            action_config.action_type
+        ](**dict(action_config.specific_action_config))
 
         if not isinstance(self.action, ClusterAction):
             raise ValueError(
@@ -47,7 +50,7 @@ class WolffCluster(MCMC):
 
         self.n_burnin_steps = n_burnin_steps
         self.dim = dim
-        self.batch_size = batch_size
+        self.n_replicas = n_replicas
         self.n_traj_steps = n_traj_steps
         self.target_system = action_config.target_system
 
@@ -77,7 +80,7 @@ class WolffCluster(MCMC):
         self.n_accepted += 1
 
         if record_observables:
-            self.observables_rec.record_config(self.current_config[0])
+            self.observables_rec.record_config(self.current_config)
 
     def cluster_update(self):
 
@@ -111,41 +114,41 @@ class WolffCluster(MCMC):
         if config is None:
             config = self.current_config
 
-        start = torch.randint(size=(self.batch_size,), low=0, high=self.dim[0] - 1)
+        start = torch.randint(size=(self.n_replicas,), low=0, high=self.dim[0] - 1)
 
-        reflect = torch.rand(size=(self.batch_size,)) * 2 * math.pi
+        reflect = torch.rand(size=(self.n_replicas,)) * 2 * math.pi
 
         marked = torch.full_like(config, fill_value=False, dtype=bool)
-        marked[range(self.batch_size), start] = True
+        marked[range(self.n_replicas), start] = True
 
-        config[range(self.batch_size), start] = self.action.flip(
-            config[range(self.batch_size), start], reflect
+        config[range(self.n_replicas), start] = self.action.flip(
+            config[range(self.n_replicas), start], reflect
         )
 
         for direction in (-1, 1):
             index = start
-            done_mask = torch.full((self.batch_size,), fill_value=False)
+            done_mask = torch.full((self.n_replicas,), fill_value=False)
 
             for _ in range(self.dim[0]):
                 neighbor = (index + direction) % self.dim[0]
 
                 done_mask = (
                     done_mask
-                    | marked[range(self.batch_size), neighbor].view(-1)
+                    | marked[range(self.n_replicas), neighbor].view(-1)
                     | (
                         self.action.bonding_prob(
-                            config[range(self.batch_size), index],
-                            config[range(self.batch_size), neighbor],
+                            config[range(self.n_replicas), index],
+                            config[range(self.n_replicas), neighbor],
                             reflect,
                         )
-                        < torch.rand(size=(self.batch_size,))
+                        < torch.rand(size=(self.n_replicas,))
                     ).view(-1)
                 )
 
                 if done_mask.all():
                     break
 
-                marked[range(self.batch_size), neighbor] = True
+                marked[range(self.n_replicas), neighbor] = True
 
                 config[~done_mask, neighbor[~done_mask]] = self.action.flip(
                     config[~done_mask, neighbor[~done_mask]], reflect[~done_mask]

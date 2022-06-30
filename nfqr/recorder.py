@@ -14,8 +14,10 @@ class ObservableRecorder(object):
         observables: Dict[str, Callable[[torch.Tensor], torch.Tensor]],
         save_dir_path: Path,
         delete_existing_data: bool = False,
+        n_replicas: int = 1,
     ) -> None:
 
+        self.n_replicas = n_replicas
         self.delete_existing_data = delete_existing_data
         self.observables = observables
 
@@ -73,7 +75,7 @@ class ObservableRecorder(object):
 
         return obs_values
 
-    def record_log_weight(self, log_weight,log_p=None):
+    def record_log_weight(self, log_weight, log_p=None):
 
         self.log_weights_fstream.write(
             log_weight.cpu().numpy().flatten().astype(np.float32).tobytes()
@@ -95,13 +97,13 @@ class ObservableRecorder(object):
         for name, value in obs_values.items():
             self.record_obs(name, value)
 
-    def record_config_with_log_weight(self, config, log_weight,log_p=None):
+    def record_config_with_log_weight(self, config, log_weight, log_p=None):
 
         obs_values = self.evaluate_observables(config)
         for name, value in obs_values.items():
             self.record_obs(name, value)
 
-        self.record_log_weight(log_weight,log_p)
+        self.record_log_weight(log_weight, log_p)
 
     def flush_streams(self):
 
@@ -119,7 +121,9 @@ class ObservableRecorder(object):
         self.flush_streams()
 
         with io.open(path, "rb") as file:
-            file_tensor = torch.from_numpy(np.fromfile(file, dtype=np.float32))
+            file_tensor = torch.from_numpy(
+                np.fromfile(file, dtype=np.float32).reshape(self.n_replicas, -1)
+            )
 
         return file_tensor
 

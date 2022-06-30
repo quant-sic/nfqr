@@ -3,7 +3,13 @@ from typing import Literal
 import torch
 from tqdm import tqdm
 
-from nfqr.nip.stats import get_impsamp_statistics,calc_entropy,calc_std_entropy,calc_free_energy,calc_std_free_energy
+from nfqr.nip.stats import (
+    calc_entropy,
+    calc_free_energy,
+    calc_std_entropy,
+    calc_std_free_energy,
+    get_impsamp_statistics,
+)
 from nfqr.sampler import Sampler
 from nfqr.utils.misc import create_logger
 
@@ -64,7 +70,9 @@ class NeuralImportanceSampler(Sampler):
         log_p = self.target.log_prob(x_samples)
         log_weights = log_p - self.model.log_prob(x_samples)
 
-        self.observables_rec.record_config_with_log_weight(x_samples, log_weights,log_p=log_p)
+        self.observables_rec.record_config_with_log_weight(
+            x_samples, log_weights, log_p=log_p
+        )
 
     @torch.no_grad()
     def step_q(self):
@@ -74,7 +82,9 @@ class NeuralImportanceSampler(Sampler):
 
         log_weights = log_p - log_q_x
 
-        self.observables_rec.record_config_with_log_weight(x_samples, log_weights,log_p=log_p)
+        self.observables_rec.record_config_with_log_weight(
+            x_samples, log_weights, log_p=log_p
+        )
 
     @property
     def unnormalized_log_weights(self):
@@ -93,7 +103,7 @@ class NeuralImportanceSampler(Sampler):
 
         config_log_weights_unnormalized = self.observables_rec["log_weights"]
 
-        assert len(config_log_weights_unnormalized) == len(observable_data)
+        assert config_log_weights_unnormalized.shape == observable_data.shape
 
         stats = get_impsamp_statistics(
             prepared_observable_data, config_log_weights_unnormalized
@@ -105,4 +115,22 @@ class NeuralImportanceSampler(Sampler):
 
     @property
     def _stats(self):
-        return {"obs_stats": self.aggregate(),"entropy":calc_entropy(self.unnormalized_log_weights,self.log_p,self.model.base_distribution.dim),"std_entropy":calc_std_entropy(self.unnormalized_log_weights,self.log_p,self.model.base_distribution.dim),"free_energy":calc_free_energy(self.unnormalized_log_weights,self.model.base_distribution.dim),"std_free_energy":calc_std_free_energy(self.unnormalized_log_weights,self.model.base_distribution.dim)}
+        return {
+            "obs_stats": self.aggregate(),
+            "entropy": calc_entropy(
+                self.unnormalized_log_weights,
+                self.log_p,
+                self.model.base_distribution.dim,
+            ),
+            "std_entropy": calc_std_entropy(
+                self.unnormalized_log_weights,
+                self.log_p,
+                self.model.base_distribution.dim,
+            ),
+            "free_energy": calc_free_energy(
+                self.unnormalized_log_weights, self.model.base_distribution.dim
+            ),
+            "std_free_energy": calc_std_free_energy(
+                self.unnormalized_log_weights, self.model.base_distribution.dim
+            ),
+        }

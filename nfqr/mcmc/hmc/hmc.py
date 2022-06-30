@@ -33,7 +33,7 @@ class HMC(MCMC):
         step_size=0.01,
         autotune_step=True,
         hmc_engine="cpp_batch",
-        batch_size=10000,
+        n_replicas: int = 1,
         n_samples_at_a_time=10000,
         initial_config_sampler_config=None,
         **kwargs,
@@ -43,10 +43,11 @@ class HMC(MCMC):
             observables=observables,
             target_system=action_config.target_system,
             out_dir=out_dir,
+            n_replicas=n_replicas,
         )
 
         self.dim = dim
-        self.batch_size = batch_size
+        self.n_replicas = n_replicas
         self.n_burnin_steps = n_burnin_steps
         self.n_steps = n_steps
         self.initial_step_size = step_size
@@ -54,7 +55,9 @@ class HMC(MCMC):
         self.n_samples_at_a_time = n_samples_at_a_time
 
         self.target_system = action_config.target_system
-        self.action = ACTION_REGISTRY[action_config.target_system][action_config.action_type](**dict(action_config.specific_action_config))
+        self.action = ACTION_REGISTRY[action_config.target_system][
+            action_config.action_type
+        ](**dict(action_config.specific_action_config))
 
         self.hmc_engine = hmc_engine
         if "cpp" in hmc_engine:
@@ -62,7 +65,10 @@ class HMC(MCMC):
             self.step = self._step_cpp
             self._trove = None
 
-            if not action_config.target_system == "qr" or not action_config.action_type == "qr":
+            if (
+                not action_config.target_system == "qr"
+                or not action_config.action_type == "qr"
+            ):
                 raise ValueError("For Cpp hmc_engine currently only qr is supported")
 
             if len(observables) > 1:
@@ -82,7 +88,7 @@ class HMC(MCMC):
                 raise ValueError("Unknown Action")
 
             if hmc_engine == "cpp_batch":
-                self.hmc = hmc_cpp.HMC_Batch(cpp_obs, cpp_action, dim[0], batch_size)
+                self.hmc = hmc_cpp.HMC_Batch(cpp_obs, cpp_action, dim[0], n_replicas)
             elif hmc_engine == "cpp_single":
                 self.hmc = hmc_cpp.HMC_Single_Config(cpp_obs, cpp_action, dim[0])
             else:
@@ -150,7 +156,7 @@ class HMC(MCMC):
         self.current_config = self.hmc.current_config
 
         if record_observables:
-            self.observables_rec.record_config(self.hmc.current_config[0])
+            self.observables_rec.record_config(self.hmc.current_config)
 
     def _step_cpp(self, config=None, record_observables=True):
 
@@ -219,22 +225,18 @@ class HMC_PYTHON(object):
         self,
         action,
         dim,
-        batch_size: int = 1,
+        n_replicas: int = 1,
         bias: float = 0.0,
     ) -> None:
 
         self.action = action
-
-        if not batch_size == 1:
-            raise NotImplementedError("Batch size >1 currently not supported")
-
-        self.batch_size = batch_size
+        self.n_replicas = n_replicas
         self.dim = dim
 
         self.bias = bias
 
     def reset_n_accepted(self):
-        self.n_accepted = torch.zeros(self.batch_size, dtype=torch.float32)
+        self.n_accepted = torch.zeros(self.n_replicas, dtype=torch.float32)
 
     def initialize(self, initial_configs=Union[None, torch.Tensor]):
 
@@ -245,7 +247,7 @@ class HMC_PYTHON(object):
         else:
             # bias breaks the Z_2 symmetry in initalization. This speeds up thermalization in broken phase.
             self.current_config = (
-                torch.randn(self.batch_size, *self.dim).double() + self.bias
+                torch.randn(self.n_replicas, *self.dim).double() + self.bias
             )
             self.current_config = self.post_step(self.current_config)
 

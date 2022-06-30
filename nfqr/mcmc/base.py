@@ -8,9 +8,14 @@ logger = create_logger(__name__)
 
 
 class MCMC(Sampler):
-    def __init__(self, n_steps, observables, target_system, out_dir) -> None:
+    def __init__(
+        self, n_steps, observables, target_system, out_dir, n_replicas
+    ) -> None:
         super(MCMC, self).__init__(
-            observables=observables, target_system=target_system, out_dir=out_dir
+            observables=observables,
+            target_system=target_system,
+            out_dir=out_dir,
+            n_replicas=n_replicas,
         )
         self.n_steps = n_steps
         self._config = None

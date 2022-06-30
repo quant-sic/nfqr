@@ -25,6 +25,7 @@ class NeuralMCMC(MCMC):
             observables=observables,
             target_system=target_system,
             out_dir=out_dir,
+            n_replicas=1,
         )
 
         self.model = model

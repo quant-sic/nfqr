@@ -7,6 +7,9 @@ from nfqr.mcmc.ac.ac import NoFluctuationsError, PrimaryAnalysis
 def basic_integrated_ac(history):
     """
     Returns the autocorrelation for given history
+
+    !!! only works for 1d array
+
     """
     N = len(history)
     history_c = history - history.mean()
@@ -25,9 +28,17 @@ def uw_analysis(history):
     if isinstance(history, torch.Tensor):
         history = history.numpy()
 
-    try:
+    if history.ndim == 1:
         history = history[None, :, None]
-        analysis = PrimaryAnalysis(history, [np.prod(history.shape)], name="primary")
+        n_reps = [np.prod(history.shape)]
+    elif history.ndim == 2:
+        history = history[..., None]
+        n_reps = [np.prod(history.shape[1:])] * history.shape[0]
+    else:
+        raise ValueError("History has unhandled shape!")
+
+    try:
+        analysis = PrimaryAnalysis(history, n_reps, name="primary")
         analysis.mean()
         results = analysis.errors()
 
