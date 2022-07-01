@@ -30,7 +30,7 @@ class NeuralImportanceSampler(Sampler):
         sampler=None,
     ):
         super(NeuralImportanceSampler, self).__init__(
-            observables=observables, target_system=target_system, out_dir=out_dir
+            observables=observables, target_system=target_system, out_dir=out_dir,n_replicas=1
         )
 
         self.batch_size = batch_size

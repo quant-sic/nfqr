@@ -15,7 +15,6 @@ from .cluster import CLUSTER_REGISTRY
 
 ConfigType = TypeVar("ConfigType", bound="MCMCConfig")
 
-
 class MCMCConfig(BaseConfig):
 
     _name: str = "mcmc_config"
@@ -116,10 +115,3 @@ class MCMCResult(BaseConfig):
 
     sus_exact: Optional[float]
 
-    @validator("observables", pre=True)
-    @classmethod
-    def str_to_list(cls, v):
-        if isinstance(v, str):
-            return v.split(",")
-
-        return v
