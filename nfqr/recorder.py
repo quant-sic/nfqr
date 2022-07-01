@@ -122,7 +122,7 @@ class ObservableRecorder(object):
 
         with io.open(path, "rb") as file:
             file_tensor = torch.from_numpy(
-                np.fromfile(file, dtype=np.float32).reshape(self.n_replicas, -1)
+                np.fromfile(file, dtype=np.float32).reshape(-1, self.n_replicas).T
             )
 
         return file_tensor

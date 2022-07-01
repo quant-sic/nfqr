@@ -16,7 +16,7 @@ from nfqr.nip import (
     calc_ess_p_from_unnormalized_log_weights,
     calc_ess_q_from_unnormalized_log_weights,
 )
-from nfqr.target_systems import OBSERVABLE_REGISTRY, ActionConfig
+from nfqr.target_systems import OBSERVABLE_REGISTRY
 from nfqr.target_systems.rotor import RotorTrajectorySamplerConfig
 from nfqr.utils import create_logger
 
@@ -65,7 +65,7 @@ class EvalConfig(BaseConfig):
         return values
 
 
-ObsStats = Dict[OBSERVABLE_REGISTRY.enum, Dict[str, float]]
+ObsStats = Dict[Union[str, OBSERVABLE_REGISTRY.enum], Dict[str, float]]
 EvalStats = Union[
     List[Dict[str, Union[ObsStats, float, int]]], Dict[str, Union[ObsStats, float, int]]
 ]
@@ -236,7 +236,7 @@ def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps):
     return stats
 
 
-def get_ess_p_sampler(dim,action_config, batch_size):
+def get_ess_p_sampler(dim, action_config, batch_size):
 
     mcmc_sampler_config = TrajectorySamplerConfig(
         trajectory_sampler_config=MCMCConfig(

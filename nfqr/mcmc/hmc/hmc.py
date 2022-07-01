@@ -131,10 +131,10 @@ class HMC(MCMC):
     @property
     def acceptance_rate(self):
         return (
-                self.hmc.acceptance_rate.mean()
-                if isinstance(self.hmc.acceptance_rate, torch.Tensor)
-                else self.hmc.acceptance_rate
-            )
+            self.hmc.acceptance_rate.mean()
+            if isinstance(self.hmc.acceptance_rate, torch.Tensor)
+            else self.hmc.acceptance_rate
+        )
 
     def initialize(self, burn_in=True, log=True):
 
@@ -201,8 +201,6 @@ class HMC(MCMC):
                 n_traj_steps=self.n_traj_steps,
                 step_size=self._step_size,
             )
-
-            
 
             if self.acceptance_rate > desired_acceptance_percentage:
                 step_size_min = self._step_size
