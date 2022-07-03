@@ -22,9 +22,6 @@ logger = create_logger(__name__)
 ConfigType = TypeVar("ConfigType", bound="TrainConfig")
 
 
-
-
-
 class TrainerConfig(BaseModel):
 
     batch_size: int
@@ -36,20 +33,17 @@ class TrainerConfig(BaseModel):
     log_every_n_steps: int = 50
 
     task_parameters: Union[List[str], None] = None
-    
-    learning_rate:float=0.001
-    auto_lr_find:bool=False
+
+    learning_rate: float = 0.001
+    auto_lr_find: bool = False
 
     loss_configs: List[LossConfig]
-    loss_scheduler_config : SchedulerConfig =None
+    loss_scheduler_config: SchedulerConfig = None
 
     scheduler_configs: Optional[List[SchedulerConfig]] = []
 
     n_iter_eval: int = 5
     batch_size_eval: int = 10000
-    
-
-
 
 
 class LitModelConfig(BaseConfig):
@@ -63,15 +57,13 @@ class LitModelConfig(BaseConfig):
     observables: List[OBSERVABLE_REGISTRY.enum]
     trainer_config: TrainerConfig
 
-
     @classmethod
-    def get_num_tasks(cls:Type[ConfigType], directory: Union[str, Path]) -> int:
+    def get_num_tasks(cls: Type[ConfigType], directory: Union[str, Path]) -> int:
         """Load config from json with task id."""
         with open(str(cls._config_path(Path(directory)))) as f:
             raw_config = json.load(f)
 
         num_pars_dict = {}
-
 
         def fill_num_pars_dict(key, list_or_dict):
 
@@ -98,12 +90,16 @@ class LitModelConfig(BaseConfig):
             num_pars = (
                 list(num_pars_dict.values())[0] if list(num_pars_dict.values()) else 1
             )
-        
+
         return num_pars
 
     @classmethod
     def from_directory_for_task(
-        cls: Type[ConfigType], directory: Union[str, Path], task_id, num_tasks
+        cls: Type[ConfigType],
+        directory: Union[str, Path],
+        task_id,
+        num_tasks,
+        tune_config=None,
     ) -> ConfigType:
         """Load config from json with task id."""
         with open(str(cls._config_path(Path(directory)))) as f:
@@ -145,6 +141,15 @@ class LitModelConfig(BaseConfig):
                         num_tasks, num_pars_dict
                     )
                 )
+
+        if tune_config is not None:
+
+            def set_tuned_par(key, list_or_dict):
+                if key in tune_config.keys():
+                    list_or_dict[key] = tune_config[key]
+                return list_or_dict
+
+            raw_config = set_par_list_or_dict(raw_config, set_fn=set_tuned_par)
 
         return cls(**raw_config)
 
