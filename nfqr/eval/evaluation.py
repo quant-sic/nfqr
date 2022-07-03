@@ -253,7 +253,7 @@ def get_ess_p_sampler(dim, action_config, batch_size):
                 trajectory_sampler_config=RotorTrajectorySamplerConfig(
                     dim=dim, traj_type="hot"
                 )
-            ),
+            ),n_replicas=1
         ),
         condition_config=ConditionConfig(),
         batch_size=5000,

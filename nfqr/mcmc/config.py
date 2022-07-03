@@ -48,6 +48,44 @@ class MCMCConfig(BaseConfig):
         return v
 
     @classmethod
+    def get_num_tasks(cls:Type[ConfigType], directory: Union[str, Path]) -> int:
+        """Load config from json with task id."""
+        with open(str(cls._config_path(Path(directory)))) as f:
+            raw_config = json.load(f)
+
+        num_pars_dict = {}
+
+
+        def fill_num_pars_dict(key, list_or_dict):
+
+            if key in raw_config["task_parameters"]:
+                try:
+                    num_pars_dict[key] = len(list_or_dict[key])
+                except TypeError:
+                    raise RuntimeError(
+                        "Len could not be evaluated for {}".format(list_or_dict[key])
+                    )
+            return list_or_dict
+
+        if raw_config["task_parameters"] is not None:
+            raw_config = set_par_list_or_dict(
+                raw_config, set_fn=partial(fill_num_pars_dict)
+            )
+
+        # check for inconsistencies in task array setup and config
+        if not len(set(num_pars_dict.values())) <= 1:
+            raise ValueError(
+                f"Inconsistent number of tasks for parameters. {num_pars_dict}"
+            )
+        else:
+            num_pars = (
+                list(num_pars_dict.values())[0] if list(num_pars_dict.values()) else 1
+            )
+        
+        return num_pars
+
+
+    @classmethod
     def from_directory_for_task(
         cls: Type[ConfigType], directory: Union[str, Path], task_id
     ) -> ConfigType:
@@ -104,6 +142,37 @@ class MCMCConfig(BaseConfig):
 
         return values
 
+    @root_validator(pre=True)
+    @classmethod
+    def add_n_replicas(cls, values):
+
+        """
+        Adds dims to sub configs.
+        """
+
+        n_replicas = values["n_replicas"]
+
+        def set_n_replicas(key, list_or_dict):
+
+            if key in ("trajectory_sampler_config",):
+                if "n_replicas" not in list_or_dict[key]:
+
+                    list_or_dict[key]["n_replicas"] = n_replicas
+                else:
+                    if not list_or_dict[key]["n_replicas"] == n_replicas:
+                        raise DimsNotMatchingError(
+                            n_replicas,
+                            list_or_dict[key]["n_replicas"],
+                            "n_replicas of top level ({}) and {} ({}) do not match".format(
+                                n_replicas, key, list_or_dict[key]["n_replicas"]
+                            ),
+                        )
+
+            return list_or_dict
+
+        set_par_list_or_dict(values, set_fn=partial(set_n_replicas))
+
+        return values
 
 class MCMCResult(BaseConfig):
 

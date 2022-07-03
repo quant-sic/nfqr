@@ -177,7 +177,6 @@ class NCP(Diffeomorphism):
         else:
             return phi_out
 
-
 def moebius(phi, w, rho, ret_logabsdet=True):
 
     # dims (phi) = batch_size x dim(input)

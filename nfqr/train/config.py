@@ -65,6 +65,43 @@ class LitModelConfig(BaseConfig):
 
 
     @classmethod
+    def get_num_tasks(cls:Type[ConfigType], directory: Union[str, Path]) -> int:
+        """Load config from json with task id."""
+        with open(str(cls._config_path(Path(directory)))) as f:
+            raw_config = json.load(f)
+
+        num_pars_dict = {}
+
+
+        def fill_num_pars_dict(key, list_or_dict):
+
+            if key in raw_config["trainer_config"]["task_parameters"]:
+                try:
+                    num_pars_dict[key] = len(list_or_dict[key])
+                except TypeError:
+                    raise RuntimeError(
+                        "Len could not be evaluated for {}".format(list_or_dict[key])
+                    )
+            return list_or_dict
+
+        if raw_config["trainer_config"]["task_parameters"] is not None:
+            raw_config = set_par_list_or_dict(
+                raw_config, set_fn=partial(fill_num_pars_dict)
+            )
+
+        # check for inconsistencies in task array setup and config
+        if not len(set(num_pars_dict.values())) <= 1:
+            raise ValueError(
+                f"Inconsistent number of tasks for parameters. {num_pars_dict}"
+            )
+        else:
+            num_pars = (
+                list(num_pars_dict.values())[0] if list(num_pars_dict.values()) else 1
+            )
+        
+        return num_pars
+
+    @classmethod
     def from_directory_for_task(
         cls: Type[ConfigType], directory: Union[str, Path], task_id, num_tasks
     ) -> ConfigType:

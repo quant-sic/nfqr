@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     else:
 
-        seed_everything(True,workers=True)
+        seed_everything(42,workers=True)
 
         flow_model = LitFlow(**dict(train_config))
 
