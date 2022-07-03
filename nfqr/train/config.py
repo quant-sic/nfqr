@@ -45,7 +45,7 @@ class TrainerConfig(BaseModel):
 
     scheduler_configs: Optional[List[SchedulerConfig]] = []
 
-    n_iter_eval: int = 5
+    n_iter_eval: int = 10
     batch_size_eval: int = 10000
     
 

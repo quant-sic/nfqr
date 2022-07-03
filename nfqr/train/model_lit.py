@@ -268,8 +268,13 @@ class LitFlow(pl.LightningModule):
             )
 
     def validation_step(self,batch, batch_idx, dataloader_idx=0) -> Optional[STEP_OUTPUT]:
-        
+
+
+        # self.val_losses[dataloader_idx].evaluate(batch)
+
+
         val_step_output={}
+
         batch_dict = self.val_losses[dataloader_idx].name_batch(batch)
 
         for obs_name, obs_fn in self.observables_fn.items():
@@ -346,10 +351,7 @@ class LitFlow(pl.LightningModule):
             n_iter=n_iter,
         )
 
-        stats_nip["ess_p"] = self.estimate_ess_p_nip(
-            batch_size=self.trainer_config.batch_size_eval,
-            n_iter=self.trainer_config.n_iter_eval,
-        )
+        stats_nip["ess_p"] = self.estimate_ess_p_nip()
 
         return stats_nip
 
@@ -365,14 +367,14 @@ class LitFlow(pl.LightningModule):
 
         return stats_nmcmc
 
-    def estimate_ess_p_nip(self, batch_size, n_iter):
+    def estimate_ess_p_nip(self):
 
         ess_p = estimate_ess_p_nip(
             model=self.model,
             data_sampler=self.ess_p_sampler,
             target=self.target,
-            batch_size=batch_size,
-            n_iter=n_iter,
+            batch_size=self.ess_p_sampler.batch_size,
+            n_iter=int(len(self.ess_p_sampler.dataset)/self.ess_p_sampler.batch_size),
         )
 
         return ess_p
