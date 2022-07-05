@@ -1,4 +1,4 @@
-# -f https://download.pytorch.org/whl/cu113/torch_stable.html
+# -f https://download.pytorch.org/whl/cu116/torch_stable.html
 
 ipykernel
 numpy
@@ -15,5 +15,6 @@ numpyro
 pydantic
 StrEnum
 ninja
-torch==1.11.0+cu113 #A100 support with cu113
+torch==1.12.0+cu116 #A100 support with cu113
 pytest
+ray[tune]
