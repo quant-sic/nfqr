@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import Literal
 
 import torch
@@ -8,10 +9,9 @@ from nfqr.normalizing_flows.diffeomorphisms import DIFFEOMORPHISMS_REGISTRY
 from nfqr.normalizing_flows.misc.constraints import nf_constraints_standard, simplex
 from nfqr.normalizing_flows.nets import NetConfig
 from nfqr.registry import StrRegistry
+from nfqr.utils import create_logger
 
 from .conditioners import CONDITIONER_REGISTRY
-from functools import cached_property
-from nfqr.utils import create_logger
 
 logger = create_logger(__name__)
 
@@ -87,12 +87,9 @@ class BareCoupling(CouplingLayer):
 
 @COUPLING_TYPES.register("residual")
 class ResidualCoupling(CouplingLayer, Module):
-
     @cached_property
     def rho_unnormalized(self):
-        return parameter.Parameter(
-            torch.full(size=(2,), fill_value=0.5)
-        )      
+        return parameter.Parameter(torch.full(size=(2,), fill_value=0.5))
 
     @cached_property
     def rho_transform(self):
@@ -100,8 +97,8 @@ class ResidualCoupling(CouplingLayer, Module):
 
     @property
     def logging_parameters(self):
-        log_rho = self.rho_transform(self.rho_unnormalized)
-        return {"rho":{"id":log_rho[1],"diff":log_rho[0]}}
+        rho = self.rho_transform(self.rho_unnormalized).exp().clone().detach()
+        return {"rho": {"id": rho[1], "diff": rho[0]}}
 
     def decode(self, z):
 
