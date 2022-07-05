@@ -303,7 +303,7 @@ class LitFlow(pl.LightningModule):
             if hasattr(module, "logging_parameters"):
                 self.log_all_values_in_stats_dict(
                     node=module.logging_parameters,
-                    str_path_to_node=name + "_" + type(module).__name__,
+                    str_path_to_node="flow/"+name + "_" + type(module).__name__,
                 )
 
     def validation_step(
