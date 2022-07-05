@@ -87,9 +87,29 @@ class BareCoupling(CouplingLayer):
 
 @COUPLING_TYPES.register("residual")
 class ResidualCoupling(CouplingLayer, Module):
-    @cached_property
-    def rho_unnormalized(self):
-        return parameter.Parameter(torch.full(size=(2,), fill_value=0.5))
+    def __init__(
+        self,
+        conditioner_mask,
+        transformed_mask,
+        diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
+        expressivity: int,
+        net_config: NetConfig,
+        domain: Literal["u1"] = "u1",
+        **kwargs
+    ) -> None:
+        super().__init__(
+            conditioner_mask=conditioner_mask,
+            transformed_mask=transformed_mask,
+            diffeomorphism=diffeomorphism,
+            expressivity=expressivity,
+            net_config=net_config,
+            domain=domain,
+            **kwargs
+        )
+
+        self.rho_unnormalized = parameter.Parameter(
+            torch.full(size=(2,), fill_value=0.5)
+        )
 
     @cached_property
     def rho_transform(self):
