@@ -267,6 +267,9 @@ class LitFlow(pl.LightningModule):
                 f"Unknown node type in stats dict {type(node)} for node {node}"
             )
 
+    # def log_model_pars(self):
+
+
     def validation_step(self,batch, batch_idx, dataloader_idx=0) -> Optional[STEP_OUTPUT]:
 
 

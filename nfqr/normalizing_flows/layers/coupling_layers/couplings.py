@@ -10,6 +10,10 @@ from nfqr.normalizing_flows.nets import NetConfig
 from nfqr.registry import StrRegistry
 
 from .conditioners import CONDITIONER_REGISTRY
+from functools import cached_property
+from nfqr.utils import create_logger
+
+logger = create_logger(__name__)
 
 COUPLING_TYPES = StrRegistry("coupling_types")
 
@@ -83,17 +87,21 @@ class BareCoupling(CouplingLayer):
 
 @COUPLING_TYPES.register("residual")
 class ResidualCoupling(CouplingLayer, Module):
-    def __init__(self, conditioner_mask, transformed_mask, config, **kwargs):
-        super(ResidualCoupling, self).__init__(
-            conditioner_mask=conditioner_mask,
-            transformed_mask=transformed_mask,
-            config=config,
-        )
 
-        self.rho_unnormalized = parameter.Parameter(
+    @cached_property
+    def rho_unnormalized(self):
+        return parameter.Parameter(
             torch.full(size=(2,), fill_value=0.5)
-        )
-        self.rho_transform = nf_constraints_standard(simplex)
+        )      
+
+    @cached_property
+    def rho_transform(self):
+        return nf_constraints_standard(simplex)
+
+    @property
+    def logging_parameters(self):
+        log_rho = self.rho_transform(self.rho_unnormalized)
+        return {"rho":{"id":log_rho[1],"diff":log_rho[0]}}
 
     def decode(self, z):
 
@@ -111,7 +119,37 @@ class ResidualCoupling(CouplingLayer, Module):
             + log_rho[1].exp() * z.clone()[..., self.transformed_mask]
         )
 
-        log_det = torch.logsumexp(
+        ld = torch.logsumexp(
+            torch.stack(
+                [
+                    log_rho[0] + log_det_coupling,
+                    log_rho[1] * torch.ones_like(log_det_coupling),
+                ],
+                dim=-1,
+            ),
+            dim=-1,
+        )
+        log_det = ld.sum(-1)
+
+        return z, log_det
+
+    def encode(self, x):
+
+        conditioner_input, transformed_input = self._split(x)
+        unconstrained_params = self.conditioner(conditioner_input)
+
+        x_coupling, log_det_coupling = self.diffeomorphism(
+            transformed_input.clone(), *unconstrained_params, ret_logabsdet=True
+        )
+
+        log_rho = self.rho_transform(self.rho_unnormalized)
+
+        x[..., self.transformed_mask] = (
+            log_rho[0].exp() * x_coupling
+            + log_rho[1].exp() * x.clone()[..., self.transformed_mask]
+        )
+
+        ld = torch.logsumexp(
             torch.stack(
                 [
                     log_rho[0] + log_det_coupling,
@@ -122,34 +160,7 @@ class ResidualCoupling(CouplingLayer, Module):
             dim=-1,
         )
 
-        return z, log_det
-
-    def encode(self, x):
-
-        conditioner_input, transformed_input = self._split(x)
-        unconstrained_params = self.conditioner(conditioner_input)
-
-        x_coupling, log_det_coupling = self.self.diffeomorphism(
-            transformed_input.clone(), *unconstrained_params, ret_logabsdet=True
-        )
-
-        log_rho = self.rho_transform(self.rho_unnormalized)
-
-        x[..., self.transformed_mask] = (
-            log_rho[0].exp() * x_coupling[..., self.transformed_mask]
-            + log_rho[1].exp() * x.clone()[..., self.transformed_mask]
-        )
-
-        log_det = torch.logsumexp(
-            torch.stack(
-                [
-                    log_rho[0] + log_det_coupling,
-                    log_rho[1],
-                ],
-                dim=-1,
-            ),
-            dim=-1,
-        )
+        log_det = ld.sum(-1)
 
         return x, log_det
 
