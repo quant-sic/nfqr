@@ -25,12 +25,15 @@ def train_flow_model_tune(config, exp_dir):
     assert int(os.environ["num_tasks"]) == 1
     assert int(os.environ["task_id"]) == 0
 
+    os.environ["tune"]="ray"
+
     train_config = LitModelConfig.from_directory_for_task(
         exp_dir,
         task_id=int(os.environ["task_id"]),
         num_tasks=int(os.environ["num_tasks"]),
         tune_config=config,
     )
+
 
     log_dir = "task_{}".format(os.environ["task_id"])
 
@@ -51,6 +54,7 @@ def train_flow_model_tune(config, exp_dir):
                 "accumulate_grad_batches",
             }
         ),
+        enable_progress_bar=False,
         logger=tb_logger,
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=1,
@@ -64,13 +68,21 @@ def train_flow_model_tune(config, exp_dir):
 
 def tune_flow_model_asha(exp_dir):
 
-    config = {"num_layers": tune.choice([2, 3, 8])}
+    config = {"learning_rate": tune.loguniform(1e-5, 1e-2),"expressivity":tune.choice([2,3,5,8]),"diffeomorphism":tune.choice(["ncp","ncp_mod","moebius","rqs"]),"coupling_type":tune.choice(["bare","residual"]),"accumulate_grad_batches":tune.choice([1,2,3]),"net_hidden":tune.choice([[
+            50,
+            75,
+            100
+          ],[
+            50,
+            75,
+            75
+          ]])}
 
-    num_epochs = 1000
+    num_epochs = 100
     scheduler = ASHAScheduler(max_t=num_epochs, grace_period=1, reduction_factor=2)
 
     reporter = CLIReporter(
-        parameter_columns=["layer_1_size", "layer_2_size", "lr", "batch_size"],
+        parameter_columns=["num_layers"],
         metric_columns=["loss", "mean_accuracy", "training_iteration"],
     )
 
@@ -86,8 +98,10 @@ def tune_flow_model_asha(exp_dir):
         mode="min",
         config=config,
         scheduler=scheduler,
+        num_samples=20,
         progress_reporter=reporter,
         name="tune_flow_model_asha",
+        local_dir= EXPERIMENTS_DIR/f"{exp_dir}/ray_results"
     )
 
     print("Best hyperparameters found were: ", analysis.best_config)
@@ -100,4 +114,4 @@ if __name__ == "__main__":
     parser.add_argument("--exp_dir", type=Path)
     args = parser.parse_args()
 
-    train_flow_model_tune(exp_dir=args.exp_dir)
+    tune_flow_model_asha(exp_dir=args.exp_dir)

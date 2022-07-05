@@ -62,48 +62,44 @@ def ncp(phi, alpha, beta, rho, ret_logabsdet=True):
         return conv_comb
 
 
-# def ncp_mod(phi, alpha_unbound, beta, rho_unnormalized, ret_logabsdet=True):
+def ncp_mod(phi, alpha, beta, rho, ret_logabsdet=True):
 
-#     alpha = F.softplus(alpha_unbound) + 1e-3  # exponential function
-#     rho = torch.softmax(rho_unnormalized, dim=-1)
 
-#     # left_bound_mask = phi < 1e-3
-#     # right_bound_mask = phi > (2*pi-1e-3)
+    out = 2 * torch.atan(alpha * torch.tan(0.5 * (phi - pi))[..., None] + beta) + pi
 
-#     out = 2 * torch.atan(alpha * torch.tan(0.5 * (phi - pi))[..., None] + beta) + pi
-#     # out[left_bound_mask] = phi[left_bound_mask][..., None]/alpha[left_bound_mask]
-#     # out[right_bound_mask] = 2*pi + \
-#     #     (phi[right_bound_mask][..., None]-2*pi)/alpha[right_bound_mask]
+    conv_comb = (rho * out).sum(-1)
+    conv_comb = conv_comb % (2 * pi)
 
-#     conv_comb = (rho * out).sum(-1)
-#     conv_comb = conv_comb % (2 * pi)
+    if ret_logabsdet:
+        grad = (
+            (1 + beta**2) * torch.sin(phi / 2).pow(2)[..., None] / alpha
+            + alpha * torch.cos(phi / 2).pow(2)[..., None]
+            - beta * torch.sin(phi)[..., None]
+        ).pow(-1)
 
-#     if ret_logabsdet:
-#         grad = (
-#             (1 + beta**2) * torch.sin(phi / 2).pow(2)[..., None] / alpha
-#             + alpha * torch.cos(phi / 2).pow(2)[..., None]
-#             - beta * torch.sin(phi)[..., None]
-#         ).pow(-1)
+        logabsdet = torch.log((rho * grad).sum(-1))
 
-#         # grad[left_bound_mask | right_bound_mask] = 1 / \
-#         #     alpha[left_bound_mask | right_bound_mask]
-
-#         logabsdet = torch.log((rho * grad).sum(-1))
-
-#         return conv_comb, logabsdet
-#     else:
-#         return conv_comb
+        return conv_comb, logabsdet
+    else:
+        return conv_comb
 
 
 @U1_DIFFEOMORPHISM_REGISTRY.register("ncp")
 class NCP(Diffeomorphism):
-    def __init__(self, alpha_min=1e-3) -> None:
+    def __init__(self, alpha_min=1e-3,boundary_mode="taylor") -> None:
         super(NCP).__init__()
 
         self._num_pars = 3
 
+        if boundary_mode == "taylor":
+            self.fn = ncp
+        elif boundary_mode == "modulo":
+            self.fn = ncp_mod
+        else:
+            raise ValueError(f"Unknown Boundary mode {boundary_mode}")
+
         self.inverse_fn_params = {
-            "function": ncp,
+            "function": self.fn,
             "args": ["alpha", "beta", "rho"],
             "left": 0.0,
             "right": 2 * pi,
@@ -112,6 +108,10 @@ class NCP(Diffeomorphism):
 
         self.alpha_transform = nf_constraints_standard(greater_than_eq(alpha_min))
         self.rho_transform = torch_transform_to(simplex)
+
+    @classmethod
+    def use_modulo_for_boundary(cls,alpha_min=1e-3):
+        return cls(alpha_min,boundary_mode="modulo")
 
     @property
     def num_pars(self):
@@ -136,7 +136,7 @@ class NCP(Diffeomorphism):
 
         if ret_logabsdet:
 
-            phi_out,ld = ncp(
+            phi_out,ld = self.fn(
                         phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
                     )
             phi_out = bring_back_to_u1(phi_out)
@@ -145,7 +145,7 @@ class NCP(Diffeomorphism):
         
         else:
 
-            phi_out = ncp(
+            phi_out = self.fn(
                         phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
                     )
             phi_out = bring_back_to_u1(phi_out)
@@ -165,8 +165,8 @@ class NCP(Diffeomorphism):
         phi_out = bring_back_to_u1(phi_out)
 
         if ret_logabsdet:
-            _, ld = ncp(
-                phi=phi,
+            _, ld = self.fn(
+                phi=phi_out,
                 alpha=alpha,
                 beta=beta,
                 rho=rho,
@@ -176,6 +176,10 @@ class NCP(Diffeomorphism):
             return phi_out, -ld
         else:
             return phi_out
+
+U1_DIFFEOMORPHISM_REGISTRY.register("ncp_mod",NCP.use_modulo_for_boundary)
+
+
 
 def moebius(phi, w, rho, ret_logabsdet=True):
 
@@ -223,15 +227,7 @@ def moebius(phi, w, rho, ret_logabsdet=True):
         z_min_w_xy = z_min_w[0, 0] * z_min_w[0, 1] * alpha
         z_min_w_squared = (z_min_w[0] ** 2) * alpha
 
-        d = (
-            h_w[0, 1] * (beta[0] - z_min_w_squared[0]) + h_w[0, 0] * z_min_w_xy
-        ) * torch.sin(phi)[..., None] + (
-            h_w[0, 1] * z_min_w_xy + h_w[0, 0] * (beta[0] - z_min_w_squared[1])
-        ) * torch.cos(
-            phi
-        )[
-            ..., None
-        ]
+        d = (h_w[0, 1] * (beta[0] - z_min_w_squared[0]) + h_w[0, 0] * z_min_w_xy) * torch.sin(phi)[..., None] + (h_w[0, 1] * z_min_w_xy + h_w[0, 0] * (beta[0] - z_min_w_squared[1])) * torch.cos(phi)[..., None]
 
         logabsdet = torch.log((rho * d).sum(-1))
 
@@ -269,9 +265,9 @@ class Moebius(Diffeomorphism):
         w_unconstrained = torch.stack((w_x_unconstrained, w_y_unconstrained), dim=0)
         # get w into circle ? sigmoid a good option ? restrain angle 0-2pi ?
 
-        w_unconstrained = torch.norm(
-            torch.stack((w_x_unconstrained, w_y_unconstrained), dim=0), p=2, dim=0
-        )
+        # w_unconstrained = torch.norm(
+        #     torch.stack((w_x_unconstrained, w_y_unconstrained), dim=0), p=2, dim=0
+        # )
 
         w = (
             0.99
@@ -300,12 +296,32 @@ class Moebius(Diffeomorphism):
 
         phi = bring_back_to_u1(phi)
 
-        return moebius(
-            phi=phi,
-            w=w,
-            rho=rho,
-            ret_logabsdet=ret_logabsdet,
-        )
+
+        if ret_logabsdet:
+
+            phi_out,ld = moebius(
+                            phi=phi,
+                            w=w,
+                            rho=rho,
+                            ret_logabsdet=ret_logabsdet,
+                        )
+            phi_out = bring_back_to_u1(phi_out)
+
+            return phi_out,ld
+        
+        else:
+
+            phi_out = moebius(
+                        phi=phi,
+                        w=w,
+                        rho=rho,
+                        ret_logabsdet=ret_logabsdet,
+                    )
+            phi_out = bring_back_to_u1(phi_out)
+
+            return phi_out
+
+
 
     def inverse(
         self,
@@ -321,10 +337,11 @@ class Moebius(Diffeomorphism):
 
         phi = bring_back_to_u1(phi)
         phi_out = NumericalInverse.apply(phi, self.inverse_fn_params, w, rho)
+        phi_out = bring_back_to_u1(phi_out)
 
         if ret_logabsdet:
             _, ld = moebius(
-                phi=phi,
+                phi=phi_out,
                 w=w,
                 rho=rho,
                 ret_logabsdet=True,
@@ -461,6 +478,9 @@ def rational_quadratic_spline(
             )
             logabsdet = torch.log(derivative_numerator) - 2 * torch.log(denominator)
 
+
+    outputs = bring_back_to_u1(outputs)
+
     if ret_logabsdet:
         return outputs, logabsdet
     else:
@@ -526,3 +546,4 @@ class RQS(Diffeomorphism):
             top=2 * pi,
             ret_logabsdet=ret_logabsdet,
         )
+
