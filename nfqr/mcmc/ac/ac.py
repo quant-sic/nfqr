@@ -123,9 +123,12 @@ def err_rho(N, t_max, w_opt, rho):
         logger.info(
             "AC error calculation with ~{} memory accesses".format(t_max * w_opt)
         )
-        err_rho_out = err_rho_cpp.err_rho(
-            N, t_max, w_opt, torch.from_numpy(rho).clone().to(torch.float32)
-        ).numpy()
+        try:
+            err_rho_out = err_rho_cpp.err_rho(
+                N, t_max, w_opt, torch.from_numpy(rho).clone().to(torch.float32)
+            ).numpy()
+        except:
+            return np.zeros(t_max + 1)
 
         # ext_rho = np.zeros(2 * t_max + w_opt + 1)
         # err_rho = np.zeros(t_max + 1)

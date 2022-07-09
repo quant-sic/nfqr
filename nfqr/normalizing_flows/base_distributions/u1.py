@@ -1,5 +1,6 @@
 from math import pi
 from typing import List, Tuple, Union
+from venv import create
 
 import torch
 from pydantic import BaseModel
@@ -11,8 +12,10 @@ from nfqr.normalizing_flows.misc.constraints import (  # nf_constraints_alternat
     nf_constraints_standard,
 )
 from nfqr.registry import StrRegistry
+from nfqr.utils import create_logger
 
 U1_BASE_DIST_REGISTRY = StrRegistry("u1")
+logger = create_logger(__name__)
 
 
 @U1_BASE_DIST_REGISTRY.register("uniform")
@@ -34,7 +37,11 @@ class UniformBaseDistribution(BaseDistribution, Module):
         return self.dist.sample(sample_shape=(*size, *self.dim))
 
     def log_prob(self, value):
-        return self.dist.log_prob(value)
+        try:
+            return self.dist.log_prob(value)
+        except:
+            logger.info(f"min {value.min()}, max {value.max()}")
+            raise
 
 
 @U1_BASE_DIST_REGISTRY.register("von_mises")
@@ -46,7 +53,7 @@ class VonMisesBaseDistribution(BaseDistribution, Module):
         concentration_requires_grad: bool = False,
         loc: Union[None, List[float]] = None,
         concentration: Union[None, List[float]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super(VonMisesBaseDistribution, self).__init__()
 
@@ -86,7 +93,7 @@ class VonMisesBaseDistribution(BaseDistribution, Module):
         dim: List[int],
         loc_requires_grad: bool = False,
         concentration_requires_grad: bool = False,
-        **kwargs
+        **kwargs,
     ):
 
         loc = [pi]

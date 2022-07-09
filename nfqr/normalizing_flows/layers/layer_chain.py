@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Union
 
 import torch
 from numpy import pi
@@ -31,13 +31,25 @@ class LayerChain(Module):
         layers_config: List[Dict],
         split_type: SPLIT_TYPES,
         num_layers: int,
-        **kwargs
+        **kwargs,
     ):
 
         super(LayerChain, self).__init__()
 
         self.layers = ModuleList()
         self.size = dim
+
+        if split_type == SPLIT_TYPES.autoregressive and len(dim) > 1:
+            raise ValueError("n dim >1 not implemented for autoregressive splitting")
+        elif split_type == SPLIT_TYPES.autoregressive and dim[0] != num_layers:
+            logger.info(
+                f"Autoregressivive splitting will result in num_layers == dim({dim})"
+            )
+            num_layers = dim[0]
+            if isinstance(layers_config, list) and len(layers_config) != dim[0]:
+                raise ValueError(
+                    f"Autoregressive splitting needs {dim[0]} layers but {len(layers_config)} were given"
+                )
 
         splits = generate_splits(split_type, num_layers, dim)
 
@@ -54,7 +66,7 @@ class LayerChain(Module):
                 c = COUPLING_TYPES[layer_config.coupling_type](
                     conditioner_mask=conditioner_mask,
                     transformed_mask=transformed_mask,
-                    **dict(layer_config)
+                    **dict(layer_config),
                 )
             else:
                 raise NotImplementedError()

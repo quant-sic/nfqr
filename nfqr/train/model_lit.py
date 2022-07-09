@@ -303,7 +303,7 @@ class LitFlow(pl.LightningModule):
             if hasattr(module, "logging_parameters"):
                 self.log_all_values_in_stats_dict(
                     node=module.logging_parameters,
-                    str_path_to_node="flow/"+name + "_" + type(module).__name__,
+                    str_path_to_node="flow/" + name + "_" + type(module).__name__,
                 )
 
     def validation_step(
@@ -339,26 +339,26 @@ class LitFlow(pl.LightningModule):
         for sampler, _stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
             self.log_all_values_in_stats_dict(_stats, sampler)
 
-        if len(self.trainer.val_dataloaders) == 1:
-            outputs = [outputs]
+        # if len(self.trainer.val_dataloaders) == 1:
+        #     outputs = [outputs]
 
-        for dataloader_idx, val_steps_output in enumerate(outputs):
-            val_steps_output_transposed = defaultdict(list)
+        # for dataloader_idx, val_steps_output in enumerate(outputs):
+        #     val_steps_output_transposed = defaultdict(list)
 
-            for output in val_steps_output:
-                for key, val in output.items():
-                    val_steps_output_transposed[key] += [val]
+        #     for output in val_steps_output:
+        #         for key, val in output.items():
+        #             val_steps_output_transposed[key] += [val]
 
-            for key, val in val_steps_output_transposed.items():
-                if key in self.observables_fn.keys() and hasattr(
-                    self.observables_fn[key], "hist_bin_range"
-                ):
-                    self.logger.experiment.add_histogram(
-                        tag=f"{dataloader_idx}_{type(self.trainer.val_dataloaders[dataloader_idx]).__name__}/{key}",
-                        values=torch.concat(val),
-                        global_step=self.global_step,
-                        bins=self.observables_fn[key].hist_bin_range(self.dim),
-                    )
+        #     for key, val in val_steps_output_transposed.items():
+        #         if key in self.observables_fn.keys() and hasattr(
+        #             self.observables_fn[key], "hist_bin_range"
+        #         ):
+        #             self.logger.experiment.add_histogram(
+        #                 tag=f"{dataloader_idx}_{type(self.trainer.val_dataloaders[dataloader_idx]).__name__}/{key}",
+        #                 values=torch.concat(val),
+        #                 global_step=self.global_step,
+        #                 bins=self.observables_fn[key].hist_bin_range(self.dim),
+        #             )
 
         # if "von_mises" in self.config.flow_config.base_dist_config.type:
         #     with torch.no_grad():
