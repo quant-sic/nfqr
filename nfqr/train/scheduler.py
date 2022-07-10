@@ -59,8 +59,7 @@ class BetaScheduler(object):
 
     @property
     def log_stats(self):
-        return {"beta":self.target_action.beta}
-
+        return {"beta": self.target_action.beta}
 
     def step(self):
 
@@ -122,8 +121,9 @@ class LossScheduler(object):
         self.n_schedule_steps = n_schedule_steps
 
         # self.alpha_step_method = self.comb_methods[alpha_step_method]
-        self.alpha_step_method= {"max_change_comb":self.max_change_comb}[alpha_step_method]
-
+        self.alpha_step_method = {"max_change_comb": self.max_change_comb}[
+            alpha_step_method
+        ]
 
         self.change_rate = change_rate
         self.metric_window_length = metric_window_length
@@ -143,8 +143,7 @@ class LossScheduler(object):
 
     @property
     def log_stats(self):
-        return {f"alpha/{idx}":alpha for idx, alpha in enumerate(self.alphas)}
-
+        return {f"alpha/{idx}": alpha for idx, alpha in enumerate(self.alphas)}
 
     @cached_property
     def sufficient_target_distance(self):
@@ -162,8 +161,7 @@ class LossScheduler(object):
         else:
             # check whether sufficiently close to target
             if (
-                abs(self.target_alphas - self.alphas)
-                < self.sufficient_target_distance
+                abs(self.target_alphas - self.alphas) < self.sufficient_target_distance
             ).all():
                 self.alphas = self.target_alphas
                 return
@@ -254,9 +252,9 @@ class LossScheduler(object):
             )
         )
 
+
 @SCHEDULER_REGISTRY.register("default_loss")
 class LossScheduler(object):
-
     @property
     def log_stats(self):
         return {}

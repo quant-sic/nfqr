@@ -1,7 +1,8 @@
+import numpy as np
 import torch
 from numpy import pi
 from torch.nn import functional as F
-import numpy as np
+
 from nfqr.normalizing_flows.diffeomorphisms.diffeomorphism_base import Diffeomorphism
 from nfqr.normalizing_flows.diffeomorphisms.inversion import (
     NumericalInverse,
@@ -18,13 +19,18 @@ from nfqr.registry import StrRegistry
 U1_DIFFEOMORPHISM_REGISTRY = StrRegistry("u1")
 
 
-def bring_back_to_u1(phi,**kwargs):
-    if (torch.min(phi) < 0.0) or (torch.max(phi) > (2 * pi)):
+def bring_back_to_u1(phi, **kwargs):
+    if (torch.min(phi) <= 0.0) or (torch.max(phi) >= (2 * pi)):
         if torch.min(phi) > -(1e-3) and torch.max(phi) < (2 * pi + 1e-3):
-            phi[phi < 0.0] = 0.0
-            phi[phi > (2 * pi)] = 2 * pi
+            phi[phi <= 0.0] = 0.0
+            phi[phi >= (2 * pi)] = 2 * pi 
         else:
-            kwargs_str = ";".join([f"{k}:min {torch.min(v)} max {torch.max(v)}" for k,v in kwargs.items()])
+            kwargs_str = ";".join(
+                [
+                    f"{k}:min {torch.min(v)} max {torch.max(v)}"
+                    for k, v in kwargs.items()
+                ]
+            )
             raise ValueError(
                 f"Min:{torch.min(phi)}, Max:{torch.max(phi)} outside of domain. {kwargs_str}"
             )
@@ -65,7 +71,6 @@ def ncp(phi, alpha, beta, rho, ret_logabsdet=True):
 
 def ncp_mod(phi, alpha, beta, rho, ret_logabsdet=True):
 
-
     out = 2 * torch.atan(alpha * torch.tan(0.5 * (phi - pi))[..., None] + beta) + pi
 
     conv_comb = (rho * out).sum(-1)
@@ -86,7 +91,7 @@ def ncp_mod(phi, alpha, beta, rho, ret_logabsdet=True):
 
 
 class NCP(Diffeomorphism):
-    def __init__(self, alpha_min=1e-3,boundary_mode="taylor") -> None:
+    def __init__(self, alpha_min=1e-3, boundary_mode="taylor") -> None:
         super(NCP).__init__()
 
         self._num_pars = 3
@@ -110,8 +115,8 @@ class NCP(Diffeomorphism):
         self.rho_transform = torch_transform_to(simplex)
 
     @classmethod
-    def use_modulo_for_boundary(cls,alpha_min=1e-3):
-        return cls(alpha_min,boundary_mode="modulo")
+    def use_modulo_for_boundary(cls, alpha_min=1e-3):
+        return cls(alpha_min, boundary_mode="modulo")
 
     @classmethod
     def use_taylor_for_boundary(cls,alpha_min=1e-3):
@@ -144,18 +149,18 @@ class NCP(Diffeomorphism):
 
         if ret_logabsdet:
 
-            phi_out,ld = self.fn(
-                        phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
-                    )
+            phi_out, ld = self.fn(
+                phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
+            )
             phi_out = bring_back_to_u1(phi_out)
 
-            return phi_out,ld
-        
+            return phi_out, ld
+
         else:
 
             phi_out = self.fn(
-                        phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
-                    )
+                phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
+            )
             phi_out = bring_back_to_u1(phi_out)
 
             return phi_out
@@ -236,7 +241,15 @@ def moebius(phi, w, rho, ret_logabsdet=True):
         z_min_w_xy = z_min_w[0, 0] * z_min_w[0, 1] * alpha
         z_min_w_squared = (z_min_w[0] ** 2) * alpha
 
-        d = (h_w[0, 1] * (beta[0] - z_min_w_squared[0]) + h_w[0, 0] * z_min_w_xy) * torch.sin(phi)[..., None] + (h_w[0, 1] * z_min_w_xy + h_w[0, 0] * (beta[0] - z_min_w_squared[1])) * torch.cos(phi)[..., None]
+        d = (
+            h_w[0, 1] * (beta[0] - z_min_w_squared[0]) + h_w[0, 0] * z_min_w_xy
+        ) * torch.sin(phi)[..., None] + (
+            h_w[0, 1] * z_min_w_xy + h_w[0, 0] * (beta[0] - z_min_w_squared[1])
+        ) * torch.cos(
+            phi
+        )[
+            ..., None
+        ]
 
         logabsdet = torch.log((rho * d).sum(-1))
 
@@ -309,32 +322,29 @@ class Moebius(Diffeomorphism):
 
         phi = bring_back_to_u1(phi)
 
-
         if ret_logabsdet:
 
-            phi_out,ld = moebius(
-                            phi=phi,
-                            w=w,
-                            rho=rho,
-                            ret_logabsdet=ret_logabsdet,
-                        )
+            phi_out, ld = moebius(
+                phi=phi,
+                w=w,
+                rho=rho,
+                ret_logabsdet=ret_logabsdet,
+            )
             phi_out = bring_back_to_u1(phi_out)
 
-            return phi_out,ld
-        
+            return phi_out, ld
+
         else:
 
             phi_out = moebius(
-                        phi=phi,
-                        w=w,
-                        rho=rho,
-                        ret_logabsdet=ret_logabsdet,
-                    )
+                phi=phi,
+                w=w,
+                rho=rho,
+                ret_logabsdet=ret_logabsdet,
+            )
             phi_out = bring_back_to_u1(phi_out)
 
             return phi_out
-
-
 
     def inverse(
         self,
@@ -491,7 +501,6 @@ def rational_quadratic_spline(
             )
             logabsdet = torch.log(derivative_numerator) - 2 * torch.log(denominator)
 
-
     outputs = bring_back_to_u1(outputs)
 
     if ret_logabsdet:
@@ -564,19 +573,24 @@ class RQS(Diffeomorphism):
             ret_logabsdet=ret_logabsdet,
         )
 
+
 def rho_step_function(x, alpha, beta):
 
     if isinstance(x, (torch.Tensor, np.ndarray)):
         out = torch.zeros_like(x)
         out[x != 0] = torch.exp(-1 / (alpha * x**beta))[x != 0]
         dout = torch.zeros_like(x)
-        dout[x != 0] = (torch.exp(-1 / (alpha * x**beta)) *
-                        (beta / (alpha * x**(beta + 1))))[x != 0]
+        dout[x != 0] = (
+            torch.exp(-1 / (alpha * x**beta)) * (beta / (alpha * x ** (beta + 1)))
+        )[x != 0]
 
     elif isinstance(x, (float, int)):
         out = 0 if x == 0 else np.exp(-1 / (alpha * x**beta))
-        dout = 0 if x == 0 else np.exp(
-            -1 / (alpha * x**beta)) * (beta / (alpha * x**(beta + 1)))
+        dout = (
+            0
+            if x == 0
+            else np.exp(-1 / (alpha * x**beta)) * (beta / (alpha * x ** (beta + 1)))
+        )
 
     return out, dout
 
@@ -604,7 +618,9 @@ def dg(phi, rho_function, a, b, phi_left, phi_right, alpha, beta):
     rho_1_y, drho_1_y = rho_function(1 - y_inside, alpha_inside, beta_inside)
     divisor = rho_y + rho_1_y
 
-    dg_x[inside_mask] = ((drho_y - (rho_y * (drho_y - drho_1_y) / divisor)) * a_inside / divisor)
+    dg_x[inside_mask] = (
+        (drho_y - (rho_y * (drho_y - drho_1_y) / divisor)) * a_inside / divisor
+    )
 
     return dg_x
 
@@ -617,24 +633,18 @@ def g(phi, rho_function, a, b, phi_left, phi_right, alpha, beta):
     inside_mask = (phi < phi_right) & (phi > phi_left)
 
     y = a * (phi - b) + 0.5
-    g_x[inside_mask] = generalized_sigmoid(y[inside_mask], rho_function,
-                                           alpha[inside_mask],
-                                           beta[inside_mask])
+    g_x[inside_mask] = generalized_sigmoid(
+        y[inside_mask], rho_function, alpha[inside_mask], beta[inside_mask]
+    )
 
     return g_x
 
 
-def circular_bump(phi,
-                  rho,
-                  a,
-                  b,
-                  c,
-                  alpha,
-                  beta,
-                  rho_function=rho_step_function,
-                  ret_logabsdet=True):
+def circular_bump(
+    phi, rho, a, b, c, alpha, beta, rho_function=rho_step_function, ret_logabsdet=True
+):
 
-    phi = phi[...,None].expand(*rho.shape)/(2*pi)
+    phi = phi[..., None].expand(*rho.shape) / (2 * pi)
 
     phi_left = b - 1 / (2 * a)
     phi_right = b + 1 / (2 * a)
@@ -644,20 +654,18 @@ def circular_bump(phi,
     phi_shifted[(phi_left < 0) & (phi >= 1 + phi_left)] -= 1
 
     # calculate g
-    g_phi = g(phi_shifted, rho_function, a, b, phi_left, phi_right, alpha,
-              beta)
+    g_phi = g(phi_shifted, rho_function, a, b, phi_left, phi_right, alpha, beta)
 
-    #cumulative bump
+    # cumulative bump
     left_value = torch.zeros_like(phi)
-    left_value[~((phi_left < 0) | (phi_right < 1))] = 1.0
+    left_value[(phi_left >= 0) & (phi_right >= 1)] = 1.0
     left = g(left_value, rho_function, a, b, phi_left, phi_right, alpha, beta)
-    in_between_mask = ((phi_right > 1) &
-                       (phi >
-                        (phi_right % 1))) | ((phi_left < 0) & (phi >
-                                                               (phi_left % 1)))
+    in_between_mask = ((phi_right > 1) & (phi > (phi_right % 1))) | (
+        (phi_left < 0) & (phi > (phi_left % 1))
+    )
 
     left[in_between_mask] = -1.0 + left[in_between_mask]
-    f_phi = ((g_phi - left) * (1 - c) + c * phi)
+    f_phi = (g_phi - left) * (1 - c) + c * phi
 
     # convex sum
     f_phi_out = (rho * f_phi).sum(dim=-1) * 2 * pi
@@ -665,8 +673,11 @@ def circular_bump(phi,
     if ret_logabsdet:
 
         # calculate dg
-        dg_phi = dg(phi_shifted, rho_function, a, b, phi_left, phi_right,
-                    alpha, beta) * (1 - c) + c
+        dg_phi = (
+            dg(phi_shifted, rho_function, a, b, phi_left, phi_right, alpha, beta)
+            * (1 - c)
+            + c
+        )
 
         dg_phi_out = torch.log((rho * dg_phi).sum(dim=-1))
 
@@ -676,22 +687,21 @@ def circular_bump(phi,
         return f_phi_out
 
 
-
 @U1_DIFFEOMORPHISM_REGISTRY.register("bump")
 class Bump(Diffeomorphism):
-    def __init__(self,_beta:int=2) -> None:
+    def __init__(self, _beta: int = 2) -> None:
         super(Bump).__init__()
 
         self._num_pars = 5
 
         self.inverse_fn_params = {
             "function": circular_bump,
-            "args": ["rho", "a","b","c","alpha","beta"],
+            "args": ["rho", "a", "b", "c", "alpha", "beta"],
             "left": 0.0,
             "right": 2 * pi,
             "kwargs": {"ret_logabsdet": False},
         }
-        
+
         self.alpha_max = 10
         self._beta = _beta
         self.rho_transform = torch_transform_to(simplex)
@@ -712,17 +722,18 @@ class Bump(Diffeomorphism):
                         alpha_unconstrained
                         ):
 
-        rho = torch.softmax(rho_unconstrained, dim=-1)
+        rho = self.rho_transform(rho_unconstrained)
 
         a = F.softplus(a_unconstrained) + 1 + 1e-3
-        b = b_unconstrained**2 / (1 + b_unconstrained**2)
-        c = c_unconstrained**2 / (1 + c_unconstrained**2)
+        # b = b_unconstrained**2 / (1 + b_unconstrained**2)
+        # c = c_unconstrained**2 / (1 + c_unconstrained**2) + 1e-4
+        b = torch.sigmoid(b_unconstrained)
+        c = torch.sigmoid(c_unconstrained)
 
-        alpha = (F.tanh(alpha_unconstrained)+1)* self.alpha_max + 1e-3
-        beta = torch.full_like(alpha,fill_value=self._beta)
+        alpha = (torch.tanh(alpha_unconstrained) + 1) * self.alpha_max + 1e-3
+        beta = torch.full_like(alpha, fill_value=self._beta)
 
-
-        return rho,a,b,c,alpha,beta
+        return rho, a, b, c, alpha, beta
 
     def __call__(
         self,
@@ -735,40 +746,47 @@ class Bump(Diffeomorphism):
         ret_logabsdet=True,
     ):
 
-        rho,a,b,c,alpha,beta = self.constrain_params(
+        rho, a, b, c, alpha, beta = self.constrain_params(
             rho_unconstrained,
             a_unconstrained,
             b_unconstrained,
             c_unconstrained,
-            alpha_unconstrained
+            alpha_unconstrained,
         )
 
-        phi = bring_back_to_u1(phi,a=a,b=b,c=c,alpha=alpha,beta=beta)
-
+        phi = bring_back_to_u1(phi, a=a, b=b, c=c, alpha=alpha, beta=beta)
 
         if ret_logabsdet:
 
-            phi_out,ld = circular_bump(
-                            phi=phi,
-                            rho=rho,a=a,b=b,c=c,alpha=alpha,beta=beta,
-                            ret_logabsdet=ret_logabsdet,
-                        )
-            phi_out = bring_back_to_u1(phi,a=a,b=b,c=c,alpha=alpha,beta=beta)
+            phi_out, ld = circular_bump(
+                phi=phi,
+                rho=rho,
+                a=a,
+                b=b,
+                c=c,
+                alpha=alpha,
+                beta=beta,
+                ret_logabsdet=ret_logabsdet,
+            )
+            phi_out = bring_back_to_u1(phi, a=a, b=b, c=c, alpha=alpha, beta=beta)
 
-            return phi_out,ld
-        
+            return phi_out, ld
+
         else:
 
             phi_out = circular_bump(
-                        phi=phi,
-                        rho=rho,a=a,b=b,c=c,alpha=alpha,beta=beta,
-                        ret_logabsdet=ret_logabsdet,
-                        )
-            phi_out = bring_back_to_u1(phi,a=a,b=b,c=c,alpha=alpha,beta=beta)
+                phi=phi,
+                rho=rho,
+                a=a,
+                b=b,
+                c=c,
+                alpha=alpha,
+                beta=beta,
+                ret_logabsdet=ret_logabsdet,
+            )
+            phi_out = bring_back_to_u1(phi, a=a, b=b, c=c, alpha=alpha, beta=beta)
 
             return phi_out
-
-
 
     def inverse(
         self,
@@ -780,25 +798,31 @@ class Bump(Diffeomorphism):
         alpha_unconstrained,
         ret_logabsdet=True,
     ):
-        rho,a,b,c,alpha,beta = self.constrain_params(
+        rho, a, b, c, alpha, beta = self.constrain_params(
             rho_unconstrained,
             a_unconstrained,
             b_unconstrained,
             c_unconstrained,
-            alpha_unconstrained
+            alpha_unconstrained,
         )
 
-
-        phi = bring_back_to_u1(phi,a=a,b=b,c=c,alpha=alpha,beta=beta)
-        phi_out = NumericalInverse.apply(phi, self.inverse_fn_params, rho,a,b,c,alpha,beta)
-        phi_out = bring_back_to_u1(phi,a=a,b=b,c=c,alpha=alpha,beta=beta)
+        phi = bring_back_to_u1(phi, a=a, b=b, c=c, alpha=alpha, beta=beta)
+        phi_out = NumericalInverse.apply(
+            phi, self.inverse_fn_params, rho, a, b, c, alpha, beta
+        )
+        phi_out = bring_back_to_u1(phi, a=a, b=b, c=c, alpha=alpha, beta=beta)
 
         if ret_logabsdet:
             _, ld = circular_bump(
-                    phi=phi,
-                    rho=rho,a=a,b=b,c=c,alpha=alpha,beta=beta,
-                    ret_logabsdet=ret_logabsdet,
-                )
+                phi=phi,
+                rho=rho,
+                a=a,
+                b=b,
+                c=c,
+                alpha=alpha,
+                beta=beta,
+                ret_logabsdet=ret_logabsdet,
+            )
 
             return phi_out, -ld
         else:

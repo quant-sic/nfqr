@@ -4,6 +4,7 @@ from strenum import StrEnum
 
 class SPLIT_TYPES(StrEnum):
     checkerboard = "checkerboard"
+    autoregressive = "autoregressive"
 
 
 def checkerboard_mask(size, mask_config, **kwargs):
@@ -12,10 +13,22 @@ def checkerboard_mask(size, mask_config, **kwargs):
     return mask, ~mask
 
 
+def autoregressive_mask(size, mask_config, **kwargs):
+    # rewrite, this just works in 1d
+    mask_conditioner = torch.ones(size).cumsum(-1) <= mask_config
+
+    mask_transformed = torch.zeros(size).bool()
+    mask_transformed[mask_config] = True
+
+    return mask_conditioner, mask_transformed
+
+
 def generate_splits(split_type, num_layers, size):
 
     if split_type == "checkerboard":
         split_fn = checkerboard_mask
+    elif split_type == "autoregressive":
+        split_fn = autoregressive_mask
     else:
         raise ValueError("mask type not implemented")
 
