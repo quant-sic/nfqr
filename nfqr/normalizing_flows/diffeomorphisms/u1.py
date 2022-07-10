@@ -20,7 +20,7 @@ U1_DIFFEOMORPHISM_REGISTRY = StrRegistry("u1")
 
 def bring_back_to_u1(phi,**kwargs):
     if (torch.min(phi) < 0.0) or (torch.max(phi) > (2 * pi)):
-        if torch.min(phi) > -(1e-2) and torch.max(phi) < (2 * pi + 1e-2):
+        if torch.min(phi) > -(1e-3) and torch.max(phi) < (2 * pi + 1e-3):
             phi[phi < 0.0] = 0.0
             phi[phi > (2 * pi)] = 2 * pi
         else:
@@ -85,7 +85,6 @@ def ncp_mod(phi, alpha, beta, rho, ret_logabsdet=True):
         return conv_comb
 
 
-@U1_DIFFEOMORPHISM_REGISTRY.register("ncp")
 class NCP(Diffeomorphism):
     def __init__(self, alpha_min=1e-3,boundary_mode="taylor") -> None:
         super(NCP).__init__()
@@ -114,9 +113,17 @@ class NCP(Diffeomorphism):
     def use_modulo_for_boundary(cls,alpha_min=1e-3):
         return cls(alpha_min,boundary_mode="modulo")
 
+    @classmethod
+    def use_taylor_for_boundary(cls,alpha_min=1e-3):
+        return cls(alpha_min,boundary_mode="taylor")
+
     @property
     def num_pars(self):
         return self._num_pars
+
+    @property
+    def map_to_range(self):
+        return bring_back_to_u1
 
     def constrain_params(self, alpha_unconstrained, beta, rho_unconstrained):
 
@@ -179,6 +186,7 @@ class NCP(Diffeomorphism):
             return phi_out
 
 U1_DIFFEOMORPHISM_REGISTRY.register("ncp_mod",NCP.use_modulo_for_boundary)
+U1_DIFFEOMORPHISM_REGISTRY.register("ncp",NCP.use_taylor_for_boundary)
 
 
 
@@ -258,6 +266,10 @@ class Moebius(Diffeomorphism):
     @property
     def num_pars(self):
         return self._num_pars
+
+    @property
+    def map_to_range(self):
+        return bring_back_to_u1
 
     def constrain_params(self, w_x_unconstrained, w_y_unconstrained, rho_unconstrained):
 
@@ -499,6 +511,10 @@ class RQS(Diffeomorphism):
     def num_pars(self):
         return self._num_pars
 
+    @property
+    def map_to_range(self):
+        return bring_back_to_u1
+
     def constrain_params(
         self, unnormalized_widths, unnormalized_heights, unnormalized_derivatives
     ):
@@ -683,6 +699,10 @@ class Bump(Diffeomorphism):
     @property
     def num_pars(self):
         return self._num_pars
+
+    @property
+    def map_to_range(self):
+        return bring_back_to_u1
 
     def constrain_params(self, 
                         rho_unconstrained,

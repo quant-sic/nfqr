@@ -18,3 +18,8 @@ class Diffeomorphism(ABC):
     @abstractmethod
     def num_pars(self):
         pass
+
+    @property
+    @abstractmethod
+    def map_to_range(self):
+        pass
