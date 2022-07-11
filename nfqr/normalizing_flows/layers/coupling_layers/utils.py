@@ -4,9 +4,7 @@ from strenum import StrEnum
 
 class SPLIT_TYPES(StrEnum):
     checkerboard = "checkerboard"
-    autoregressive = "autoregressive"
-    autoregressive_2 = "autoregressive_2"
-
+    single_transforms = "single_transforms"
 
 def checkerboard_mask(size, mask_config, **kwargs):
     # rewrite, this just works in 1d
