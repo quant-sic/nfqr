@@ -230,9 +230,11 @@ class ResidualCoupling(CouplingLayer, Module):
 
         log_rho = self.get_log_rho(conditioner_input=conditioner_input)
 
-        z[..., self.transformed_mask] = (
-            log_rho[..., 0].exp() * z_coupling
-            + log_rho[..., 1].exp() * z.clone()[..., self.transformed_mask]
+
+
+        z[..., self.transformed_mask] = self.diffeomorphism.map_to_range(
+            log_rho[...,0].exp() * z_coupling
+            + log_rho[...,1].exp()  * z.clone()[..., self.transformed_mask]
         )
 
         ld = torch.logsumexp(
@@ -260,7 +262,7 @@ class ResidualCoupling(CouplingLayer, Module):
 
         log_rho = self.get_log_rho(conditioner_input=conditioner_input)
 
-        x[..., self.transformed_mask] = (
+        x[..., self.transformed_mask] = self.diffeomorphism.map_to_range(
             log_rho[..., 0].exp() * x_coupling
             + log_rho[..., 1].exp() * x.clone()[..., self.transformed_mask]
         )
