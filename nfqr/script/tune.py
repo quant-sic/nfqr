@@ -49,9 +49,11 @@ def train_flow_model_tune(config, exp_dir):
     trainer = Trainer(
         **train_config.trainer_config.dict(
             include={
-                "max_epochs",
-                "log_every_n_steps",
-                "accumulate_grad_batches",
+                    "max_epochs",
+                    "log_every_n_steps",
+                    "accumulate_grad_batches",
+                    "gradient_clip_val",
+                    "gradient_clip_algorithm"
             }
         ),
         enable_progress_bar=False,

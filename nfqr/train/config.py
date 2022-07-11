@@ -45,6 +45,9 @@ class TrainerConfig(BaseModel):
     n_iter_eval: int = 10
     batch_size_eval: int = 10000
 
+    gradient_clip_val: Union[float,None] = 1.0
+    gradient_clip_algorithm : str = "norm"
+    track_grad_norm : int=2
 
 class LitModelConfig(BaseConfig):
 

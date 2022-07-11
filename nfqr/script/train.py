@@ -43,6 +43,9 @@ def train_flow_model(exp_dir, skip_done):
                     "max_epochs",
                     "log_every_n_steps",
                     "accumulate_grad_batches",
+                    "gradient_clip_val",
+                    "gradient_clip_algorithm",
+                    "track_grad_norm"
                 }
             ),
             logger=tb_logger,

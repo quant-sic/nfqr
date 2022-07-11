@@ -69,6 +69,7 @@ class LitFlow(pl.LightningModule):
         observables: List[OBSERVABLE_REGISTRY.enum],
         action_config: ActionConfig,
         trainer_config: TrainerConfig,
+        mode = "train",
         **kwargs,
     ) -> None:
         super().__init__()
@@ -80,6 +81,9 @@ class LitFlow(pl.LightningModule):
 
         self.learning_rate = trainer_config.learning_rate
         self.model = BareFlow(**dict(flow_config))
+
+        if mode=="eval":
+            self.set_final_beta()
 
     @cached_property
     def target(self):
@@ -176,20 +180,26 @@ class LitFlow(pl.LightningModule):
     def sus_exact(self):
         return SusceptibilityExact(self.target.dist.action.beta, *self.dim).evaluate()
 
-    @cached_property
-    def sus_exact_final(self) -> float:
+    @property
+    def final_beta(self):
         if not any(
             isinstance(_scheduler, BetaScheduler) for _scheduler in self.schedulers
         ):
-            return SusceptibilityExact(
-                self.target.dist.action.beta, *self.dim
-            ).evaluate()
+            return self.target.dist.action.beta
         else:
+            # it is already checked that there is only one beta scheduler
             beta_scheduler = filter(
                 lambda _scheduler: isinstance(_scheduler, BetaScheduler),
                 self.schedulers,
             ).__next__()
-            return SusceptibilityExact(beta_scheduler.target_beta, *self.dim).evaluate()
+            return beta_scheduler.target_beta
+
+    @cached_property
+    def sus_exact_final(self) -> float:
+        return SusceptibilityExact(self.final_beta, *self.dim).evaluate()
+
+    def set_final_beta(self):
+        self.target.dist.action.beta = self.final_beta
 
     @cached_property
     def observables_fn(self):
@@ -231,6 +241,12 @@ class LitFlow(pl.LightningModule):
                 raise ValueError("Unhandled sampler case")
 
         return val_loaders
+
+    def configure_gradient_clipping(self, optimizer, optimizer_idx, gradient_clip_val, gradient_clip_algorithm):
+            # Lightning will handle the gradient clipping
+            self.clip_gradients(
+                optimizer, gradient_clip_val=gradient_clip_val, gradient_clip_algorithm=gradient_clip_algorithm
+            )
 
     def training_step(self, batches, *args, **kwargs):
 
@@ -339,26 +355,26 @@ class LitFlow(pl.LightningModule):
         for sampler, _stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
             self.log_all_values_in_stats_dict(_stats, sampler)
 
-        # if len(self.trainer.val_dataloaders) == 1:
-        #     outputs = [outputs]
+        if len(self.trainer.val_dataloaders) == 1:
+            outputs = [outputs]
 
-        # for dataloader_idx, val_steps_output in enumerate(outputs):
-        #     val_steps_output_transposed = defaultdict(list)
+        for dataloader_idx, val_steps_output in enumerate(outputs):
+            val_steps_output_transposed = defaultdict(list)
 
-        #     for output in val_steps_output:
-        #         for key, val in output.items():
-        #             val_steps_output_transposed[key] += [val]
+            for output in val_steps_output:
+                for key, val in output.items():
+                    val_steps_output_transposed[key] += [val]
 
-        #     for key, val in val_steps_output_transposed.items():
-        #         if key in self.observables_fn.keys() and hasattr(
-        #             self.observables_fn[key], "hist_bin_range"
-        #         ):
-        #             self.logger.experiment.add_histogram(
-        #                 tag=f"{dataloader_idx}_{type(self.trainer.val_dataloaders[dataloader_idx]).__name__}/{key}",
-        #                 values=torch.concat(val),
-        #                 global_step=self.global_step,
-        #                 bins=self.observables_fn[key].hist_bin_range(self.dim),
-        #             )
+            for key, val in val_steps_output_transposed.items():
+                if key in self.observables_fn.keys() and hasattr(
+                    self.observables_fn[key], "hist_bin_range"
+                ):
+                    self.logger.experiment.add_histogram(
+                        tag=f"{dataloader_idx}_{type(self.trainer.val_dataloaders[dataloader_idx]).__name__}/{key}",
+                        values=torch.concat(val),
+                        global_step=self.global_step,
+                        bins=self.observables_fn[key].hist_bin_range(self.dim),
+                    )
 
         # if "von_mises" in self.config.flow_config.base_dist_config.type:
         #     with torch.no_grad():

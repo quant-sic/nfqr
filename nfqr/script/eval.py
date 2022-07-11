@@ -1,12 +1,17 @@
 from argparse import ArgumentParser
 from pathlib import Path
 import os
+from venv import create
 
 from nfqr.eval.evaluation import EvalConfig,EvalResult
 from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.train.config import LitModelConfig
 from nfqr.train.model_lit import LitFlow
 from tqdm import tqdm
+
+from nfqr.utils import create_logger
+
+logger = create_logger(__name__)
 
 if __name__ == "__main__":
 
@@ -29,8 +34,8 @@ if __name__ == "__main__":
 
         task_dir = exp_dir/f"eval/{log_dir}/{model_ckpt_path.stem}"
 
-        lit_model = LitFlow.load_from_checkpoint(model_ckpt_path, **dict(train_config))
-
+        lit_model = LitFlow.load_from_checkpoint(model_ckpt_path, **dict(train_config),mode="eval")
+        
         eval_result = EvalResult(observables=eval_config.observables,n_samples=[b*n for (b,n) in zip(eval_config.batch_size,eval_config.n_iter)])
 
         stats_nip_list = []
