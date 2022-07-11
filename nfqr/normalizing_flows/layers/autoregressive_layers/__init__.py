@@ -1,1 +1,6 @@
-from autoregressive import AR_LAYER_TYPES,IterativeARLayer,AutoregressiveLayer
+from .autoregressive import (
+    AR_LAYER_TYPES,
+    ARLayerConfig,
+    AutoregressiveLayer,
+    IterativeARLayer,
+)

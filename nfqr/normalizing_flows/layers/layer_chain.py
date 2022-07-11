@@ -5,6 +5,10 @@ from numpy import pi
 from pydantic import BaseModel
 from torch.nn import Module, ModuleList
 
+from nfqr.normalizing_flows.layers.autoregressive_layers import (
+    AR_LAYER_TYPES,
+    ARLayerConfig,
+)
 from nfqr.normalizing_flows.layers.coupling_layers import (
     COUPLING_TYPES,
     SPLIT_TYPES,
@@ -19,8 +23,10 @@ logger = create_logger(__name__)
 class LayerChainConfig(BaseModel):
 
     dim: List[int]
-    layers_config: Union[None, CouplingConfig, List[CouplingConfig]]
-    split_type: SPLIT_TYPES
+    layers_config: Union[
+        None, CouplingConfig, ARLayerConfig, List[Union[ARLayerConfig, CouplingConfig]]
+    ]
+    split_type: Union[SPLIT_TYPES, None]
     num_layers: int
 
 
@@ -37,7 +43,7 @@ class LayerChain(Module):
         super(LayerChain, self).__init__()
 
         self.layers = ModuleList()
-        self.size = dim
+        self.dim = dim
 
         if split_type == SPLIT_TYPES.autoregressive and len(dim) > 1:
             raise ValueError("n dim >1 not implemented for autoregressive splitting")
@@ -68,6 +74,10 @@ class LayerChain(Module):
                     transformed_mask=transformed_mask,
                     **dict(layer_config),
                 )
+            elif isinstance(layer_config, ARLayerConfig):
+                c = AR_LAYER_TYPES[layer_config.ar_layer_type](
+                    dim=self.dim, **dict(layer_config)
+                )
             else:
                 raise NotImplementedError()
 
@@ -80,8 +90,8 @@ class LayerChain(Module):
         # x.shape[0] extracts batch dim
         abs_log_det = torch.zeros(x.shape[0], device=x.device)
 
-        for coupling in self.layers[::-1]:
-            x, ld = coupling.encode(x)
+        for layer in self.layers[::-1]:
+            x, ld = layer.encode(x)
             abs_log_det += ld
 
         return x, abs_log_det
@@ -93,8 +103,8 @@ class LayerChain(Module):
 
         log_det = torch.zeros(z.shape[0], device=z.device)
 
-        for coupling in self.layers:
-            z, ld = coupling.decode(z)
+        for layer in self.layers:
+            z, ld = layer.decode(z)
             log_det += ld
 
         return z, log_det

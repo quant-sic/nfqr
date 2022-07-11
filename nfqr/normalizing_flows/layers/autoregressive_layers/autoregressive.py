@@ -1,18 +1,20 @@
+from functools import cached_property
 from typing import Literal
 
 import torch
+from pydantic import BaseModel, Field
 from torch.nn import Module
 
 from nfqr.normalizing_flows.diffeomorphisms import DIFFEOMORPHISMS_REGISTRY
+from nfqr.normalizing_flows.layers.conditioners import CONDITIONER_REGISTRY
 from nfqr.normalizing_flows.nets import NetConfig
 from nfqr.registry import StrRegistry
 from nfqr.utils import create_logger
 
-from nfqr.normalizing_flows.layers.conditioners import CONDITIONER_REGISTRY
-
 logger = create_logger(__name__)
 
 AR_LAYER_TYPES = StrRegistry("ar_layer_types")
+
 
 class AutoregressiveLayer(Module):
     def __init__(
@@ -27,7 +29,7 @@ class AutoregressiveLayer(Module):
         super(AutoregressiveLayer, self).__init__()
 
         self.diffeomorphism = DIFFEOMORPHISMS_REGISTRY[domain][diffeomorphism]()
-        self.expressivity=expressivity
+        self.expressivity = expressivity
         self.net_config = net_config
         self.domain = domain
         self.dim = dim
@@ -41,53 +43,103 @@ class AutoregressiveLayer(Module):
 
 @AR_LAYER_TYPES.register("iterative")
 class IterativeARLayer(AutoregressiveLayer, Module):
-    def __init__(self, dim, diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum, expressivity: int, net_config: NetConfig, domain: Literal["u1"] = "u1", **kwargs) -> None:
-        super().__init__(dim,diffeomorphism, expressivity, net_config, domain, **kwargs)
+    def __init__(
+        self,
+        dim,
+        diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
+        expressivity: int,
+        net_config: NetConfig,
+        domain: Literal["u1"] = "u1",
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            dim, diffeomorphism, expressivity, net_config, domain, **kwargs
+        )
 
-        if not len(dim)==1:
+        if not len(dim) == 1:
             raise ValueError("Layer not yet constructed for multidimensional input dim")
 
-        self.conditioners = []
-        for idx in range(1,dim[0]):
-            self.conditioners += [CONDITIONER_REGISTRY[domain](
-                dim_in=idx,
-                dim_out=1,
-                expressivity=expressivity,
-                num_splits=self.diffeomorphism.num_pars,
-                net_config=net_config,
-            )]
+        self.conditioners = torch.nn.ModuleList()
+        for idx in range(1, dim[0]):
+            self.conditioners.append(
+                CONDITIONER_REGISTRY[domain](
+                    dim_in=idx,
+                    dim_out=1,
+                    expressivity=expressivity,
+                    num_splits=self.diffeomorphism.num_pars,
+                    net_config=net_config,
+                )
+            )
+
+    @staticmethod
+    def autoregressive_mask(size, idx):
+
+        # rewrite, this just works in 1d
+        mask_conditioner = torch.ones(size).cumsum(-1) <= idx
+
+        mask_transformed = torch.zeros(size).bool()
+        mask_transformed[idx] = True
+
+        return mask_conditioner, mask_transformed
+
+    @cached_property
+    def conditioner_masks(self):
+        return [
+            self.autoregressive_mask(self.dim[0], idx)[0] for idx in range(self.dim[0])
+        ]
+
+    @cached_property
+    def transformed_masks(self):
+        return [
+            self.autoregressive_mask(self.dim[0], idx)[1] for idx in range(self.dim[0])
+        ]
 
     def decode(self, z):
-        
-        x = torch.zeros_like(z)
+
+        x = z.clone()
         log_det = torch.zeros(z.shape[0])
 
-        for idx in range(1,z.shape[-1]):
-            
-            unconstrained_params = self.conditioners[idx](z[...,:idx])
-            x[...,idx],ld = self.diffeomorphism(
-                z[...,idx], *unconstrained_params, ret_logabsdet=True
+        for idx in range(1, z.shape[-1]):
+
+            unconstrained_params = self.conditioners[idx - 1](
+                z[..., self.conditioner_masks[idx]]
             )
+            x[..., self.transformed_masks[idx]], ld = self.diffeomorphism(
+                z[..., self.transformed_masks[idx]],
+                *unconstrained_params,
+                ret_logabsdet=True,
+            )
+            log_det += ld.squeeze()
 
-            log_det += ld
-
-        return x,log_det
+        return x, log_det
 
     def encode(self, x):
-        
-        z = torch.zeros_like(x)
+
+        z = x.clone()
         log_det = torch.zeros(x.shape[0])
 
-        for idx in range(1,x.shape[-1]):
-            
-            unconstrained_params = self.conditioners[idx](x[...,:idx])
-            z[...,idx],ld = self.diffeomorphism.inverse(
-                z[...,idx], *unconstrained_params, ret_logabsdet=True
+        for idx in range(1, x.shape[-1]):
+
+            unconstrained_params = self.conditioners[idx - 1](
+                x[..., self.conditioner_masks[idx]]
+            )
+            z[..., self.transformed_masks[idx]], ld = self.diffeomorphism.inverse(
+                z[..., self.transformed_masks[idx]],
+                *unconstrained_params,
+                ret_logabsdet=True,
             )
 
-            log_det += ld
+            log_det += ld.squeeze()
 
-        return z,log_det
+        return z, log_det
 
 
+class ARLayerConfig(BaseModel):
 
+    domain: Literal["u1"] = "u1"
+    ar_layer_type: AR_LAYER_TYPES.enum = Field(...)
+    diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum
+    expressivity: int
+    net_config: NetConfig
+
+    # validators ..
