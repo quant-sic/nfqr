@@ -57,14 +57,14 @@ class CouplingLayer(Module):
     def decode(self, z):
 
         if self.conditioner_mask.sum().item() == 0:
-            return z, torch.zeros(z.shape[0])
+            return z, torch.zeros(z.shape[0],device=z.device)
         else:
             return self._decode(z=z)
 
     def encode(self, x):
 
         if self.conditioner_mask.sum().item() == 0:
-            return x, torch.zeros(x.shape[0])
+            return x, torch.zeros(x.shape[0],device=x.device)
         else:
             return self._encode(x=x)
 
@@ -241,7 +241,7 @@ class ResidualCoupling(CouplingLayer, Module):
             torch.stack(
                 [
                     log_rho[..., 0] + log_det_coupling,
-                    log_rho[..., 1] + torch.zeros_like(log_det_coupling),
+                    log_rho[..., 1] + torch.zeros_like(log_det_coupling,device=log_det_coupling.device),
                 ],
                 dim=-1,
             ),
@@ -271,7 +271,7 @@ class ResidualCoupling(CouplingLayer, Module):
             torch.stack(
                 [
                     log_rho[..., 0] + log_det_coupling,
-                    log_rho[..., 1] + torch.zeros_like(log_det_coupling),
+                    log_rho[..., 1] + torch.zeros_like(log_det_coupling,device=log_det_coupling.device),
                 ],
                 dim=-1,
             ),
