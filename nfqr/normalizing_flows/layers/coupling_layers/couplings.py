@@ -11,7 +11,7 @@ from nfqr.normalizing_flows.nets import NetConfig
 from nfqr.registry import StrRegistry
 from nfqr.utils import create_logger
 
-from .conditioners import CONDITIONER_REGISTRY
+from nfqr.normalizing_flows.layers.conditioners import CONDITIONER_REGISTRY
 
 logger = create_logger(__name__)
 
