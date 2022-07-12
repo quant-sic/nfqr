@@ -97,7 +97,7 @@ class IterativeARLayer(AutoregressiveLayer, Module):
     def decode(self, z):
 
         x = z.clone()
-        log_det = torch.zeros(z.shape[0])
+        log_det = torch.zeros(z.shape[0],device=z.device)
 
         for idx in range(1, z.shape[-1]):
 
@@ -116,7 +116,7 @@ class IterativeARLayer(AutoregressiveLayer, Module):
     def encode(self, x):
 
         z = x.clone()
-        log_det = torch.zeros(x.shape[0])
+        log_det = torch.zeros(x.shape[0],device=x.device)
 
         for idx in range(1, x.shape[-1]):
 
