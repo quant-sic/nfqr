@@ -24,8 +24,12 @@ class LayerSplit(object):
         self.dim = dim
         self.split_kwargs = split_kwargs
 
+        if len(self.dim)>1:
+            raise ValueError("Splits not yet implemented for dim>1")
+
         if split_type == "n_transforms":
             self.split_fn = self.n_transforms_mask
+
         if split_type == "checkerboard":
             self.split_fn = self.checkerboard_mask
 

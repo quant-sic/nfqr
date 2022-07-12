@@ -46,20 +46,6 @@ class LayerChain(Module):
         self.layers = ModuleList()
         self.dim = dim
 
-        if split_type in (SPLIT_TYPES.autoregressive, SPLIT_TYPES.autoregressive_2):
-            if len(dim) > 1:
-                raise ValueError(
-                    "n dim >1 not implemented for autoregressive splitting"
-                )
-            elif dim[0] != num_layers:
-                logger.info(
-                    f"Autoregressivive splitting will result in num_layers == dim({dim})"
-                )
-                num_layers = dim[0]
-                if isinstance(layers_config, list) and len(layers_config) != dim[0]:
-                    raise ValueError(
-                        f"Autoregressive splitting needs {dim[0]} layers but {len(layers_config)} were given"
-                    )
 
         splits = generate_splits(split_type, num_layers, dim)
 
