@@ -13,7 +13,7 @@ from nfqr.utils import create_logger
 
 logger = create_logger(__name__)
 
-AR_LAYER_TYPES = StrRegistry("ar_layer_types")
+AR_LAYER_REGISTRY = StrRegistry("ar_layer")
 
 
 class AutoregressiveLayer(Module):
@@ -41,7 +41,7 @@ class AutoregressiveLayer(Module):
         pass
 
 
-@AR_LAYER_TYPES.register("iterative")
+@AR_LAYER_REGISTRY.register("iterative")
 class IterativeARLayer(AutoregressiveLayer, Module):
     def __init__(
         self,
@@ -97,7 +97,7 @@ class IterativeARLayer(AutoregressiveLayer, Module):
     def decode(self, z):
 
         x = z.clone()
-        log_det = torch.zeros(z.shape[0],device=z.device)
+        log_det = torch.zeros(z.shape[0], device=z.device)
 
         for idx in range(1, z.shape[-1]):
 
@@ -116,7 +116,7 @@ class IterativeARLayer(AutoregressiveLayer, Module):
     def encode(self, x):
 
         z = x.clone()
-        log_det = torch.zeros(x.shape[0],device=x.device)
+        log_det = torch.zeros(x.shape[0], device=x.device)
 
         for idx in range(1, x.shape[-1]):
 
@@ -137,7 +137,7 @@ class IterativeARLayer(AutoregressiveLayer, Module):
 class ARLayerConfig(BaseModel):
 
     domain: Literal["u1"] = "u1"
-    ar_layer_type: AR_LAYER_TYPES.enum = Field(...)
+    specific_layer_type: AR_LAYER_REGISTRY.enum = Field(...)
     diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum
     expressivity: int
     net_config: NetConfig

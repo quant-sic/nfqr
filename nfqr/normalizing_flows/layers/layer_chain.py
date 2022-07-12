@@ -6,15 +6,17 @@ from pydantic import BaseModel
 from torch.nn import Module, ModuleList
 
 from nfqr.normalizing_flows.layers.autoregressive_layers import (
-    AR_LAYER_TYPES,
+    AR_LAYER_REGISTRY,
     ARLayerConfig,
 )
-from nfqr.normalizing_flows.layers.coupling_layers import COUPLING_TYPES, CouplingConfig
+from nfqr.normalizing_flows.layers.coupling_layers import (
+    COUPLING_LAYER_REGISTRY,
+    CouplingConfig,
+)
+from nfqr.normalizing_flows.layers.layer_config import LAYER_REGISTRY, LayerConfig
 from nfqr.normalizing_flows.layers.layer_splits import (
     SPLIT_TYPES_REGISTRY,
-    LayerSplit,
     LayerSplitConfig,
-    SplitTypeConfig,
 )
 from nfqr.utils.misc import create_logger
 
@@ -24,9 +26,7 @@ logger = create_logger(__name__)
 class LayerChainConfig(BaseModel):
 
     dim: List[int]
-    layers_config: Union[
-        None, CouplingConfig, ARLayerConfig, List[Union[ARLayerConfig, CouplingConfig]]
-    ]
+    layer_configs: Union[None, LayerConfig, List[LayerConfig]]
     layer_split_config: Union[LayerSplitConfig, None]
     num_layers: int
 
@@ -35,7 +35,7 @@ class LayerChain(Module):
     def __init__(
         self,
         dim: List[int],
-        layers_config: List[Dict],
+        layer_configs: List[Dict],
         layer_split_config: Union[LayerSplitConfig, None],
         num_layers: int,
         **kwargs,
@@ -45,31 +45,33 @@ class LayerChain(Module):
 
         self.layers = ModuleList()
         self.dim = dim
+        layer_splits = SPLIT_TYPES_REGISTRY[layer_split_config.split_type](
+            num_layers=num_layers,
+            dim=dim,
+            **dict(
+                layer_split_config.specific_split_type_config
+                if layer_split_config.specific_split_type_config
+                else {}
+            ),
+        )
 
+        if layer_configs is None:
+            raise ValueError("Layer Configs None not handled")
 
-        splits = generate_splits(split_type, num_layers, dim)
-
-        if layers_config is None:
-            return
-
-        if not isinstance(layers_config, list):
-            layers_config = [layers_config] * num_layers
+        if not isinstance(layer_configs, list):
+            layer_configs = [layer_configs] * num_layers
 
         for (conditioner_mask, transformed_mask), layer_config in zip(
-            splits, layers_config
+            layer_splits, layer_configs
         ):
-            if isinstance(layer_config, CouplingConfig):
-                c = COUPLING_TYPES[layer_config.coupling_type](
-                    conditioner_mask=conditioner_mask,
-                    transformed_mask=transformed_mask,
-                    **dict(layer_config),
-                )
-            elif isinstance(layer_config, ARLayerConfig):
-                c = AR_LAYER_TYPES[layer_config.ar_layer_type](
-                    dim=self.dim, **dict(layer_config)
-                )
-            else:
-                raise NotImplementedError()
+            c = LAYER_REGISTRY._registry[layer_config.layer_type][
+                layer_config.specific_layer_config.specific_layer_type
+            ](
+                conditioner_mask=conditioner_mask,
+                transformed_mask=transformed_mask,
+                **dict(layer_config.specific_layer_config),
+                dim=self.dim,
+            )
 
             self.layers.append(c)
 

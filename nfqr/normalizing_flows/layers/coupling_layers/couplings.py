@@ -6,16 +6,15 @@ from pydantic import BaseModel, Field
 from torch.nn import Module, parameter
 
 from nfqr.normalizing_flows.diffeomorphisms import DIFFEOMORPHISMS_REGISTRY
+from nfqr.normalizing_flows.layers.conditioners import CONDITIONER_REGISTRY
 from nfqr.normalizing_flows.misc.constraints import nf_constraints_standard, simplex
 from nfqr.normalizing_flows.nets import NetConfig
 from nfqr.registry import StrRegistry
 from nfqr.utils import create_logger
 
-from nfqr.normalizing_flows.layers.conditioners import CONDITIONER_REGISTRY
-
 logger = create_logger(__name__)
 
-COUPLING_TYPES = StrRegistry("coupling_types")
+COUPLING_LAYER_REGISTRY = StrRegistry("coupling_layer")
 
 
 class CouplingLayer(Module):
@@ -57,19 +56,19 @@ class CouplingLayer(Module):
     def decode(self, z):
 
         if self.conditioner_mask.sum().item() == 0:
-            return z, torch.zeros(z.shape[0],device=z.device)
+            return z, torch.zeros(z.shape[0], device=z.device)
         else:
             return self._decode(z=z)
 
     def encode(self, x):
 
         if self.conditioner_mask.sum().item() == 0:
-            return x, torch.zeros(x.shape[0],device=x.device)
+            return x, torch.zeros(x.shape[0], device=x.device)
         else:
             return self._encode(x=x)
 
 
-@COUPLING_TYPES.register("bare")
+@COUPLING_LAYER_REGISTRY.register("bare")
 class BareCoupling(CouplingLayer):
     def _decode(self, z):
 
@@ -230,18 +229,19 @@ class ResidualCoupling(CouplingLayer, Module):
 
         log_rho = self.get_log_rho(conditioner_input=conditioner_input)
 
-
-
         z[..., self.transformed_mask] = self.diffeomorphism.map_to_range(
-            log_rho[...,0].exp() * z_coupling
-            + log_rho[...,1].exp()  * z.clone()[..., self.transformed_mask]
+            log_rho[..., 0].exp() * z_coupling
+            + log_rho[..., 1].exp() * z.clone()[..., self.transformed_mask]
         )
 
         ld = torch.logsumexp(
             torch.stack(
                 [
                     log_rho[..., 0] + log_det_coupling,
-                    log_rho[..., 1] + torch.zeros_like(log_det_coupling,device=log_det_coupling.device),
+                    log_rho[..., 1]
+                    + torch.zeros_like(
+                        log_det_coupling, device=log_det_coupling.device
+                    ),
                 ],
                 dim=-1,
             ),
@@ -271,7 +271,10 @@ class ResidualCoupling(CouplingLayer, Module):
             torch.stack(
                 [
                     log_rho[..., 0] + log_det_coupling,
-                    log_rho[..., 1] + torch.zeros_like(log_det_coupling,device=log_det_coupling.device),
+                    log_rho[..., 1]
+                    + torch.zeros_like(
+                        log_det_coupling, device=log_det_coupling.device
+                    ),
                 ],
                 dim=-1,
             ),
@@ -283,8 +286,8 @@ class ResidualCoupling(CouplingLayer, Module):
         return x, log_det
 
 
-COUPLING_TYPES.register("global_residual", ResidualCoupling.as_global_residual)
-COUPLING_TYPES.register(
+COUPLING_LAYER_REGISTRY.register("global_residual", ResidualCoupling.as_global_residual)
+COUPLING_LAYER_REGISTRY.register(
     "conditioned_residual", ResidualCoupling.as_conditioned_residual
 )
 
@@ -292,7 +295,7 @@ COUPLING_TYPES.register(
 class CouplingConfig(BaseModel):
 
     domain: Literal["u1"] = "u1"
-    coupling_type: COUPLING_TYPES.enum = Field(...)
+    specific_layer_type: COUPLING_LAYER_REGISTRY.enum = Field(...)
     diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum
     expressivity: int
     net_config: NetConfig

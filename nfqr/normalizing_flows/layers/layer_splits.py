@@ -1,9 +1,8 @@
-from typing import List, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import torch
 from pydantic import BaseModel
-from pyparsing import Optional
 
 from nfqr.registry import StrRegistry
 
@@ -24,7 +23,7 @@ class LayerSplit(object):
         self.dim = dim
         self.split_kwargs = split_kwargs
 
-        if len(self.dim)>1:
+        if len(self.dim) > 1:
             raise ValueError("Splits not yet implemented for dim>1")
 
         if split_type == "n_transforms":
@@ -37,8 +36,8 @@ class LayerSplit(object):
             self.check_all_transformed()
 
     @classmethod
-    def n_transforms(cls, dim, num_layers, n, safe_guard=True):
-        if n is None:
+    def n_transforms(cls, dim, num_layers, n_transformed, safe_guard=True):
+        if n_transformed is None:
             raise ValueError("Need n for n_transforms split")
 
         return cls(
@@ -46,7 +45,7 @@ class LayerSplit(object):
             num_layers=num_layers,
             safe_guard=safe_guard,
             split_type="n_transforms",
-            n=n,
+            n_transformed=n_transformed,
         )
 
     @classmethod
@@ -70,10 +69,13 @@ class LayerSplit(object):
         return mask, ~mask
 
     @staticmethod
-    def n_transforms_mask(size, mask_num, n, **kwargs):
+    def n_transforms_mask(size, mask_num, n_transformed, **kwargs):
 
         mask = torch.zeros(size).bool()
-        mask[mask_num :: int(np.ceil(size / n))] = True
+        step_size = int(np.ceil(size / n_transformed))
+
+        transformed_idx = (torch.arange(n_transformed) * step_size + mask_num) % size
+        mask[transformed_idx] = True
 
         return ~mask, mask
 
@@ -94,12 +96,10 @@ SPLIT_TYPES_REGISTRY.register("n_transforms", LayerSplit.n_transforms)
 
 
 class SplitTypeConfig(BaseModel):
-    dim: List[int]
-    num_layers: int
-    n: Optional[int]
+    n_transformed: Optional[int]
 
 
 class LayerSplitConfig(BaseModel):
 
     split_type: SPLIT_TYPES_REGISTRY.enum
-    specific_split_type_config: SplitTypeConfig
+    specific_split_type_config: Optional[SplitTypeConfig]
