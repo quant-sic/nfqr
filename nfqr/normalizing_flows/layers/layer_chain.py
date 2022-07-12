@@ -9,11 +9,12 @@ from nfqr.normalizing_flows.layers.autoregressive_layers import (
     AR_LAYER_TYPES,
     ARLayerConfig,
 )
-from nfqr.normalizing_flows.layers.coupling_layers import (
-    COUPLING_TYPES,
-    SPLIT_TYPES,
-    CouplingConfig,
-    generate_splits,
+from nfqr.normalizing_flows.layers.coupling_layers import COUPLING_TYPES, CouplingConfig
+from nfqr.normalizing_flows.layers.layer_splits import (
+    SPLIT_TYPES_REGISTRY,
+    LayerSplit,
+    LayerSplitConfig,
+    SplitTypeConfig,
 )
 from nfqr.utils.misc import create_logger
 
@@ -26,7 +27,7 @@ class LayerChainConfig(BaseModel):
     layers_config: Union[
         None, CouplingConfig, ARLayerConfig, List[Union[ARLayerConfig, CouplingConfig]]
     ]
-    split_type: Union[SPLIT_TYPES, None]
+    layer_split_config: Union[LayerSplitConfig, None]
     num_layers: int
 
 
@@ -35,7 +36,7 @@ class LayerChain(Module):
         self,
         dim: List[int],
         layers_config: List[Dict],
-        split_type: SPLIT_TYPES,
+        layer_split_config: Union[LayerSplitConfig, None],
         num_layers: int,
         **kwargs,
     ):
@@ -45,9 +46,11 @@ class LayerChain(Module):
         self.layers = ModuleList()
         self.dim = dim
 
-        if split_type in (SPLIT_TYPES.autoregressive,SPLIT_TYPES.autoregressive_2):
+        if split_type in (SPLIT_TYPES.autoregressive, SPLIT_TYPES.autoregressive_2):
             if len(dim) > 1:
-                raise ValueError("n dim >1 not implemented for autoregressive splitting")
+                raise ValueError(
+                    "n dim >1 not implemented for autoregressive splitting"
+                )
             elif dim[0] != num_layers:
                 logger.info(
                     f"Autoregressivive splitting will result in num_layers == dim({dim})"
