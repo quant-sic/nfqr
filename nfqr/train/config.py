@@ -49,6 +49,10 @@ class TrainerConfig(BaseModel):
     gradient_clip_algorithm : str = "norm"
     track_grad_norm : int=2
 
+    optimizer:str="Adam"
+    lr_scheduler:Optional[str]="reduce_on_plateau"
+
+
 class LitModelConfig(BaseConfig):
 
     _name: str = "train_config"

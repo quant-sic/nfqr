@@ -1,3 +1,4 @@
+from gc import callbacks
 import os
 from argparse import ArgumentParser
 from pathlib import Path
@@ -10,6 +11,7 @@ from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.train.config import LitModelConfig
 from nfqr.train.model_lit import LitFlow
 from nfqr.utils.misc import create_logger
+from pytorch_lightning.callbacks import LearningRateMonitor
 
 logger = create_logger(__name__)
 
@@ -37,6 +39,8 @@ def train_flow_model(exp_dir, skip_done):
 
         tb_logger = TensorBoardLogger(exp_dir / "logs", name=log_dir)
 
+        callbacks = [LearningRateMonitor()]
+
         trainer = Trainer(
             **train_config.trainer_config.dict(
                 include={
@@ -52,7 +56,8 @@ def train_flow_model(exp_dir, skip_done):
             accelerator="gpu" if torch.cuda.is_available() else "cpu",
             devices=1,
             auto_lr_find=train_config.trainer_config.auto_lr_find,
-            default_root_dir=(exp_dir / "trainer") / log_dir
+            default_root_dir=(exp_dir / "trainer") / log_dir,
+            callbacks=callbacks
         )
 
         logger.info(
