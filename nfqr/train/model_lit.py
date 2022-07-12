@@ -1,6 +1,8 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
+from pickletools import optimize
+from sched import scheduler
 from typing import Dict, List, Optional, Union
 
 import numpy as np
@@ -279,7 +281,22 @@ class LitFlow(pl.LightningModule):
         return {"loss": losses.mean()}
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+
+        configuration_dict = {}
+        if self.trainer_config.optimizer == "Adam":
+            configuration_dict["optimizer"] = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        else:
+            raise ValueError("Unknown optimizer type {}".format(self.trainer_config.optimizer))
+
+        if self.trainer_config.lr_scheduler == "reduce_on_plateau":
+            configuration_dict["lr_scheduler"] = {"scheduler":torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=configuration_dict["optimizer"],patience=3),"interval":"epoch","monitor":"loss"}
+        
+        elif  self.trainer_config.lr_scheduler is None:
+            pass
+        else:
+            raise ValueError("Unknown lr_scheduler type {}".format(self.trainer_config.lr_scheduler))
+
+        return configuration_dict
 
     def log_all_values_in_stats_dict(
         self, node: Union[Dict, int, float], str_path_to_node: str
@@ -386,8 +403,6 @@ class LitFlow(pl.LightningModule):
         #         )
 
     def on_train_epoch_end(self) -> None:
-
-        self.log("lr", self.learning_rate)
 
         self.log(
             "loss_epoch",
