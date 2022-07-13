@@ -6,12 +6,18 @@ from typing import Dict, List, Union
 import numpy as np
 from pydantic import BaseModel
 
+from nfqr.normalizing_flows.layers.coupling_layers import (
+    ResidualCouplingScheduler,
+    ResidualCouplingSchedulerConfig,
+)
 from nfqr.registry import StrRegistry
 from nfqr.utils.misc import create_logger
 
 logger = create_logger(__name__)
 
 SCHEDULER_REGISTRY = StrRegistry("scheduler")
+
+SCHEDULER_REGISTRY.register("rho_residual", ResidualCouplingScheduler)
 
 
 @SCHEDULER_REGISTRY.register("beta")
@@ -254,7 +260,7 @@ class LossScheduler(object):
 
 
 @SCHEDULER_REGISTRY.register("default_loss")
-class LossScheduler(object):
+class DefaultLossScheduler(object):
     @property
     def log_stats(self):
         return {}
@@ -292,4 +298,6 @@ class BetaSchedulerConfig(BaseModel):
 class SchedulerConfig(BaseModel):
 
     scheduler_type: SCHEDULER_REGISTRY.enum
-    specific_scheduler_config: Union[BetaSchedulerConfig, LossSchedulerConfig]
+    specific_scheduler_config: Union[
+        BetaSchedulerConfig, LossSchedulerConfig, ResidualCouplingSchedulerConfig
+    ]

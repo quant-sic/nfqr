@@ -134,9 +134,14 @@ class ResidualCoupling(CouplingLayer, Module):
             "kwargs": {"ret_logabsdet": False},
         }
 
-        if residual_type == "global":
+        if "global" in residual_type:
+            if "non_trainable" in residual_type:
+                requires_grad = False
+            else:
+                requires_grad = True
+
             self.rho_unnormalized = parameter.Parameter(
-                torch.full(size=(2,), fill_value=0.5)
+                torch.full(size=(2,), fill_value=0.5), requires_grad=requires_grad
             )
             self.get_log_rho = self.get_log_rho_global
 
@@ -179,6 +184,27 @@ class ResidualCoupling(CouplingLayer, Module):
             net_config=net_config,
             domain=domain,
             residual_type="global",
+        )
+
+    @classmethod
+    def as_global_non_trainable_residual(
+        cls,
+        conditioner_mask,
+        transformed_mask,
+        diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
+        expressivity: int,
+        net_config: NetConfig,
+        domain: Literal["u1"] = "u1",
+        **kwargs,
+    ):
+        return cls(
+            conditioner_mask=conditioner_mask,
+            transformed_mask=transformed_mask,
+            diffeomorphism=diffeomorphism,
+            expressivity=expressivity,
+            net_config=net_config,
+            domain=domain,
+            residual_type="global_non_trainable",
         )
 
     @classmethod
@@ -306,6 +332,9 @@ class ResidualCoupling(CouplingLayer, Module):
 
 
 COUPLING_LAYER_REGISTRY.register("global_residual", ResidualCoupling.as_global_residual)
+COUPLING_LAYER_REGISTRY.register(
+    "global_non_trainable_residual", ResidualCoupling.as_global_non_trainable_residual
+)
 COUPLING_LAYER_REGISTRY.register(
     "conditioned_residual", ResidualCoupling.as_conditioned_residual
 )
