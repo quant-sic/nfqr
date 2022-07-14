@@ -25,7 +25,7 @@ def train_flow_model_tune(config, exp_dir):
     assert int(os.environ["num_tasks"]) == 1
     assert int(os.environ["task_id"]) == 0
 
-    os.environ["tune"]="ray"
+    os.environ["tune"] = "ray"
 
     train_config = LitModelConfig.from_directory_for_task(
         exp_dir,
@@ -33,7 +33,6 @@ def train_flow_model_tune(config, exp_dir):
         num_tasks=int(os.environ["num_tasks"]),
         tune_config=config,
     )
-
 
     log_dir = "task_{}".format(os.environ["task_id"])
 
@@ -49,11 +48,11 @@ def train_flow_model_tune(config, exp_dir):
     trainer = Trainer(
         **train_config.trainer_config.dict(
             include={
-                    "max_epochs",
-                    "log_every_n_steps",
-                    "accumulate_grad_batches",
-                    "gradient_clip_val",
-                    "gradient_clip_algorithm"
+                "max_epochs",
+                "log_every_n_steps",
+                "accumulate_grad_batches",
+                "gradient_clip_val",
+                "gradient_clip_algorithm",
             }
         ),
         enable_progress_bar=False,
@@ -62,7 +61,7 @@ def train_flow_model_tune(config, exp_dir):
         devices=1,
         auto_lr_find=train_config.trainer_config.auto_lr_find,
         default_root_dir=(exp_dir / "trainer") / log_dir,
-        callbacks=[tune_report_callback]
+        callbacks=[tune_report_callback],
     )
 
     trainer.fit(flow_model)
@@ -70,15 +69,14 @@ def train_flow_model_tune(config, exp_dir):
 
 def tune_flow_model_asha(exp_dir):
 
-    config = {"learning_rate": tune.loguniform(1e-5, 1e-2),"expressivity":tune.choice([2,3,5,8]),"diffeomorphism":tune.choice(["ncp","ncp_mod","moebius","rqs"]),"coupling_type":tune.choice(["bare","residual"]),"accumulate_grad_batches":tune.choice([1,2,3]),"net_hidden":tune.choice([[
-            50,
-            75,
-            100
-          ],[
-            50,
-            75,
-            75
-          ]])}
+    config = {
+        "learning_rate": tune.loguniform(1e-5, 1e-2),
+        "expressivity": tune.choice([2, 3, 5, 8]),
+        "diffeomorphism": tune.choice(["ncp", "ncp_mod", "moebius", "rqs"]),
+        "coupling_type": tune.choice(["bare", "residual"]),
+        "accumulate_grad_batches": tune.choice([1, 2, 3]),
+        "net_hidden": tune.choice([[50, 75, 100], [50, 75, 75]]),
+    }
 
     num_epochs = 100
     scheduler = ASHAScheduler(max_t=num_epochs, grace_period=1, reduction_factor=2)
@@ -103,7 +101,7 @@ def tune_flow_model_asha(exp_dir):
         num_samples=20,
         progress_reporter=reporter,
         name="tune_flow_model_asha",
-        local_dir= EXPERIMENTS_DIR/f"{exp_dir}/ray_results"
+        local_dir=EXPERIMENTS_DIR / f"{exp_dir}/ray_results",
     )
 
     print("Best hyperparameters found were: ", analysis.best_config)

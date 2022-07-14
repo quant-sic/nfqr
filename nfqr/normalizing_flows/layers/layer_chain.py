@@ -27,7 +27,7 @@ class LayerChainConfig(BaseModel):
 
     dim: List[int]
     layer_configs: Union[None, LayerConfig, List[LayerConfig]]
-    connect_splits:bool=True
+    connect_splits: bool = True
 
 
 class LayerChain(Module):
@@ -35,7 +35,7 @@ class LayerChain(Module):
         self,
         dim: List[int],
         layer_configs: Union[None, LayerConfig, List[LayerConfig]],
-        connect_splits:bool = True,
+        connect_splits: bool = True,
         **kwargs,
     ):
 
@@ -49,14 +49,14 @@ class LayerChain(Module):
         elif not isinstance(layer_configs, list):
             layer_configs = [layer_configs]
 
-        split_num_offsets = [0] + list(map(lambda c:c.num_layers,layer_configs))
-        for layer_config_idx,layer_config in enumerate(layer_configs):
+        split_num_offsets = [0] + list(map(lambda c: c.num_layers, layer_configs))
+        for layer_config_idx, layer_config in enumerate(layer_configs):
 
             layer_splits = SPLIT_TYPES_REGISTRY[
                 layer_config.layer_split_config.split_type
             ](
                 num_layers=layer_config.num_layers,
-                num_offset = split_num_offsets[layer_config_idx] if connect_splits else 0,
+                num_offset=split_num_offsets[layer_config_idx] if connect_splits else 0,
                 dim=dim,
                 **dict(
                     layer_config.layer_split_config.specific_split_type_config
@@ -70,8 +70,10 @@ class LayerChain(Module):
             ):
                 if layer_config.layer_type in ("ar_layer",):
                     if connect_splits:
-                        logger.warning("Notice that an Autoregressive layer breaks the split connection!")
-                
+                        logger.warning(
+                            "Notice that an Autoregressive layer breaks the split connection!"
+                        )
+
                 c = LAYER_REGISTRY._registry[layer_config.layer_type][
                     layer_config.specific_layer_config.specific_layer_type
                 ](

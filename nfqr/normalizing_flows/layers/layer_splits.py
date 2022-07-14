@@ -15,7 +15,7 @@ class LayerSplit(object):
         dim,
         num_layers,
         split_type=Union[str, None],
-        num_offset:int=0,
+        num_offset: int = 0,
         safe_guard: bool = True,
         **split_kwargs
     ):
@@ -38,7 +38,7 @@ class LayerSplit(object):
             self.check_all_transformed()
 
     @classmethod
-    def n_transforms(cls, dim, num_layers, n_transformed,num_offset, safe_guard=True):
+    def n_transforms(cls, dim, num_layers, n_transformed, num_offset, safe_guard=True):
         if n_transformed is None:
             raise ValueError("Need n for n_transforms split")
 
@@ -48,23 +48,25 @@ class LayerSplit(object):
             safe_guard=safe_guard,
             split_type="n_transforms",
             n_transformed=n_transformed,
-            num_offset=num_offset
+            num_offset=num_offset,
         )
 
     @classmethod
-    def checkerboard(cls, dim, num_layers, num_offset,safe_guard=True):
+    def checkerboard(cls, dim, num_layers, num_offset, safe_guard=True):
         return cls(
             dim=dim,
             num_layers=num_layers,
             safe_guard=safe_guard,
             split_type="checkerboard",
-            num_offset=num_offset
+            num_offset=num_offset,
         )
 
     def __iter__(self):
 
         for idx in range(self.num_layers):
-            yield self.split_fn(size=self.dim[0], mask_num=idx+self.num_offset, **self.split_kwargs)
+            yield self.split_fn(
+                size=self.dim[0], mask_num=idx + self.num_offset, **self.split_kwargs
+            )
 
     @staticmethod
     def checkerboard_mask(size, mask_num, **kwargs):

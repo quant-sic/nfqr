@@ -1,17 +1,16 @@
-from gc import callbacks
 import os
 from argparse import ArgumentParser
 from pathlib import Path
 
 import torch
 from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.train.config import LitModelConfig
 from nfqr.train.model_lit import LitFlow
 from nfqr.utils.misc import create_logger
-from pytorch_lightning.callbacks import LearningRateMonitor
 
 logger = create_logger(__name__)
 
@@ -49,7 +48,7 @@ def train_flow_model(exp_dir, skip_done):
                     "accumulate_grad_batches",
                     "gradient_clip_val",
                     "gradient_clip_algorithm",
-                    "track_grad_norm"
+                    "track_grad_norm",
                 }
             ),
             logger=tb_logger,

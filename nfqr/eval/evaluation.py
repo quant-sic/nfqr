@@ -5,6 +5,7 @@ from typing import Dict, List, Literal, Optional, Union
 
 import torch
 from pydantic import root_validator, validator
+from ray import tune
 
 from nfqr.config import BaseConfig
 from nfqr.data import ConditionConfig, MCMCConfig, PSampler, TrajectorySamplerConfig
@@ -19,7 +20,6 @@ from nfqr.nip import (
 from nfqr.target_systems import OBSERVABLE_REGISTRY
 from nfqr.target_systems.rotor import RotorTrajectorySamplerConfig
 from nfqr.utils import create_logger
-from ray import tune
 
 logger = create_logger(__name__)
 
@@ -96,10 +96,10 @@ class EvalResult(BaseConfig):
 
 def get_tmp_path_from_name_and_environ(name):
 
-    task_dir  = TMP_DIR / "{}/{}".format(os.environ["job_id"],os.environ["task_id"])
+    task_dir = TMP_DIR / "{}/{}".format(os.environ["job_id"], os.environ["task_id"])
 
-    if "tune" in os.environ and os.environ["tune"]=="ray":
-        task_dir = task_dir/tune.get_trial_id()
+    if "tune" in os.environ and os.environ["tune"] == "ray":
+        task_dir = task_dir / tune.get_trial_id()
 
     tmp_path = task_dir / "{}".format(name)
 
@@ -258,7 +258,8 @@ def get_ess_p_sampler(dim, action_config, batch_size):
                 trajectory_sampler_config=RotorTrajectorySamplerConfig(
                     dim=dim, traj_type="hot"
                 )
-            ),n_replicas=1
+            ),
+            n_replicas=1,
         ),
         condition_config=ConditionConfig(),
         batch_size=5000,

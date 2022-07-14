@@ -4,7 +4,7 @@ from pathlib import Path
 
 from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.mcmc import MCMC_REGISTRY
-from nfqr.mcmc.config import MCMCConfig,MCMCResult
+from nfqr.mcmc.config import MCMCConfig, MCMCResult
 from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.utils.misc import create_logger
 
@@ -23,11 +23,15 @@ if __name__ == "__main__":
         exp_dir, task_id=int(os.environ["task_id"])
     )
 
-
-    if Path(mcmc_config.out_dir).is_dir() and (Path(mcmc_config.out_dir)/"mcmc_result.json").is_file():
+    if (
+        Path(mcmc_config.out_dir).is_dir()
+        and (Path(mcmc_config.out_dir) / "mcmc_result.json").is_file()
+    ):
         logger.info("Experiment already run successfully. Aborting")
     else:
-        mcmc = MCMC_REGISTRY[mcmc_config.mcmc_alg][mcmc_config.mcmc_type](**dict(mcmc_config))
+        mcmc = MCMC_REGISTRY[mcmc_config.mcmc_alg][mcmc_config.mcmc_type](
+            **dict(mcmc_config)
+        )
         mcmc.run()
 
         stats = mcmc.get_stats()
@@ -37,7 +41,7 @@ if __name__ == "__main__":
         ).evaluate()
 
         result_config = MCMCResult(
-            mcmc_config = mcmc_config,
+            mcmc_config=mcmc_config,
             acceptance_rate=stats["acc_rate"],
             n_steps=stats["n_steps"],
             obs_stats=stats["obs_stats"],

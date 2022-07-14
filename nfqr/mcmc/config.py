@@ -15,6 +15,7 @@ from .cluster import CLUSTER_REGISTRY
 
 ConfigType = TypeVar("ConfigType", bound="MCMCConfig")
 
+
 class MCMCConfig(BaseConfig):
 
     _name: str = "mcmc_config"
@@ -48,13 +49,12 @@ class MCMCConfig(BaseConfig):
         return v
 
     @classmethod
-    def get_num_tasks(cls:Type[ConfigType], directory: Union[str, Path]) -> int:
+    def get_num_tasks(cls: Type[ConfigType], directory: Union[str, Path]) -> int:
         """Load config from json with task id."""
         with open(str(cls._config_path(Path(directory)))) as f:
             raw_config = json.load(f)
 
         num_pars_dict = {}
-
 
         def fill_num_pars_dict(key, list_or_dict):
 
@@ -81,9 +81,8 @@ class MCMCConfig(BaseConfig):
             num_pars = (
                 list(num_pars_dict.values())[0] if list(num_pars_dict.values()) else 1
             )
-        
-        return num_pars
 
+        return num_pars
 
     @classmethod
     def from_directory_for_task(
@@ -174,6 +173,7 @@ class MCMCConfig(BaseConfig):
 
         return values
 
+
 class MCMCResult(BaseConfig):
 
     _name: str = "mcmc_result"
@@ -183,4 +183,3 @@ class MCMCResult(BaseConfig):
     obs_stats: Dict[OBSERVABLE_REGISTRY.enum, Dict[str, float]]
 
     sus_exact: Optional[float]
-

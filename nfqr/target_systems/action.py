@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-
 import torch
 
 
@@ -13,6 +12,7 @@ class Action(ABC):
     def map_to_range(self, config):
         pass
 
+
 class ClusterAction(Action):
     @abstractmethod
     def bonding_prob(
@@ -23,5 +23,3 @@ class ClusterAction(Action):
     @abstractmethod
     def flip(self, config: torch.Tensor, reflection: torch.Tensor) -> torch.Tensor:
         pass
-
-

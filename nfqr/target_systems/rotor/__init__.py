@@ -1,4 +1,4 @@
-from .action import ROTOR_ACTION_REGISTRY, QuantumRotor
+from .action import ROTOR_ACTION_REGISTRY, QuantumRotor, QuantumRotorConfig
 from .observable import (
     ROTOR_OBSERVABLE_REGISTRY,
     SusceptibilityExact,
@@ -9,4 +9,3 @@ from .trajectories_samplers import (
     ROTOR_TRAJECTORIES_REGISTRY,
     RotorTrajectorySamplerConfig,
 )
-from .action import QuantumRotorConfig

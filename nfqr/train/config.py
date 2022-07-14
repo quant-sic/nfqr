@@ -1,7 +1,7 @@
 import json
 from functools import partial
 from pathlib import Path
-from typing import List, Optional, Type, TypeVar, Union,Dict
+from typing import Dict, List, Optional, Type, TypeVar, Union
 
 from pydantic import BaseModel, root_validator
 
@@ -10,9 +10,7 @@ from nfqr.normalizing_flows.flow import FlowConfig
 from nfqr.normalizing_flows.loss.loss import LossConfig
 from nfqr.target_systems import OBSERVABLE_REGISTRY, ActionConfig
 from nfqr.train.scheduler import SchedulerConfig
-from nfqr.utils import DimsNotMatchingError
-
-from nfqr.utils import create_logger, set_par_list_or_dict
+from nfqr.utils import DimsNotMatchingError, create_logger, set_par_list_or_dict
 
 logger = create_logger(__name__)
 
@@ -42,12 +40,14 @@ class TrainerConfig(BaseModel):
     n_iter_eval: int = 10
     batch_size_eval: int = 10000
 
-    gradient_clip_val: Union[float,None] = 1.0
-    gradient_clip_algorithm : str = "norm"
-    track_grad_norm : int=2
+    gradient_clip_val: Union[float, None] = 1.0
+    gradient_clip_algorithm: str = "norm"
+    track_grad_norm: int = 2
 
-    optimizer:str="Adam"
-    lr_scheduler:Optional[Dict[str,Union[float,int,str]]]={"type":"reduce_on_plateau"}
+    optimizer: str = "Adam"
+    lr_scheduler: Optional[Dict[str, Union[float, int, str]]] = {
+        "type": "reduce_on_plateau"
+    }
 
 
 class LitModelConfig(BaseConfig):
