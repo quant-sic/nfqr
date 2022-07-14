@@ -24,6 +24,7 @@ env-remove:
 	rm -rf nfqr-env
 
 requirements:
+	pip install --upgrade pip wheel pip-tools
 	pip-compile --output-file requirements/requirements.txt \
 	requirements/*.in
 	

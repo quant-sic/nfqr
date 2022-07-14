@@ -109,9 +109,11 @@ class HMC(MCMC):
 
     @property
     def step_size(self):
-        if not hasattr(self, "_step_size") and self.autotune_step:
-            self.autotune_step_size(0.8)
 
+        if hasattr(self, "_step_size"):
+            pass
+        elif not hasattr(self, "_step_size") and self.autotune_step:
+            self._step_size = self.autotune_step_size(0.8)
         else:
             self._step_size = self.initial_step_size
 
@@ -140,6 +142,7 @@ class HMC(MCMC):
 
         if log:
             logger.info("Initializing HMC")
+
         if "python" in self.hmc_engine:
             self.hmc.initialize(self.initial_config_sampler.sample("cpu"))
         else:
@@ -217,6 +220,8 @@ class HMC(MCMC):
 
         if not converged:
             self._step_size = self.initial_step_size
+
+        return self._step_size
 
 
 class HMC_PYTHON(object):
