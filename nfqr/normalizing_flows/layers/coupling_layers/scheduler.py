@@ -16,6 +16,10 @@ class ResidualCouplingScheduler(object):
         self.n_steps_since_action = 0
 
     @property
+    def log_stats(self):
+        return {}
+
+    @property
     def model(self):
         if not hasattr(self, "_model"):
             raise RuntimeError("model not set yet")
@@ -55,7 +59,7 @@ class ResidualCouplingScheduler(object):
                 else:
                     # calculated change to unnormalized rho. for softmax simplex transform
                     x = 0.5 * (
-                        np.log(
+                        torch.log(
                             self.reduction_factor
                             * module.rho_unnormalized.exp()[module.rho_assignment["id"]]
                             / (
