@@ -1,25 +1,22 @@
 import json
 from functools import partial
 from pathlib import Path
-from typing import List, Literal, Optional, Type, TypeVar, Union
+from typing import List, Optional, Type, TypeVar, Union,Dict
 
 from pydantic import BaseModel, root_validator
 
 from nfqr.config import BaseConfig
-from nfqr.data.config import PSamplerConfig
 from nfqr.normalizing_flows.flow import FlowConfig
 from nfqr.normalizing_flows.loss.loss import LossConfig
-from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
-from nfqr.train.scheduler import (
-    BetaSchedulerConfig,
-    LossSchedulerConfig,
-    SchedulerConfig,
-)
+from nfqr.target_systems import OBSERVABLE_REGISTRY, ActionConfig
+from nfqr.train.scheduler import SchedulerConfig
+from nfqr.utils import DimsNotMatchingError
+
 from nfqr.utils import create_logger, set_par_list_or_dict
 
 logger = create_logger(__name__)
 
-ConfigType = TypeVar("ConfigType", bound="TrainConfig")
+ConfigType = TypeVar("ConfigType", bound="LitModelConfig")
 
 
 class TrainerConfig(BaseModel):
@@ -50,7 +47,7 @@ class TrainerConfig(BaseModel):
     track_grad_norm : int=2
 
     optimizer:str="Adam"
-    lr_scheduler:Optional[str]="reduce_on_plateau"
+    lr_scheduler:Optional[Dict[str,Union[float,int,str]]]={"type":"reduce_on_plateau"}
 
 
 class LitModelConfig(BaseConfig):
