@@ -1,7 +1,8 @@
 from functools import cached_property
 from math import pi
-from typing import Literal
+from typing import Literal, Optional
 
+import numpy as np
 import torch
 from pydantic import BaseModel, Field
 from torch.nn import Module, parameter
@@ -111,6 +112,7 @@ class ResidualCoupling(CouplingLayer, Module):
         net_config: NetConfig,
         domain: Literal["u1"] = "u1",
         residual_type="global",
+        initial_rho_id=None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -140,9 +142,18 @@ class ResidualCoupling(CouplingLayer, Module):
             else:
                 requires_grad = True
 
+            if initial_rho_id is None:
+                raise ValueError(
+                    "intial_rho_id cannot be set to None for global residual"
+                )
+
             self.rho_unnormalized = parameter.Parameter(
-                torch.full(size=(2,), fill_value=0.5), requires_grad=requires_grad
+                torch.zeros(2, dtype=torch.float32), requires_grad=requires_grad
             )
+            self.rho_unnormalized[self.rho_assignment["diff"]] = self.rho_unnormalized[
+                self.rho_assignment["id"]
+            ] + np.log((1 - initial_rho_id) / initial_rho_id)
+
             self.get_log_rho = self.get_log_rho_global
 
         elif residual_type == "conditioned":
@@ -174,6 +185,7 @@ class ResidualCoupling(CouplingLayer, Module):
         expressivity: int,
         net_config: NetConfig,
         domain: Literal["u1"] = "u1",
+        initial_rho_id: float = 0.5,
         **kwargs,
     ):
         return cls(
@@ -184,6 +196,7 @@ class ResidualCoupling(CouplingLayer, Module):
             net_config=net_config,
             domain=domain,
             residual_type="global",
+            initial_rho_id=initial_rho_id,
         )
 
     @classmethod
@@ -195,6 +208,7 @@ class ResidualCoupling(CouplingLayer, Module):
         expressivity: int,
         net_config: NetConfig,
         domain: Literal["u1"] = "u1",
+        initial_rho_id: float = 0.5,
         **kwargs,
     ):
         return cls(
@@ -205,6 +219,7 @@ class ResidualCoupling(CouplingLayer, Module):
             net_config=net_config,
             domain=domain,
             residual_type="global_non_trainable",
+            initial_rho_id=initial_rho_id,
         )
 
     @classmethod
@@ -228,6 +243,10 @@ class ResidualCoupling(CouplingLayer, Module):
             residual_type="conditioned",
         )
 
+    @cached_property
+    def rho_assignment(self):
+        return {"diff": 0, "id": 1}
+
     def convex_comb(self, z, log_rho, unconstrained_params, ret_logabsdet=True):
 
         if ret_logabsdet:
@@ -240,15 +259,16 @@ class ResidualCoupling(CouplingLayer, Module):
             )
 
         z = self.diffeomorphism.map_to_range(
-            log_rho[..., 0].exp() * z_coupling + log_rho[..., 1].exp() * z.clone()
+            log_rho[..., self.rho_assignment["diff"]].exp() * z_coupling
+            + log_rho[..., self.rho_assignment["id"]].exp() * z.clone()
         )
 
         if ret_logabsdet:
             ld = torch.logsumexp(
                 torch.stack(
                     [
-                        log_rho[..., 0] + log_det_coupling,
-                        log_rho[..., 1]
+                        log_rho[..., self.rho_assignment["diff"]] + log_det_coupling,
+                        log_rho[..., self.rho_assignment["id"]]
                         + torch.zeros_like(
                             log_det_coupling, device=log_det_coupling.device
                         ),
@@ -284,7 +304,12 @@ class ResidualCoupling(CouplingLayer, Module):
     def logging_parameters(self):
         if hasattr(self, "rho_unnormalized"):
             rho = self.rho_transform(self.rho_unnormalized).exp().clone().detach()
-            return {"rho": {"id": rho[1], "diff": rho[0]}}
+            return {
+                "rho": {
+                    "id": rho[self.rho_assignment["id"]],
+                    "diff": rho[self.rho_assignment["diff"]],
+                }
+            }
         else:
             return {}
 
@@ -347,5 +372,5 @@ class CouplingConfig(BaseModel):
     diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum
     expressivity: int
     net_config: NetConfig
-
+    initial_rho_id: Optional[float]
     # validators ..

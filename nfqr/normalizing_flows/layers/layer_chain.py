@@ -27,17 +27,15 @@ class LayerChainConfig(BaseModel):
 
     dim: List[int]
     layer_configs: Union[None, LayerConfig, List[LayerConfig]]
-    layer_split_config: Union[LayerSplitConfig, None]
-    num_layers: int
+    connect_splits:bool=True
 
 
 class LayerChain(Module):
     def __init__(
         self,
         dim: List[int],
-        layer_configs: List[Dict],
-        layer_split_config: Union[LayerSplitConfig, None],
-        num_layers: int,
+        layer_configs: Union[None, LayerConfig, List[LayerConfig]],
+        connect_splits:bool = True,
         **kwargs,
     ):
 
@@ -45,35 +43,45 @@ class LayerChain(Module):
 
         self.layers = ModuleList()
         self.dim = dim
-        layer_splits = SPLIT_TYPES_REGISTRY[layer_split_config.split_type](
-            num_layers=num_layers,
-            dim=dim,
-            **dict(
-                layer_split_config.specific_split_type_config
-                if layer_split_config.specific_split_type_config
-                else {}
-            ),
-        )
 
         if layer_configs is None:
             raise ValueError("Layer Configs None not handled")
+        elif not isinstance(layer_configs, list):
+            layer_configs = [layer_configs]
 
-        if not isinstance(layer_configs, list):
-            layer_configs = [layer_configs] * num_layers
+        split_num_offsets = [0] + list(map(lambda c:c.num_layers,layer_configs))
+        for layer_config_idx,layer_config in enumerate(layer_configs):
 
-        for (conditioner_mask, transformed_mask), layer_config in zip(
-            layer_splits, layer_configs
-        ):
-            c = LAYER_REGISTRY._registry[layer_config.layer_type][
-                layer_config.specific_layer_config.specific_layer_type
+            layer_splits = SPLIT_TYPES_REGISTRY[
+                layer_config.layer_split_config.split_type
             ](
-                conditioner_mask=conditioner_mask,
-                transformed_mask=transformed_mask,
-                **dict(layer_config.specific_layer_config),
-                dim=self.dim,
+                num_layers=layer_config.num_layers,
+                num_offset = split_num_offsets[layer_config_idx] if connect_splits else 0,
+                dim=dim,
+                **dict(
+                    layer_config.layer_split_config.specific_split_type_config
+                    if layer_config.layer_split_config.specific_split_type_config
+                    else {}
+                ),
             )
 
-            self.layers.append(c)
+            for (conditioner_mask, transformed_mask), _ in zip(
+                layer_splits, range(layer_config.num_layers)
+            ):
+                if layer_config.layer_type in ("ar_layer",):
+                    if connect_splits:
+                        logger.warning("Notice that an Autoregressive layer breaks the split connection!")
+                
+                c = LAYER_REGISTRY._registry[layer_config.layer_type][
+                    layer_config.specific_layer_config.specific_layer_type
+                ](
+                    conditioner_mask=conditioner_mask,
+                    transformed_mask=transformed_mask,
+                    **dict(layer_config.specific_layer_config),
+                    dim=self.dim,
+                )
+
+                self.layers.append(c)
 
     def encode(self, x):
 
