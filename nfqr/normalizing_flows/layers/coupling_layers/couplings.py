@@ -1,11 +1,14 @@
 from functools import cached_property
-from typing import Literal
+from math import pi
+from typing import Literal, Optional
 
+import numpy as np
 import torch
 from pydantic import BaseModel, Field
 from torch.nn import Module, parameter
 
 from nfqr.normalizing_flows.diffeomorphisms import DIFFEOMORPHISMS_REGISTRY
+from nfqr.normalizing_flows.diffeomorphisms.inversion import NumericalInverse
 from nfqr.normalizing_flows.layers.conditioners import CONDITIONER_REGISTRY
 from nfqr.normalizing_flows.misc.constraints import nf_constraints_standard, simplex
 from nfqr.normalizing_flows.nets import NetConfig
@@ -109,6 +112,7 @@ class ResidualCoupling(CouplingLayer, Module):
         net_config: NetConfig,
         domain: Literal["u1"] = "u1",
         residual_type="global",
+        initial_rho_id=None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -123,10 +127,33 @@ class ResidualCoupling(CouplingLayer, Module):
 
         self.residual_type = residual_type
 
-        if residual_type == "global":
+        # not ideal since params could be constrained before bisection search
+        self.inverse_fn_params = {
+            "function": self.convex_comb,
+            "args": ["log_rho", "unconstrained_params"],
+            "left": 0.0,
+            "right": 2 * pi,
+            "kwargs": {"ret_logabsdet": False},
+        }
+
+        if "global" in residual_type:
+            if "non_trainable" in residual_type:
+                requires_grad = False
+            else:
+                requires_grad = True
+
+            if initial_rho_id is None:
+                raise ValueError(
+                    "intial_rho_id cannot be set to None for global residual"
+                )
+
             self.rho_unnormalized = parameter.Parameter(
-                torch.full(size=(2,), fill_value=0.5)
+                torch.zeros(2, dtype=torch.float32), requires_grad=requires_grad
             )
+            self.rho_unnormalized[self.rho_assignment["diff"]] = self.rho_unnormalized[
+                self.rho_assignment["id"]
+            ] + np.log((1 - initial_rho_id) / initial_rho_id)
+
             self.get_log_rho = self.get_log_rho_global
 
         elif residual_type == "conditioned":
@@ -158,6 +185,7 @@ class ResidualCoupling(CouplingLayer, Module):
         expressivity: int,
         net_config: NetConfig,
         domain: Literal["u1"] = "u1",
+        initial_rho_id: float = 0.5,
         **kwargs,
     ):
         return cls(
@@ -168,6 +196,30 @@ class ResidualCoupling(CouplingLayer, Module):
             net_config=net_config,
             domain=domain,
             residual_type="global",
+            initial_rho_id=initial_rho_id,
+        )
+
+    @classmethod
+    def as_global_non_trainable_residual(
+        cls,
+        conditioner_mask,
+        transformed_mask,
+        diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
+        expressivity: int,
+        net_config: NetConfig,
+        domain: Literal["u1"] = "u1",
+        initial_rho_id: float = 0.5,
+        **kwargs,
+    ):
+        return cls(
+            conditioner_mask=conditioner_mask,
+            transformed_mask=transformed_mask,
+            diffeomorphism=diffeomorphism,
+            expressivity=expressivity,
+            net_config=net_config,
+            domain=domain,
+            residual_type="global_non_trainable",
+            initial_rho_id=initial_rho_id,
         )
 
     @classmethod
@@ -192,6 +244,44 @@ class ResidualCoupling(CouplingLayer, Module):
         )
 
     @cached_property
+    def rho_assignment(self):
+        return {"diff": 0, "id": 1}
+
+    def convex_comb(self, z, log_rho, unconstrained_params, ret_logabsdet=True):
+
+        if ret_logabsdet:
+            z_coupling, log_det_coupling = self.diffeomorphism(
+                z.clone(), *unconstrained_params, ret_logabsdet=ret_logabsdet
+            )
+        else:
+            z_coupling = self.diffeomorphism(
+                z.clone(), *unconstrained_params, ret_logabsdet=ret_logabsdet
+            )
+
+        z = self.diffeomorphism.map_to_range(
+            log_rho[..., self.rho_assignment["diff"]].exp() * z_coupling
+            + log_rho[..., self.rho_assignment["id"]].exp() * z.clone()
+        )
+
+        if ret_logabsdet:
+            ld = torch.logsumexp(
+                torch.stack(
+                    [
+                        log_rho[..., self.rho_assignment["diff"]] + log_det_coupling,
+                        log_rho[..., self.rho_assignment["id"]]
+                        + torch.zeros_like(
+                            log_det_coupling, device=log_det_coupling.device
+                        ),
+                    ],
+                    dim=-1,
+                ),
+                dim=-1,
+            )
+            return z, ld
+        else:
+            return z
+
+    @cached_property
     def rho_transform(self):
         return nf_constraints_standard(simplex)
 
@@ -214,7 +304,12 @@ class ResidualCoupling(CouplingLayer, Module):
     def logging_parameters(self):
         if hasattr(self, "rho_unnormalized"):
             rho = self.rho_transform(self.rho_unnormalized).exp().clone().detach()
-            return {"rho": {"id": rho[1], "diff": rho[0]}}
+            return {
+                "rho": {
+                    "id": rho[self.rho_assignment["id"]],
+                    "diff": rho[self.rho_assignment["diff"]],
+                }
+            }
         else:
             return {}
 
@@ -222,71 +317,49 @@ class ResidualCoupling(CouplingLayer, Module):
 
         conditioner_input, transformed_input = self._split(z)
         unconstrained_params = self.conditioner(conditioner_input)
-
-        z_coupling, log_det_coupling = self.diffeomorphism(
-            transformed_input.clone(), *unconstrained_params, ret_logabsdet=True
-        )
-
         log_rho = self.get_log_rho(conditioner_input=conditioner_input)
 
-        z[..., self.transformed_mask] = self.diffeomorphism.map_to_range(
-            log_rho[..., 0].exp() * z_coupling
-            + log_rho[..., 1].exp() * z.clone()[..., self.transformed_mask]
+        z[..., self.transformed_mask], ld = self.convex_comb(
+            log_rho=log_rho,
+            z=transformed_input,
+            unconstrained_params=unconstrained_params,
+            ret_logabsdet=True,
         )
 
-        ld = torch.logsumexp(
-            torch.stack(
-                [
-                    log_rho[..., 0] + log_det_coupling,
-                    log_rho[..., 1]
-                    + torch.zeros_like(
-                        log_det_coupling, device=log_det_coupling.device
-                    ),
-                ],
-                dim=-1,
-            ),
-            dim=-1,
-        )
-        log_det = ld.sum(-1)
+        log_det = ld.sum(dim=-1)
 
         return z, log_det
 
     def _encode(self, x):
 
         conditioner_input, transformed_input = self._split(x)
-        unconstrained_params = self.conditioner(conditioner_input)
-
-        x_coupling, log_det_coupling = self.diffeomorphism(
-            transformed_input.clone(), *unconstrained_params, ret_logabsdet=True
-        )
-
+        unconstrained_params = torch.stack(self.conditioner(conditioner_input), dim=0)
         log_rho = self.get_log_rho(conditioner_input=conditioner_input)
 
-        x[..., self.transformed_mask] = self.diffeomorphism.map_to_range(
-            log_rho[..., 0].exp() * x_coupling
-            + log_rho[..., 1].exp() * x.clone()[..., self.transformed_mask]
+        x[..., self.transformed_mask] = NumericalInverse.apply(
+            transformed_input.clone(),
+            self.inverse_fn_params,
+            log_rho,
+            unconstrained_params,
+        )
+        z_out = self.diffeomorphism.map_to_range(x)
+
+        _, ld = self.convex_comb(
+            z=z_out[..., self.transformed_mask],
+            log_rho=log_rho,
+            unconstrained_params=unconstrained_params,
+            ret_logabsdet=True,
         )
 
-        ld = torch.logsumexp(
-            torch.stack(
-                [
-                    log_rho[..., 0] + log_det_coupling,
-                    log_rho[..., 1]
-                    + torch.zeros_like(
-                        log_det_coupling, device=log_det_coupling.device
-                    ),
-                ],
-                dim=-1,
-            ),
-            dim=-1,
-        )
+        log_det = ld.sum(dim=-1)
 
-        log_det = ld.sum(-1)
-
-        return x, log_det
+        return z_out, -log_det
 
 
 COUPLING_LAYER_REGISTRY.register("global_residual", ResidualCoupling.as_global_residual)
+COUPLING_LAYER_REGISTRY.register(
+    "global_non_trainable_residual", ResidualCoupling.as_global_non_trainable_residual
+)
 COUPLING_LAYER_REGISTRY.register(
     "conditioned_residual", ResidualCoupling.as_conditioned_residual
 )
@@ -299,5 +372,5 @@ class CouplingConfig(BaseModel):
     diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum
     expressivity: int
     net_config: NetConfig
-
+    initial_rho_id: Optional[float]
     # validators ..

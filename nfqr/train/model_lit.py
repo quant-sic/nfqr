@@ -1,8 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
-from pickletools import optimize
-from sched import scheduler
 from typing import Dict, List, Optional, Union
 
 import numpy as np
@@ -71,7 +69,7 @@ class LitFlow(pl.LightningModule):
         observables: List[OBSERVABLE_REGISTRY.enum],
         action_config: ActionConfig,
         trainer_config: TrainerConfig,
-        mode = "train",
+        mode="train",
         **kwargs,
     ) -> None:
         super().__init__()
@@ -84,7 +82,7 @@ class LitFlow(pl.LightningModule):
         self.learning_rate = trainer_config.learning_rate
         self.model = BareFlow(**dict(flow_config))
 
-        if mode=="eval":
+        if mode == "eval":
             self.set_final_beta()
 
     @cached_property
@@ -141,6 +139,8 @@ class LitFlow(pl.LightningModule):
             _scheduler.metrics = self.metrics
         if "target_action" in dir(_scheduler):
             _scheduler.target_action = self.target.dist.action
+        if "model" in dir(_scheduler):
+            _scheduler.model = self.model
 
         return _scheduler
 
@@ -244,11 +244,15 @@ class LitFlow(pl.LightningModule):
 
         return val_loaders
 
-    def configure_gradient_clipping(self, optimizer, optimizer_idx, gradient_clip_val, gradient_clip_algorithm):
-            # Lightning will handle the gradient clipping
-            self.clip_gradients(
-                optimizer, gradient_clip_val=gradient_clip_val, gradient_clip_algorithm=gradient_clip_algorithm
-            )
+    def configure_gradient_clipping(
+        self, optimizer, optimizer_idx, gradient_clip_val, gradient_clip_algorithm
+    ):
+        # Lightning will handle the gradient clipping
+        self.clip_gradients(
+            optimizer,
+            gradient_clip_val=gradient_clip_val,
+            gradient_clip_algorithm=gradient_clip_algorithm,
+        )
 
     def training_step(self, batches, *args, **kwargs):
 
@@ -284,9 +288,13 @@ class LitFlow(pl.LightningModule):
 
         configuration_dict = {}
         if self.trainer_config.optimizer == "Adam":
-            configuration_dict["optimizer"] = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+            configuration_dict["optimizer"] = torch.optim.Adam(
+                self.parameters(), lr=self.learning_rate
+            )
         else:
-            raise ValueError("Unknown optimizer type {}".format(self.trainer_config.optimizer))
+            raise ValueError(
+                "Unknown optimizer type {}".format(self.trainer_config.optimizer)
+            )
 
         lr_scheduler_dict = self.trainer_config.lr_scheduler
         if lr_scheduler_dict is None:
