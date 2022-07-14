@@ -288,13 +288,13 @@ class LitFlow(pl.LightningModule):
         else:
             raise ValueError("Unknown optimizer type {}".format(self.trainer_config.optimizer))
 
-        if self.trainer_config.lr_scheduler == "reduce_on_plateau":
-            configuration_dict["lr_scheduler"] = {"scheduler":torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=configuration_dict["optimizer"],patience=3),"interval":"epoch","monitor":"loss"}
-        
-        elif  self.trainer_config.lr_scheduler is None:
+        lr_scheduler_dict = self.trainer_config.lr_scheduler
+        if lr_scheduler_dict is None:
             pass
+        elif lr_scheduler_dict["type"] == "reduce_on_plateau":
+            configuration_dict["lr_scheduler"] = {"scheduler":torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=configuration_dict["optimizer"],patience=lr_scheduler_dict.get("patience",10),factor=lr_scheduler_dict.get("factor",.9),min_lr=lr_scheduler_dict.get("min_lr",5e-5)),"interval":"epoch","monitor":"loss"}
         else:
-            raise ValueError("Unknown lr_scheduler type {}".format(self.trainer_config.lr_scheduler))
+            raise ValueError("Unknown lr_scheduler type {}".format(self.trainer_config.lr_scheduler["type"]))
 
         return configuration_dict
 
