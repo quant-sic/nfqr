@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Literal,Union
 
 from pydantic import BaseModel
 from torch import nn
@@ -87,6 +87,8 @@ class CNN(nn.Module):
         out_size: int,
         out_channels: int,
         net_hidden: List[int],
+        pooling_types:Union[None,List[Union[None,Literal["avg","max"]]]] = None,
+        pooling_sizes:Union[None,List[Union[None,int]]] = None,
         activation: str = "mish",
         **kwargs
     ) -> None:
@@ -108,7 +110,7 @@ class CNN(nn.Module):
         modules.append(View([-1, 1, out_size]))
 
         net_hidden = [1] + net_hidden
-        for in_, out_ in zip(net_hidden[:-1], net_hidden[1:]):
+        for layer_idx,(in_, out_) in enumerate(zip(net_hidden[:-1], net_hidden[1:])):
             modules.append(
                 nn.Conv1d(
                     in_channels=in_,
@@ -121,6 +123,12 @@ class CNN(nn.Module):
             )
             modules.append(activation_function())
 
+            if pooling_types is not None and pooling_sizes is not None:
+                pooling_layer = self.pooling_layer(pooling_types[layer_idx],pooling_sizes[layer_idx])
+
+                if not pooling_layer is None:
+                    modules.append(pooling_layer)
+
         modules.append(View([-1, net_hidden[-1] * out_size]))
         modules.append(nn.Linear(net_hidden[-1] * out_size, out_channels * out_size))
         modules.append(View([-1, out_size, out_channels]))
@@ -129,3 +137,14 @@ class CNN(nn.Module):
 
     def forward(self, x):
         return self.net(x)
+
+    @staticmethod
+    def pooling_layer(specifier,size):
+        if specifier=="none":
+            return None
+        elif specifier == "avg":
+            return nn.AdaptiveAvgPool1d(size)
+        elif specifier == "max":
+            return nn.AdaptiveMaxPool1d(size)
+        else:
+            raise ValueError(f"Unknown pooling type {specifier}")

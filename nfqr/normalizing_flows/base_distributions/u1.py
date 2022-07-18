@@ -108,6 +108,16 @@ class VonMisesBaseDistribution(BaseDistribution, Module):
         )
 
     @property
+    def logging_parameters(self):
+        pars_dict = {}
+        if len(self.loc)==1:
+            pars_dict["loc"]=self.loc
+        if len(self.concentration)==1:
+            pars_dict["concentration"]=self.concentration
+
+        return pars_dict
+
+    @property
     def concentration(self):
         return self.constraint_transform(self.concentration_unconstrained)
 

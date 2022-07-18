@@ -178,7 +178,7 @@ class MCMCResult(BaseConfig):
 
     _name: str = "mcmc_result"
 
-    mcmc_config: MCMCConfig
+    mcmc_config: Optional[MCMCConfig]
     acceptance_rate: float
     obs_stats: Dict[OBSERVABLE_REGISTRY.enum, Dict[str, float]]
 
