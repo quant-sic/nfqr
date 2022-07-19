@@ -149,7 +149,7 @@ class MCMCConfig(BaseConfig):
         Adds dims to sub configs.
         """
 
-        n_replicas = values["n_replicas"]
+        n_replicas = values.get("n_replicas",1)
 
         def set_n_replicas(key, list_or_dict):
 
