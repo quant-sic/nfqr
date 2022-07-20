@@ -5,7 +5,7 @@ from numpy import pi
 from pydantic import BaseModel
 from torch.nn import Module, ModuleList
 
-from nfqr.normalizing_flows.layers.autoregressive_layers import (
+from nfqr.normalizing_flows.layers.additional_layers import (
     AR_LAYER_REGISTRY,
     ARLayerConfig,
 )
