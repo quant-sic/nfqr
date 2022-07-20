@@ -5,19 +5,8 @@ from numpy import pi
 from pydantic import BaseModel
 from torch.nn import Module, ModuleList
 
-from nfqr.normalizing_flows.layers.additional_layers import (
-    AR_LAYER_REGISTRY,
-    ARLayerConfig,
-)
-from nfqr.normalizing_flows.layers.coupling_layers import (
-    COUPLING_LAYER_REGISTRY,
-    CouplingConfig,
-)
 from nfqr.normalizing_flows.layers.layer_config import LAYER_REGISTRY, LayerConfig
-from nfqr.normalizing_flows.layers.layer_splits import (
-    SPLIT_TYPES_REGISTRY,
-    LayerSplitConfig,
-)
+from nfqr.normalizing_flows.layers.layer_splits import SPLIT_TYPES_REGISTRY
 from nfqr.utils.misc import create_logger
 
 logger = create_logger(__name__)
