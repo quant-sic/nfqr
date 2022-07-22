@@ -29,6 +29,7 @@ class CouplingLayer(Module):
         expressivity: int,
         net_config: NetConfig,
         domain: Literal["u1"] = "u1",
+        conditioner=None,
         **kwargs,
     ) -> None:
         super(CouplingLayer, self).__init__()
@@ -38,7 +39,10 @@ class CouplingLayer(Module):
 
         self.diffeomorphism = DIFFEOMORPHISMS_REGISTRY[domain][diffeomorphism]()
 
-        if conditioner_mask.sum().item() > 0:
+        if conditioner is not None:
+            self.conditioner = conditioner
+
+        elif conditioner_mask.sum().item() > 0:
             self.conditioner = CONDITIONER_REGISTRY[domain](
                 dim_in=conditioner_mask.sum().item(),
                 dim_out=transformed_mask.sum().item(),
@@ -113,6 +117,7 @@ class ResidualCoupling(CouplingLayer, Module):
         domain: Literal["u1"] = "u1",
         residual_type="global",
         initial_rho_id=None,
+        conditioner=None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -122,6 +127,7 @@ class ResidualCoupling(CouplingLayer, Module):
             expressivity=expressivity,
             net_config=net_config,
             domain=domain,
+            conditioner=conditioner,
             **kwargs,
         )
 
@@ -186,6 +192,7 @@ class ResidualCoupling(CouplingLayer, Module):
         net_config: NetConfig,
         domain: Literal["u1"] = "u1",
         initial_rho_id: float = 0.5,
+        conditioner=None,
         **kwargs,
     ):
         return cls(
@@ -197,6 +204,7 @@ class ResidualCoupling(CouplingLayer, Module):
             domain=domain,
             residual_type="global",
             initial_rho_id=initial_rho_id,
+            conditioner=conditioner,
         )
 
     @classmethod
@@ -209,6 +217,7 @@ class ResidualCoupling(CouplingLayer, Module):
         net_config: NetConfig,
         domain: Literal["u1"] = "u1",
         initial_rho_id: float = 0.5,
+        conditioner=None,
         **kwargs,
     ):
         return cls(
@@ -220,6 +229,7 @@ class ResidualCoupling(CouplingLayer, Module):
             domain=domain,
             residual_type="global_non_trainable",
             initial_rho_id=initial_rho_id,
+            conditioner=conditioner,
         )
 
     @classmethod
@@ -231,6 +241,7 @@ class ResidualCoupling(CouplingLayer, Module):
         expressivity: int,
         net_config: NetConfig,
         domain: Literal["u1"] = "u1",
+        conditioner=None,
         **kwargs,
     ):
         return cls(
@@ -241,6 +252,7 @@ class ResidualCoupling(CouplingLayer, Module):
             net_config=net_config,
             domain=domain,
             residual_type="conditioned",
+            conditioner=conditioner,
         )
 
     @cached_property

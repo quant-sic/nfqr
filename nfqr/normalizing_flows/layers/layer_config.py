@@ -20,7 +20,8 @@ LAYER_REGISTRY = JointStrRegistry(
 
 class LayerConfig(BaseModel):
 
-    layer_type: Literal["ar_layer", "coupling_layer"]
+    layer_type: Literal["ar_layer", "coupling_layer", "n_transforms_layer"]
     specific_layer_config: Union[CouplingConfig, ARLayerConfig, NTransformsLayerConfig]
     layer_split_config: Union[LayerSplitConfig, None]
     num_layers: int
+    share_conditioner: bool = False

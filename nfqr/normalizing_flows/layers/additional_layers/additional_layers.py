@@ -166,10 +166,10 @@ class SingleTransformLayer(LayerBase, Module):
             raise ValueError("Layer not yet constructed for multidimensional input dim")
 
         self.conditioners = torch.nn.ModuleList()
-        for idx in range(dim[0]):
+        for _ in range(dim[0]):
             self.conditioners.append(
                 CONDITIONER_REGISTRY[domain](
-                    dim_in=idx,
+                    dim_in=dim[0]-1,
                     dim_out=1,
                     expressivity=expressivity,
                     num_splits=self.diffeomorphism.num_pars,
@@ -221,6 +221,7 @@ class SingleTransformLayer(LayerBase, Module):
 
         return x, log_det
 
+    # impossible like this since conditioner input gone !!!!
     def encode(self, x):
 
         z = x.clone()

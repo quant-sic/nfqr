@@ -91,10 +91,11 @@ def ncp_mod(phi, alpha, beta, rho, ret_logabsdet=True):
 
 
 class NCP(Diffeomorphism):
+
+    num_pars = 3
+
     def __init__(self, alpha_min=1e-3, boundary_mode="taylor") -> None:
         super(NCP).__init__()
-
-        self._num_pars = 3
 
         if boundary_mode == "taylor":
             self.fn = ncp
@@ -121,10 +122,6 @@ class NCP(Diffeomorphism):
     @classmethod
     def use_taylor_for_boundary(cls, alpha_min=1e-3):
         return cls(alpha_min, boundary_mode="taylor")
-
-    @property
-    def num_pars(self):
-        return self._num_pars
 
     @property
     def map_to_range(self):
@@ -261,10 +258,11 @@ def moebius(phi, w, rho, ret_logabsdet=True):
 
 @U1_DIFFEOMORPHISM_REGISTRY.register("moebius")
 class Moebius(Diffeomorphism):
+
+    num_pars = 3
+
     def __init__(self) -> None:
         super(Moebius).__init__()
-
-        self._num_pars = 3
 
         self.inverse_fn_params = {
             "function": moebius,
@@ -275,10 +273,6 @@ class Moebius(Diffeomorphism):
         }
 
         self.rho_transform = torch_transform_to(simplex)
-
-    @property
-    def num_pars(self):
-        return self._num_pars
 
     @property
     def map_to_range(self):
@@ -511,14 +505,11 @@ def rational_quadratic_spline(
 
 @U1_DIFFEOMORPHISM_REGISTRY.register("rqs")
 class RQS(Diffeomorphism):
+
+    num_pars = 3
+
     def __init__(self) -> None:
         super(RQS).__init__()
-
-        self._num_pars = 3
-
-    @property
-    def num_pars(self):
-        return self._num_pars
 
     @property
     def map_to_range(self):
@@ -689,10 +680,11 @@ def circular_bump(
 
 @U1_DIFFEOMORPHISM_REGISTRY.register("bump")
 class Bump(Diffeomorphism):
+
+    num_pars = 5
+
     def __init__(self, _beta: int = 2) -> None:
         super(Bump).__init__()
-
-        self._num_pars = 5
 
         self.inverse_fn_params = {
             "function": circular_bump,
@@ -705,10 +697,6 @@ class Bump(Diffeomorphism):
         self.alpha_max = 10
         self._beta = _beta
         self.rho_transform = torch_transform_to(simplex)
-
-    @property
-    def num_pars(self):
-        return self._num_pars
 
     @property
     def map_to_range(self):
