@@ -3,7 +3,7 @@ from functools import partial
 from pathlib import Path
 from typing import Dict, List, Optional, Type, TypeVar, Union
 
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, root_validator, validator
 
 from nfqr.config import BaseConfig
 from nfqr.normalizing_flows.flow import FlowConfig
@@ -59,7 +59,7 @@ class LitModelConfig(BaseConfig):
     dim: List[int]
 
     observables: List[OBSERVABLE_REGISTRY.enum]
-    trainer_config: TrainerConfig
+    trainer_configs: List[TrainerConfig]
 
     @classmethod
     def get_num_tasks(cls: Type[ConfigType], directory: Union[str, Path]) -> int:
@@ -192,3 +192,13 @@ class LitModelConfig(BaseConfig):
         set_par_list_or_dict(values, set_fn=partial(set_dim))
 
         return values
+
+    @validator("trainer_configs", pre=True)
+    @classmethod
+    def trainer_configs_to_list(cls, _v):
+        if not isinstance(_v, list):
+            v = [_v]
+        else:
+            v = _v
+
+        return v

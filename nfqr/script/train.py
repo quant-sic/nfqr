@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import LearningRateMonitor
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from nfqr.globals import EXPERIMENTS_DIR
@@ -33,52 +33,68 @@ def train_flow_model(exp_dir, skip_done):
     else:
 
         seed_everything(42, workers=True)
+        model_ckpt_path = ((exp_dir / "logs") / log_dir) / "model.ckpt"
 
-        flow_model = LitFlow(**dict(train_config))
+        for idx, trainer_config in enumerate(train_config.trainer_configs):
 
-        tb_logger = TensorBoardLogger(exp_dir / "logs", name=log_dir)
+            lit_model_config = dict(train_config)
+            lit_model_config.update({"trainer_config": trainer_config})
 
-        callbacks = [LearningRateMonitor()]
-
-        trainer = Trainer(
-            **train_config.trainer_config.dict(
-                include={
-                    "max_epochs",
-                    "log_every_n_steps",
-                    "accumulate_grad_batches",
-                    "gradient_clip_val",
-                    "gradient_clip_algorithm",
-                    "track_grad_norm",
-                }
-            ),
-            logger=tb_logger,
-            accelerator="gpu" if torch.cuda.is_available() else "cpu",
-            devices=1,
-            auto_lr_find=train_config.trainer_config.auto_lr_find,
-            default_root_dir=(exp_dir / "trainer") / log_dir,
-            callbacks=callbacks
-        )
-
-        logger.info(
-            "Train Config for task {}:\n {}".format(os.environ["task_id"], train_config)
-        )
-
-        if train_config.trainer_config.auto_lr_find:
-            trainer.tune(
-                model=flow_model,
-                lr_find_kwargs={
-                    "min_lr": 1e-8,
-                    "max_lr": 5e-3,
-                    "num_training": 250,
-                    "mode": "exponential",
-                    "early_stop_threshold": 5.0,
-                    "update_attr": True,
-                },
+            logger.info(
+                "Task {}: Interval {} with: \n\n {}".format(
+                    os.environ["task_id"], idx, lit_model_config
+                )
             )
-            if flow_model.learning_rate is None:
-                flow_model.learning_rate = train_config.trainer_config.learning_rate
 
-        trainer.fit(model=flow_model)
+            tb_logger = TensorBoardLogger(
+                exp_dir / "logs", name=log_dir, sub_dir=f"interval_{idx}"
+            )
+
+            if idx == 0:
+                flow_model = LitFlow(**lit_model_config)
+            else:
+                flow_model = LitFlow.load_from_checkpoint(
+                    model_ckpt_path, **lit_model_config
+                )
+
+            callbacks = [LearningRateMonitor()]
+
+            trainer = Trainer(
+                **train_config.trainer_config.dict(
+                    include={
+                        "max_epochs",
+                        "log_every_n_steps",
+                        "accumulate_grad_batches",
+                        "gradient_clip_val",
+                        "gradient_clip_algorithm",
+                        "track_grad_norm",
+                    }
+                ),
+                logger=tb_logger,
+                accelerator="gpu" if torch.cuda.is_available() else "cpu",
+                devices=1,
+                auto_lr_find=train_config.trainer_config.auto_lr_find,
+                default_root_dir=(exp_dir / "trainer") / log_dir,
+                callbacks=callbacks,
+            )
+
+            if train_config.trainer_config.auto_lr_find:
+                trainer.tune(
+                    model=flow_model,
+                    lr_find_kwargs={
+                        "min_lr": 1e-8,
+                        "max_lr": 5e-3,
+                        "num_training": 250,
+                        "mode": "exponential",
+                        "early_stop_threshold": 5.0,
+                        "update_attr": True,
+                    },
+                )
+                if flow_model.learning_rate is None:
+                    flow_model.learning_rate = train_config.trainer_config.learning_rate
+
+            trainer.fit(model=flow_model)
+            trainer.save_checkpoint(model_ckpt_path)
 
 
 if __name__ == "__main__":
