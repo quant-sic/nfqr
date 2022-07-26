@@ -9,13 +9,13 @@ logger = create_logger(__name__)
 
 class MCMC(Sampler):
     def __init__(
-        self, n_steps, observables, target_system, out_dir, n_replicas
+        self, n_steps, observables, target_system, out_dir, n_replicas,delete_existing_data=True
     ) -> None:
         super(MCMC, self).__init__(
             observables=observables,
             target_system=target_system,
             out_dir=out_dir,
-            n_replicas=n_replicas,
+            n_replicas=n_replicas,delete_existing_data=delete_existing_data
         )
         self.n_steps = n_steps
         self._config = None
@@ -51,6 +51,10 @@ class MCMC(Sampler):
 
     @property
     def n_skipped(self):
+        return 0
+
+    @property
+    def acceptance_rate(self):
         return 0
 
     @property

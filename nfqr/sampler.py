@@ -5,14 +5,14 @@ from nfqr.target_systems import OBSERVABLE_REGISTRY
 
 
 class Sampler(ABC):
-    def __init__(self, observables, out_dir, target_system, n_replicas) -> None:
+    def __init__(self, observables, out_dir, target_system, n_replicas,delete_existing_data=True) -> None:
 
         self._observables_rec = ObservableRecorder(
             observables={
                 obs: OBSERVABLE_REGISTRY[target_system][obs]() for obs in observables
             },
             save_dir_path=out_dir,
-            delete_existing_data=True,
+            delete_existing_data=delete_existing_data,
             n_replicas=n_replicas,
         )
 

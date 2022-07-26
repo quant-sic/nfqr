@@ -27,7 +27,6 @@ class TrainerConfig(BaseModel):
 
     log_every_n_steps: int = 50
 
-    task_parameters: Union[List[str], None] = None
 
     learning_rate: float = 0.001
     auto_lr_find: bool = False
@@ -61,6 +60,8 @@ class LitModelConfig(BaseConfig):
     observables: List[OBSERVABLE_REGISTRY.enum]
     trainer_configs: List[TrainerConfig]
 
+    task_parameters: Union[List[str], None] = None
+
     @classmethod
     def get_num_tasks(cls: Type[ConfigType], directory: Union[str, Path]) -> int:
         """Load config from json with task id."""
@@ -71,7 +72,7 @@ class LitModelConfig(BaseConfig):
 
         def fill_num_pars_dict(key, list_or_dict):
 
-            if key in raw_config["trainer_config"]["task_parameters"]:
+            if key in raw_config["task_parameters"]:
                 try:
                     num_pars_dict[key] = len(list_or_dict[key])
                 except TypeError:
@@ -80,7 +81,7 @@ class LitModelConfig(BaseConfig):
                     )
             return list_or_dict
 
-        if raw_config["trainer_config"]["task_parameters"] is not None:
+        if raw_config["task_parameters"] is not None:
             raw_config = set_par_list_or_dict(
                 raw_config, set_fn=partial(fill_num_pars_dict)
             )
@@ -113,7 +114,7 @@ class LitModelConfig(BaseConfig):
 
         def choose_task_par(key, list_or_dict, task_id):
 
-            if key in raw_config["trainer_config"]["task_parameters"]:
+            if key in raw_config["task_parameters"]:
                 try:
                     num_pars_dict[key] = len(list_or_dict[key])
                 except TypeError:
@@ -124,7 +125,7 @@ class LitModelConfig(BaseConfig):
 
             return list_or_dict
 
-        if raw_config["trainer_config"]["task_parameters"] is not None:
+        if raw_config["task_parameters"] is not None:
             raw_config = set_par_list_or_dict(
                 raw_config, set_fn=partial(choose_task_par, task_id=task_id)
             )

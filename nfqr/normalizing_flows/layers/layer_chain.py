@@ -81,7 +81,7 @@ class LayerChain(Module):
                     expressivity=layer_config.specific_layer_config.expressivity,
                     num_splits=DIFFEOMORPHISMS_REGISTRY[
                         layer_config.specific_layer_config.domain
-                    ][layer_config.specific_layer_config.diffeomorphism].num_pars,
+                    ][layer_config.specific_layer_config.diffeomorphism]().num_pars,
                     net_config=layer_config.specific_layer_config.net_config,
                 )
                 self.layer_chain_conditioners.append(shared_conditioner)

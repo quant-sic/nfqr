@@ -47,7 +47,7 @@ def train_flow_model(exp_dir, skip_done):
             )
 
             tb_logger = TensorBoardLogger(
-                exp_dir / "logs", name=log_dir, sub_dir=f"interval_{idx}"
+                exp_dir / "logs", name=log_dir, sub_dir=f"interval_{idx}",version=0
             )
 
             if idx == 0:
@@ -60,7 +60,7 @@ def train_flow_model(exp_dir, skip_done):
             callbacks = [LearningRateMonitor()]
 
             trainer = Trainer(
-                **train_config.trainer_config.dict(
+                **trainer_config.dict(
                     include={
                         "max_epochs",
                         "log_every_n_steps",
@@ -73,12 +73,12 @@ def train_flow_model(exp_dir, skip_done):
                 logger=tb_logger,
                 accelerator="gpu" if torch.cuda.is_available() else "cpu",
                 devices=1,
-                auto_lr_find=train_config.trainer_config.auto_lr_find,
+                auto_lr_find=trainer_config.auto_lr_find,
                 default_root_dir=(exp_dir / "trainer") / log_dir,
                 callbacks=callbacks,
             )
 
-            if train_config.trainer_config.auto_lr_find:
+            if trainer_config.auto_lr_find:
                 trainer.tune(
                     model=flow_model,
                     lr_find_kwargs={
@@ -91,7 +91,7 @@ def train_flow_model(exp_dir, skip_done):
                     },
                 )
                 if flow_model.learning_rate is None:
-                    flow_model.learning_rate = train_config.trainer_config.learning_rate
+                    flow_model.learning_rate = trainer_config.learning_rate
 
             trainer.fit(model=flow_model)
             trainer.save_checkpoint(model_ckpt_path)

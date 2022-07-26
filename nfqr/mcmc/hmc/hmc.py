@@ -36,6 +36,7 @@ class HMC(MCMC):
         n_replicas: int = 1,
         n_samples_at_a_time=10000,
         initial_config_sampler_config=None,
+        delete_existing_data=True,
         **kwargs,
     ) -> None:
         super(HMC, self).__init__(
@@ -44,6 +45,7 @@ class HMC(MCMC):
             target_system=action_config.target_system,
             out_dir=out_dir,
             n_replicas=n_replicas,
+            delete_existing_data=delete_existing_data
         )
 
         self.dim = dim
