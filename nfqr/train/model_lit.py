@@ -79,11 +79,16 @@ class LitFlow(pl.LightningModule):
         self.observables = observables
         self.dim = dim
 
-        self.learning_rate = trainer_config.learning_rate
         self.model = BareFlow(**dict(flow_config))
 
         if mode == "eval":
             self.set_final_beta()
+        elif mode == "train":
+            if self.trainer_config is None:
+                raise ValueError(f"Trainer Config None not allowed for mode == train!")
+
+            self.learning_rate = trainer_config.learning_rate
+
 
     @cached_property
     def target(self):

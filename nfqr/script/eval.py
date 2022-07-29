@@ -41,8 +41,10 @@ if __name__ == "__main__":
 
         task_dir = exp_dir / f"eval/{log_dir}/{model_ckpt_path.stem}"
 
+        model_kwargs_dict = dict(train_config)
+        model_kwargs_dict.update({"trainer_config":train_config.trainer_configs[-1]})
         lit_model = LitFlow.load_from_checkpoint(
-            model_ckpt_path, **dict(train_config), mode="eval"
+            model_ckpt_path, **model_kwargs_dict, mode="eval"
         )
 
         eval_result = EvalResult(
@@ -69,8 +71,8 @@ if __name__ == "__main__":
                 )
                 stats_nmcmc_list += [stats_nmcmc]
 
-        eval_result.exact_sus = lit_model.sus_exact_final
-        eval_result.nip = stats_nip_list
-        eval_result.nmcmc = stats_nmcmc_list
+            eval_result.exact_sus = lit_model.sus_exact_final
+            eval_result.nip = stats_nip_list
+            eval_result.nmcmc = stats_nmcmc_list
 
-        eval_result.save(task_dir)
+            eval_result.save(task_dir)
