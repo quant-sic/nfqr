@@ -14,7 +14,7 @@ class NetConfig(BaseModel):
     net_type: str
     net_hidden: Optional[List[int]]
     n_channels_list: Optional[List[int]]
-    pool_sizes_list: Optional[List[int]]
+    pool_sizes_list: Optional[List[Union[int,None]]]
     coord_layer_specifier: Optional[Literal["rel_position","abs_position"]]
 
 
@@ -211,7 +211,7 @@ class CoordLayer(nn.Module):
                 )
             ]
 
-        self.added_channels = torch.stack(added_channels_list, dim=0)
+        self.added_channels = nn.parameter.Parameter(torch.stack(added_channels_list, dim=0),requires_grad=False)
         self.n_added_channels = len(added_channels_list)
 
     def forward(self, x):
@@ -220,29 +220,86 @@ class CoordLayer(nn.Module):
         return x_added_channels
 
 
+class Activation(nn.Module):
+    def __init__(self,activation_specifier) -> None:
+        super().__init__()
+
+        if activation_specifier == "leaky_relu":
+            self.activation = nn.LeakyReLU()
+        elif activation_specifier == "mish":
+            self.activation = nn.Mish()
+        else:
+            raise ValueError("Unknown Activation Function")
+
+    def forward(self,x):
+        return self.activation(x)
+
+
+class EncoderBlock(nn.Module):
+
+    def __init__(self,in_channels,n_channels,kernel_sizes, residual:bool,activation_specifier,norms) -> None:
+        super().__init__()
+
+        self.modules = nn.ModuleList()
+        self.activation = Activation(activation_specifier=activation_specifier)
+
+        n_channels_list = [in_channels] + n_channels
+        for in_,out_,kernel_size_,norm_ in zip(n_channels_list[:-1],n_channels_list[1:],kernel_sizes,norms):
+            self.modules.append(
+                nn.Conv1d(
+                    in_channels=in_,
+                    out_channels=out_,
+                    kernel_size=kernel_size_,
+                    padding=1,
+                    stride=1,
+                    padding_mode="circular",
+                )
+            )
+            self.modules.append(self.activation)
+            
+            if norm_== "batch":
+                self.modules.append(nn.BatchNorm1d(out_))
+        
+        self.residual = residual
+        if residual:
+            if not n_channels[-1]!= in_channels:
+                raise ValueError("In channels do not match out channels, so residual construction not possible")
+
+        self.net = nn.Sequential(*self.modules)
+
+    def forward(self,x):
+
+        x_net = self.net(x)
+        
+        return self.activation( x + x_net)
+
+
+class EncoderBlockConfig(BaseModel):
+
+    n_channels:List[int]
+    kernel_sizes:List[str]
+    residual:bool
+    activation_specifier:str
+    norms:List[Union[str,None]]
+
+
+
+
 @NET_REGISTRY.register("cnn_encoder")
 class CNNEncoder(nn.Module):
     def __init__(
         self,
         conditioner_mask,
         transformed_mask,
-        n_channels_list,
-        pool_sizes_list,
         in_channels,
+        block_configs:List[EncoderBlockConfig],
+        pooling_sizes:List[Union[int,None]],
         coord_layer_specifier: Union[bool, str, None] = "rel_position",
-        activation: str = "mish",
         **kwargs,
     ) -> None:
         super().__init__()
 
-        if activation == "leaky_relu":
-            activation_function = nn.LeakyReLU
-        elif activation == "mish":
-            activation_function = nn.Mish
-        else:
-            raise ValueError("Unknown Activation Function")
-
-        modules = nn.ModuleList()
+        blocks = nn.ModuleList()
 
         if coord_layer_specifier is not None:
             coord_layer = CoordLayer(
@@ -250,32 +307,29 @@ class CNNEncoder(nn.Module):
                 conditioner_mask=conditioner_mask,
                 transformed_mask=transformed_mask,
             )
-            modules.append(coord_layer)
+            blocks.append(coord_layer)
             in_channels += coord_layer.n_added_channels
 
-        net_hidden = [in_channels] + n_channels_list
-        for layer_idx, (in_, out_, pool_out_) in enumerate(
-            zip(net_hidden[:-1], net_hidden[1:], pool_sizes_list)
-        ):
-            modules.append(
-                nn.Conv1d(
-                    in_channels=in_,
-                    out_channels=out_,
-                    kernel_size=3,
-                    padding=1,
-                    stride=1,
-                    padding_mode="circular",
-                )
+        for block_config,pooling_size_ in zip(block_configs,pooling_sizes):
+            blocks.append(
+                EncoderBlock(**dict(block_config),in_channels=in_channels)
             )
+            if pooling_size_ is not None:
+                blocks.append(nn.AdaptiveMaxPool1d(pooling_size_))
 
-            modules.append(nn.AdaptiveMaxPool1d(pool_out_))
-            modules.append(activation_function())
-            modules.append(nn.BatchNorm1d(out_))
 
-        self.net = nn.Sequential(*modules)
+        self.net = nn.Sequential(*blocks)
 
-        self.dim_out = pool_out_
-        self.out_channels = out_
+        self._dim_out = ([conditioner_mask.sum().item()] + list(filter(lambda s: s is not None,pooling_sizes)))[-1]
+        self._out_channels = block_configs[-1].n_channels[-1]
+
+    @property
+    def dim_out(self):
+        return self._dim_out
+    
+    @property
+    def out_channels(self):
+        self._out_channels
 
     def forward(self, x):
         return self.net(x)
