@@ -159,7 +159,7 @@ class ResidualCoupling(CouplingLayer, Module):
                             net_type="mlp",
                             net_hidden=[
                                 conditioner_mask.sum().item(),
-                                int(conditioner_mask.sum().item() / 2),
+                                int(conditioner_mask.sum().item() + 1 / 2),
                             ],
                         ),
                         domain=domain,
