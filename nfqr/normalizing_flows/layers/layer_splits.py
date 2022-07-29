@@ -97,16 +97,28 @@ class LayerSplit(object):
             raise ValueError("Less than size-1 inputs transformed")
 
     @property
-    def all_conditioners_equal_in_out(self):
+    def all_conditioners_equal_in(self):
 
         num_in = []
+
+        for conditioner_mask, _ in self:
+            num_in += [conditioner_mask.sum().item()]
+
+        return len(set(num_in)) == 1
+
+    @property
+    def all_conditioners_equal_out(self):
+
         num_out = []
 
-        for conditioner_mask, transformed_mask in self:
-            num_in += [conditioner_mask.sum().item()]
+        for _, transformed_mask in self:
             num_out += [transformed_mask.sum().item()]
 
-        return len(set(num_in)) == 1 and len(set(num_out)) == 1
+        return len(set(num_out)) == 1
+
+    @property
+    def all_conditioners_equal_in_out(self):
+        return self.all_conditioners_equal_in and self.all_conditioners_equal_out
 
 
 SPLIT_TYPES_REGISTRY.register("checkerboard", LayerSplit.checkerboard)

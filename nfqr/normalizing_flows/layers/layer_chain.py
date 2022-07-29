@@ -6,8 +6,7 @@ from pydantic import BaseModel
 from torch.nn import Module, ModuleList
 
 from nfqr.normalizing_flows.diffeomorphisms import DIFFEOMORPHISMS_REGISTRY
-from nfqr.normalizing_flows.layers import conditioners
-from nfqr.normalizing_flows.layers.conditioners import CONDITIONER_REGISTRY
+from nfqr.normalizing_flows.layers.conditioners import ConditionerChain
 from nfqr.normalizing_flows.layers.layer_config import LAYER_REGISTRY, LayerConfig
 from nfqr.normalizing_flows.layers.layer_splits import SPLIT_TYPES_REGISTRY
 from nfqr.utils.misc import create_logger
@@ -59,37 +58,21 @@ class LayerChain(Module):
                 ),
             )
 
-            if layer_config.share_conditioner:
-                if not layer_splits.all_conditioners_equal_in_out:
-                    raise RuntimeError(
-                        "share conditioners not possible since in and output dimensions do not match"
-                    )
-                if layer_config.layer_type not in ("coupling_layer",):
-                    raise ValueError(
-                        "conditioner sharing only implemented for Coupling layers"
-                    )
-
-                dim_in_0, dim_out_0 = map(
-                    lambda m: m.sum().item(), layer_splits.__iter__().__next__()
+            if layer_config.layer_type not in ("coupling_layer",) and (layer_config.conditioner_chain_config.share_encoder or layer_config.conditioner_chain_config.share_decoder ):
+                raise ValueError(
+                    "conditioner sharing only implemented for Coupling layers"
                 )
 
-                shared_conditioner = CONDITIONER_REGISTRY[
+            conditioners = ConditionerChain(
+                **dict(layer_config.conditioner_chain_config),
+                layer_splits=layer_splits,
+                num_pars=DIFFEOMORPHISMS_REGISTRY[
                     layer_config.specific_layer_config.domain
-                ](
-                    dim_in=dim_in_0,
-                    dim_out=dim_out_0,
-                    expressivity=layer_config.specific_layer_config.expressivity,
-                    num_splits=DIFFEOMORPHISMS_REGISTRY[
-                        layer_config.specific_layer_config.domain
-                    ][layer_config.specific_layer_config.diffeomorphism]().num_pars,
-                    net_config=layer_config.specific_layer_config.net_config,
-                )
-                self.layer_chain_conditioners.append(shared_conditioner)
-            else:
-                shared_conditioner = None
+                ][layer_config.specific_layer_config.diffeomorphism]().num_pars,
+            )
 
-            for (conditioner_mask, transformed_mask), _ in zip(
-                layer_splits, range(layer_config.num_layers)
+            for (conditioner_mask, transformed_mask), conditioner in zip(
+                layer_splits, conditioners
             ):
                 if layer_config.layer_type in ("ar_layer",):
                     if connect_splits:
@@ -104,10 +87,12 @@ class LayerChain(Module):
                     transformed_mask=transformed_mask,
                     **dict(layer_config.specific_layer_config),
                     dim=self.dim,
-                    conditioner=shared_conditioner,
+                    conditioner=conditioner,
                 )
 
                 self.layers.append(c)
+                self.layer_chain_conditioners.append(conditioner)
+                
 
     def encode(self, x):
 
