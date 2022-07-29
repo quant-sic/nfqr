@@ -1,5 +1,6 @@
-from typing import List, Literal,Union
+from typing import List, Literal, Optional, Union
 
+import torch
 from pydantic import BaseModel
 from torch import nn
 
@@ -11,7 +12,10 @@ NET_REGISTRY = StrRegistry("nets")
 class NetConfig(BaseModel):
 
     net_type: str
-    net_hidden: List[int]
+    net_hidden: Optional[List[int]]
+    n_channels_list: Optional[List[int]]
+    pool_sizes_list: Optional[List[int]]
+    coord_layer_specifier: Optional[Literal["rel_position","abs_position"]]
 
 
 @NET_REGISTRY.register("mlp")
@@ -25,7 +29,7 @@ class MLP(nn.Module):
         out_channels: int,
         net_hidden: List[int],
         activation: str = "mish",
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__()
 
@@ -87,10 +91,10 @@ class CNN(nn.Module):
         out_size: int,
         out_channels: int,
         net_hidden: List[int],
-        pooling_types:Union[None,List[Union[None,Literal["avg","max"]]]] = None,
-        pooling_sizes:Union[None,List[Union[None,int]]] = None,
+        pooling_types: Union[None, List[Union[None, Literal["avg", "max"]]]] = None,
+        pooling_sizes: Union[None, List[Union[None, int]]] = None,
         activation: str = "mish",
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__()
 
@@ -110,7 +114,7 @@ class CNN(nn.Module):
         modules.append(View([-1, 1, out_size]))
 
         net_hidden = [1] + net_hidden
-        for layer_idx,(in_, out_) in enumerate(zip(net_hidden[:-1], net_hidden[1:])):
+        for layer_idx, (in_, out_) in enumerate(zip(net_hidden[:-1], net_hidden[1:])):
             modules.append(
                 nn.Conv1d(
                     in_channels=in_,
@@ -124,9 +128,11 @@ class CNN(nn.Module):
             modules.append(activation_function())
 
             if pooling_types is not None and pooling_sizes is not None:
-                pooling_layer = self.pooling_layer(pooling_types[layer_idx],pooling_sizes[layer_idx])
+                pooling_layer = self.pooling_layer(
+                    pooling_types[layer_idx], pooling_sizes[layer_idx]
+                )
 
-                if not pooling_layer is None:
+                if pooling_layer is not None:
                     modules.append(pooling_layer)
 
         modules.append(View([-1, net_hidden[-1] * out_size]))
@@ -139,8 +145,8 @@ class CNN(nn.Module):
         return self.net(x)
 
     @staticmethod
-    def pooling_layer(specifier,size):
-        if specifier=="none":
+    def pooling_layer(specifier, size):
+        if specifier == "none":
             return None
         elif specifier == "avg":
             return nn.AdaptiveAvgPool1d(size)
@@ -148,3 +154,166 @@ class CNN(nn.Module):
             return nn.AdaptiveMaxPool1d(size)
         else:
             raise ValueError(f"Unknown pooling type {specifier}")
+
+
+class Roll(nn.Module):
+    def __init__(self, shifts, dims=-1):
+        super().__init__()
+        self.shifts = shifts
+        self.dims = dims
+
+    def forward(self, x):
+        return x.roll(shifts=self.shifts, dims=self.dims)
+
+
+class CoordLayer(nn.Module):
+    def __init__(self, mode, conditioner_mask, transformed_mask):
+        super().__init__()
+
+        added_channels_list = []
+        added_transformations = []
+        if "shift" in mode or "relative_position" in mode:
+            if not transformed_mask.sum().item() == 1:
+                raise ValueError("mode shift can only be used for n_transformed == 1 ")
+
+        if "shift" in mode:
+            transformed_position = (
+                torch.arange(len(transformed_mask))[transformed_mask]
+            ).item()
+            added_transformations += [Roll(shifts=-transformed_position)]
+
+        if "abs_position" in mode:
+            added_channels_list += [
+                (
+                    torch.arange(len(conditioner_mask))[conditioner_mask]
+                    / (len(conditioner_mask) - 1)
+                )
+                * 2
+                - 1
+            ]
+
+        if "rel_position" in mode:
+            # can only be one position
+            transformed_position = (
+                torch.arange(len(transformed_mask))[transformed_mask]
+            ).item()
+            added_channels_list += [
+                (
+                    torch.min(
+                        abs(torch.arange(len(conditioner_mask)) - transformed_position),
+                        abs(
+                            reversed(torch.arange(len(conditioner_mask)))
+                            + transformed_position
+                            + 1
+                        ),
+                    )[conditioner_mask]
+                    / (len(conditioner_mask) - 1)
+                )
+            ]
+
+        self.added_channels = torch.stack(added_channels_list, dim=0)
+        self.n_added_channels = len(added_channels_list)
+
+    def forward(self, x):
+        x_added_channels = torch.cat((x, self.added_channels.expand(x.shape[0],*self.added_channels.shape)), dim=1)
+
+        return x_added_channels
+
+
+@NET_REGISTRY.register("cnn_encoder")
+class CNNEncoder(nn.Module):
+    def __init__(
+        self,
+        conditioner_mask,
+        transformed_mask,
+        n_channels_list,
+        pool_sizes_list,
+        in_channels,
+        coord_layer_specifier: Union[bool, str, None] = "rel_position",
+        activation: str = "mish",
+        **kwargs,
+    ) -> None:
+        super().__init__()
+
+        if activation == "leaky_relu":
+            activation_function = nn.LeakyReLU
+        elif activation == "mish":
+            activation_function = nn.Mish
+        else:
+            raise ValueError("Unknown Activation Function")
+
+        modules = nn.ModuleList()
+
+        if coord_layer_specifier is not None:
+            coord_layer = CoordLayer(
+                coord_layer_specifier,
+                conditioner_mask=conditioner_mask,
+                transformed_mask=transformed_mask,
+            )
+            modules.append(coord_layer)
+            in_channels += coord_layer.n_added_channels
+
+        net_hidden = [in_channels] + n_channels_list
+        for layer_idx, (in_, out_, pool_out_) in enumerate(
+            zip(net_hidden[:-1], net_hidden[1:], pool_sizes_list)
+        ):
+            modules.append(
+                nn.Conv1d(
+                    in_channels=in_,
+                    out_channels=out_,
+                    kernel_size=3,
+                    padding=1,
+                    stride=1,
+                    padding_mode="circular",
+                )
+            )
+
+            modules.append(nn.AdaptiveMaxPool1d(pool_out_))
+            modules.append(activation_function())
+            modules.append(nn.BatchNorm1d(out_))
+
+        self.net = nn.Sequential(*modules)
+
+        self.dim_out = pool_out_
+        self.out_channels = out_
+
+    def forward(self, x):
+        return self.net(x)
+
+
+@NET_REGISTRY.register("mlp_decoder")
+class MLPDecoder(nn.Module):
+    def __init__(
+        self,
+        in_size: int,
+        in_channels: int,
+        out_size: int,
+        out_channels: int,
+        net_hidden: List[int],
+        activation: str = "mish",
+        **kwargs,
+    ) -> None:
+        super().__init__()
+
+        if activation == "leaky_relu":
+            activation_function = nn.LeakyReLU
+        elif activation == "mish":
+            activation_function = nn.Mish
+        else:
+            raise ValueError("Unknown Activation Function")
+
+        modules = nn.ModuleList()
+        modules.append(View([-1, in_size * in_channels]))
+
+        sizes = [in_size * in_channels] + net_hidden + [out_size * out_channels]
+
+        for i in range(len(sizes) - 1):
+            modules.append(nn.Linear(sizes[i], sizes[i + 1]))
+            if i != len(sizes) - 2:
+                modules.append(activation_function())
+
+        modules.append(View([-1, out_size, out_channels]))
+        self.net = nn.Sequential(*modules)
+
+    def forward(self, x):
+        return self.net(x)

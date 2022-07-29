@@ -7,7 +7,10 @@ from pydantic import BaseModel, Field
 from torch.nn import Module
 
 from nfqr.normalizing_flows.diffeomorphisms import DIFFEOMORPHISMS_REGISTRY
-from nfqr.normalizing_flows.layers.conditioners import CONDITIONER_REGISTRY
+from nfqr.normalizing_flows.layers.conditioners import (
+    ConditionerChain,
+    ConditionerChainConfig,
+)
 from nfqr.normalizing_flows.nets import NetConfig
 from nfqr.registry import StrRegistry
 from nfqr.utils import create_logger
@@ -23,16 +26,14 @@ class LayerBase(Module):
         self,
         dim,
         diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
-        expressivity: int,
-        net_config: NetConfig,
+        conditioner_chain_config: ConditionerChainConfig,
         domain: Literal["u1"] = "u1",
         **kwargs,
     ) -> None:
         super(LayerBase, self).__init__()
 
         self.diffeomorphism = DIFFEOMORPHISMS_REGISTRY[domain][diffeomorphism]()
-        self.expressivity = expressivity
-        self.net_config = net_config
+        self.conditioner_chain_config = conditioner_chain_config
         self.domain = domain
         self.dim = dim
 
@@ -49,29 +50,26 @@ class IterativeARLayer(LayerBase, Module):
         self,
         dim,
         diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
-        expressivity: int,
-        net_config: NetConfig,
+        conditioner_chain_config: ConditionerChainConfig,
         domain: Literal["u1"] = "u1",
         **kwargs,
     ) -> None:
         super().__init__(
-            dim, diffeomorphism, expressivity, net_config, domain, **kwargs
+            dim, diffeomorphism, conditioner_chain_config, domain, **kwargs
         )
 
         if not len(dim) == 1:
             raise ValueError("Layer not yet constructed for multidimensional input dim")
 
-        self.conditioners = torch.nn.ModuleList()
-        for idx in range(1, dim[0]):
-            self.conditioners.append(
-                CONDITIONER_REGISTRY[domain](
-                    dim_in=idx,
-                    dim_out=1,
-                    expressivity=expressivity,
-                    num_splits=self.diffeomorphism.num_pars,
-                    net_config=net_config,
+        self.conditioners = torch.nn.ModuleList(
+            list(
+                ConditionerChain(
+                    **dict(conditioner_chain_config),
+                    layer_splits=zip(self.conditioner_masks, self.transformed_masks),
+                    num_pars=self.diffeomorphism.num_pars,
                 )
-            )
+            )[1:]
+        )
 
     @staticmethod
     def autoregressive_mask(size, idx):
@@ -153,29 +151,26 @@ class SingleTransformLayer(LayerBase, Module):
         self,
         dim,
         diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
-        expressivity: int,
-        net_config: NetConfig,
+        conditioner_chain_config: ConditionerChainConfig,
         domain: Literal["u1"] = "u1",
         **kwargs,
     ) -> None:
         super().__init__(
-            dim, diffeomorphism, expressivity, net_config, domain, **kwargs
+            dim, diffeomorphism, conditioner_chain_config, domain, **kwargs
         )
 
         if not len(dim) == 1:
             raise ValueError("Layer not yet constructed for multidimensional input dim")
 
-        self.conditioners = torch.nn.ModuleList()
-        for _ in range(dim[0]):
-            self.conditioners.append(
-                CONDITIONER_REGISTRY[domain](
-                    dim_in=dim[0]-1,
-                    dim_out=1,
-                    expressivity=expressivity,
-                    num_splits=self.diffeomorphism.num_pars,
-                    net_config=net_config,
+        self.conditioners = torch.nn.ModuleList(
+            list(
+                ConditionerChain(
+                    **dict(conditioner_chain_config),
+                    layer_splits=zip(self.conditioner_masks, self.transformed_masks),
+                    num_pars=self.diffeomorphism.num_pars,
                 )
             )
+        )
 
     @staticmethod
     def single_transform_mask(size, mask_num, n_transformed=1, **kwargs):

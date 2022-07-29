@@ -27,7 +27,6 @@ class TrainerConfig(BaseModel):
 
     log_every_n_steps: int = 50
 
-
     learning_rate: float = 0.001
     auto_lr_find: bool = False
 

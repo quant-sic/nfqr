@@ -9,7 +9,7 @@ from torch.nn import Module, parameter
 
 from nfqr.normalizing_flows.diffeomorphisms import DIFFEOMORPHISMS_REGISTRY
 from nfqr.normalizing_flows.diffeomorphisms.inversion import NumericalInverse
-from nfqr.normalizing_flows.layers.conditioners import CONDITIONER_REGISTRY
+from nfqr.normalizing_flows.layers.conditioners import ConditionerChain
 from nfqr.normalizing_flows.misc.constraints import nf_constraints_standard, simplex
 from nfqr.normalizing_flows.nets import NetConfig
 from nfqr.registry import StrRegistry
@@ -26,8 +26,6 @@ class CouplingLayer(Module):
         conditioner_mask,
         transformed_mask,
         diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
-        expressivity: int,
-        net_config: NetConfig,
         domain: Literal["u1"] = "u1",
         conditioner=None,
         **kwargs,
@@ -42,14 +40,8 @@ class CouplingLayer(Module):
         if conditioner is not None:
             self.conditioner = conditioner
 
-        elif conditioner_mask.sum().item() > 0:
-            self.conditioner = CONDITIONER_REGISTRY[domain](
-                dim_in=conditioner_mask.sum().item(),
-                dim_out=transformed_mask.sum().item(),
-                expressivity=expressivity,
-                num_splits=self.diffeomorphism.num_pars,
-                net_config=net_config,
-            )
+    # def conditioner(self):
+    #     pass
 
     def _split(self, xz):
         return xz[..., self.conditioner_mask], xz[..., self.transformed_mask]
@@ -112,8 +104,6 @@ class ResidualCoupling(CouplingLayer, Module):
         conditioner_mask,
         transformed_mask,
         diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
-        expressivity: int,
-        net_config: NetConfig,
         domain: Literal["u1"] = "u1",
         residual_type="global",
         initial_rho_id=None,
@@ -124,8 +114,6 @@ class ResidualCoupling(CouplingLayer, Module):
             conditioner_mask=conditioner_mask,
             transformed_mask=transformed_mask,
             diffeomorphism=diffeomorphism,
-            expressivity=expressivity,
-            net_config=net_config,
             domain=domain,
             conditioner=conditioner,
             **kwargs,
@@ -164,19 +152,27 @@ class ResidualCoupling(CouplingLayer, Module):
 
         elif residual_type == "conditioned":
             if conditioner_mask.sum().item() > 0:
-                self.rho_net = CONDITIONER_REGISTRY[domain](
-                    dim_in=conditioner_mask.sum().item(),
-                    dim_out=transformed_mask.sum().item(),
-                    expressivity=2,
-                    num_splits=1,
-                    net_config=NetConfig(
-                        net_type="mlp",
-                        net_hidden=[
-                            conditioner_mask.sum().item(),
-                            int(conditioner_mask.sum().item() / 2),
-                        ],
-                    ),
+                self.rho_net = (
+                    ConditionerChain(
+                        encoder_config=None,
+                        decoder_config=NetConfig(
+                            net_type="mlp",
+                            net_hidden=[
+                                conditioner_mask.sum().item(),
+                                int(conditioner_mask.sum().item() / 2),
+                            ],
+                        ),
+                        domain=domain,
+                        layer_splits=((conditioner_mask, transformed_mask),),
+                        expressivity=2,
+                        num_pars=1,
+                        share_encoder=False,
+                        share_decoder=False,
+                    )
+                    .__iter__()
+                    .__next__()
                 )
+
             self.get_log_rho = self.get_log_rho_conditioned
 
         else:
@@ -188,8 +184,6 @@ class ResidualCoupling(CouplingLayer, Module):
         conditioner_mask,
         transformed_mask,
         diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
-        expressivity: int,
-        net_config: NetConfig,
         domain: Literal["u1"] = "u1",
         initial_rho_id: float = 0.5,
         conditioner=None,
@@ -199,8 +193,6 @@ class ResidualCoupling(CouplingLayer, Module):
             conditioner_mask=conditioner_mask,
             transformed_mask=transformed_mask,
             diffeomorphism=diffeomorphism,
-            expressivity=expressivity,
-            net_config=net_config,
             domain=domain,
             residual_type="global",
             initial_rho_id=initial_rho_id,
@@ -213,8 +205,6 @@ class ResidualCoupling(CouplingLayer, Module):
         conditioner_mask,
         transformed_mask,
         diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
-        expressivity: int,
-        net_config: NetConfig,
         domain: Literal["u1"] = "u1",
         initial_rho_id: float = 0.5,
         conditioner=None,
@@ -224,8 +214,6 @@ class ResidualCoupling(CouplingLayer, Module):
             conditioner_mask=conditioner_mask,
             transformed_mask=transformed_mask,
             diffeomorphism=diffeomorphism,
-            expressivity=expressivity,
-            net_config=net_config,
             domain=domain,
             residual_type="global_non_trainable",
             initial_rho_id=initial_rho_id,
@@ -238,8 +226,6 @@ class ResidualCoupling(CouplingLayer, Module):
         conditioner_mask,
         transformed_mask,
         diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
-        expressivity: int,
-        net_config: NetConfig,
         domain: Literal["u1"] = "u1",
         conditioner=None,
         **kwargs,
@@ -248,8 +234,6 @@ class ResidualCoupling(CouplingLayer, Module):
             conditioner_mask=conditioner_mask,
             transformed_mask=transformed_mask,
             diffeomorphism=diffeomorphism,
-            expressivity=expressivity,
-            net_config=net_config,
             domain=domain,
             residual_type="conditioned",
             conditioner=conditioner,
@@ -382,7 +366,5 @@ class CouplingConfig(BaseModel):
     domain: Literal["u1"] = "u1"
     specific_layer_type: COUPLING_LAYER_REGISTRY.enum = Field(...)
     diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum
-    expressivity: int
-    net_config: NetConfig
     initial_rho_id: Optional[float]
     # validators ..

@@ -2,6 +2,7 @@ from typing import Literal, Union
 
 from pydantic import BaseModel
 
+from nfqr.normalizing_flows.layers.conditioners import ConditionerChainConfig
 from nfqr.normalizing_flows.layers.layer_splits import LayerSplitConfig
 from nfqr.registry import JointStrRegistry
 
@@ -24,4 +25,4 @@ class LayerConfig(BaseModel):
     specific_layer_config: Union[CouplingConfig, ARLayerConfig, NTransformsLayerConfig]
     layer_split_config: Union[LayerSplitConfig, None]
     num_layers: int
-    share_conditioner: bool = False
+    conditioner_chain_config: ConditionerChainConfig
