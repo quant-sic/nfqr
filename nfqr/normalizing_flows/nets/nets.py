@@ -243,6 +243,7 @@ class EncoderBlock(nn.Module):
         self.modules = nn.ModuleList()
         self.activation = Activation(activation_specifier=activation_specifier)
 
+        n_channels = n_channels if isinstance(n_channels,int) else [n_channels]
         n_channels_list = [in_channels] + n_channels
         for in_,out_,kernel_size_,norm_ in zip(n_channels_list[:-1],n_channels_list[1:],kernel_sizes,norms):
             self.modules.append(
@@ -276,7 +277,7 @@ class EncoderBlock(nn.Module):
 
 class EncoderBlockConfig(BaseModel):
 
-    n_channels:List[int]
+    n_channels:Union[List[int],int]
     kernel_sizes:List[str]
     residual:bool
     activation_specifier:str
