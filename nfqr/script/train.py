@@ -41,7 +41,7 @@ def train_flow_model(exp_dir, skip_done):
             lit_model_config.update({"trainer_config": trainer_config})
 
             logger.info(
-                "Task {}: Interval {} with: \n\n {}".format(
+                "Task {}: Interval {} with: \n\n {} \n\n".format(
                     os.environ["task_id"], idx, lit_model_config
                 )
             )
