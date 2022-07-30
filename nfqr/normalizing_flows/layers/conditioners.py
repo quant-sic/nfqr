@@ -82,7 +82,7 @@ class U1Encoder(Module):
         )
 
         out = self.net(z_u1)
-        
+
         return out
 
 
@@ -145,15 +145,15 @@ class ConditionerChain(Module):
         if share_encoder:
             if not layer_splits.all_conditioners_equal_in:
                 raise RuntimeError(
-                        "share conditioners not possible since in and output dimensions do not match"
-                    )
+                    "share conditioners not possible since in and output dimensions do not match"
+                )
 
         self.share_decoder = share_decoder
         if share_decoder:
             if not layer_splits.all_conditioners_equal_out:
                 raise RuntimeError(
-                        "share conditioners not possible since in and output dimensions do not match"
-                    )
+                    "share conditioners not possible since in and output dimensions do not match"
+                )
 
     def make_encoder(self, conditioner_mask, transformed_mask):
         return ENCODER_REGISTRY[self.domain](
@@ -179,6 +179,7 @@ class ConditionerChain(Module):
         shared_encoder = self.make_encoder(
             conditioner_mask=conditioner_mask, transformed_mask=transformed_mask
         )
+
         shared_decoder = self.make_decoder(
             dim_in=shared_encoder.dim_out,
             in_channels=shared_encoder.out_channels,
@@ -205,18 +206,16 @@ class ConditionerChain(Module):
 
             yield nn.Sequential(encoder, decoder)
 
-
         if not self.share_decoder:
             del shared_decoder
         if not self.share_encoder:
             del shared_encoder
 
 
-
 class ConditionerChainConfig(BaseModel):
 
     domain: Literal["u1"] = "u1"
-    encoder_config: Union[NetConfig,None]
+    encoder_config: Union[NetConfig, None]
     decoder_config: NetConfig
     share_encoder: bool
     share_decoder: bool

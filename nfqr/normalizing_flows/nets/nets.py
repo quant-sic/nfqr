@@ -9,15 +9,6 @@ from nfqr.registry import StrRegistry
 NET_REGISTRY = StrRegistry("nets")
 
 
-class NetConfig(BaseModel):
-
-    net_type: str
-    net_hidden: Optional[List[int]]
-    n_channels_list: Optional[List[int]]
-    pool_sizes_list: Optional[List[Union[int,None]]]
-    coord_layer_specifier: Optional[Literal["rel_position","abs_position"]]
-
-
 @NET_REGISTRY.register("mlp")
 class MLP(nn.Module):
     """a simple 4-layer MLP"""
@@ -211,17 +202,22 @@ class CoordLayer(nn.Module):
                 )
             ]
 
-        self.added_channels = nn.parameter.Parameter(torch.stack(added_channels_list, dim=0),requires_grad=False)
+        self.added_channels = nn.parameter.Parameter(
+            torch.stack(added_channels_list, dim=0), requires_grad=False
+        )
         self.n_added_channels = len(added_channels_list)
 
     def forward(self, x):
-        x_added_channels = torch.cat((x, self.added_channels.expand(x.shape[0],*self.added_channels.shape)), dim=1)
+        x_added_channels = torch.cat(
+            (x, self.added_channels.expand(x.shape[0], *self.added_channels.shape)),
+            dim=1,
+        )
 
         return x_added_channels
 
 
 class Activation(nn.Module):
-    def __init__(self,activation_specifier) -> None:
+    def __init__(self, activation_specifier) -> None:
         super().__init__()
 
         if activation_specifier == "leaky_relu":
@@ -231,59 +227,71 @@ class Activation(nn.Module):
         else:
             raise ValueError("Unknown Activation Function")
 
-    def forward(self,x):
+    def forward(self, x):
         return self.activation(x)
 
 
 class EncoderBlock(nn.Module):
-
-    def __init__(self,in_channels,n_channels,kernel_sizes, residual:bool,activation_specifier,norms) -> None:
+    def __init__(
+        self,
+        in_channels: int,
+        n_channels: List[int],
+        residual: bool,
+        activation_specifier: str,
+        norms: List[Union[str, None]],
+    ) -> None:
         super().__init__()
 
-        self.modules = nn.ModuleList()
+        self.layers = nn.ModuleList()
         self.activation = Activation(activation_specifier=activation_specifier)
 
         n_channels = n_channels if isinstance(n_channels,int) else [n_channels]
         n_channels_list = [in_channels] + n_channels
-        for in_,out_,kernel_size_,norm_ in zip(n_channels_list[:-1],n_channels_list[1:],kernel_sizes,norms):
-            self.modules.append(
+        norms = [None] * len(n_channels) if norms is None else norms
+
+        for in_, out_, norm_ in zip(n_channels_list[:-1], n_channels_list[1:], norms):
+            self.layers.append(
                 nn.Conv1d(
                     in_channels=in_,
                     out_channels=out_,
-                    kernel_size=kernel_size_,
+                    kernel_size=3,
                     padding=1,
                     stride=1,
                     padding_mode="circular",
                 )
             )
-            self.modules.append(self.activation)
-            
-            if norm_== "batch":
-                self.modules.append(nn.BatchNorm1d(out_))
-        
+            self.layers.append(self.activation)
+
+            if norm_ == "batch":
+                self.layers.append(nn.BatchNorm1d(out_))
+
         self.residual = residual
         if residual:
-            if not n_channels[-1]!= in_channels:
-                raise ValueError("In channels do not match out channels, so residual construction not possible")
+            if n_channels[-1] != in_channels:
+                raise ValueError(
+                    "In channels do not match out channels, so residual construction not possible"
+                )
 
-        self.net = nn.Sequential(*self.modules)
+        self.net = nn.Sequential(*self.layers)
 
-    def forward(self,x):
+    def forward(self, x):
 
         x_net = self.net(x)
-        
-        return self.activation( x + x_net)
 
+        if self.residual:
+            x = x + x_net
+        else:
+            x = x_net
 
+        return x
+
+    
 class EncoderBlockConfig(BaseModel):
 
     n_channels:Union[List[int],int]
-    kernel_sizes:List[str]
-    residual:bool
-    activation_specifier:str
-    norms:List[Union[str,None]]
-
-
+    residual: bool = False
+    activation_specifier: str = "mish"
+    norms: Union[List[Union[str, None]], None] = None
 
 
 @NET_REGISTRY.register("cnn_encoder")
@@ -293,14 +301,17 @@ class CNNEncoder(nn.Module):
         conditioner_mask,
         transformed_mask,
         in_channels,
-        block_configs:List[EncoderBlockConfig],
-        pooling_sizes:List[Union[int,None]],
+        block_configs: List[EncoderBlockConfig],
+        pooling_sizes: List[Union[int, None]],
         coord_layer_specifier: Union[bool, str, None] = "rel_position",
         **kwargs,
     ) -> None:
         super().__init__()
 
         blocks = nn.ModuleList()
+        pooling_sizes = (
+            [None] * len(block_configs) if pooling_sizes is None else pooling_sizes
+        )
 
         if coord_layer_specifier is not None:
             coord_layer = CoordLayer(
@@ -311,26 +322,29 @@ class CNNEncoder(nn.Module):
             blocks.append(coord_layer)
             in_channels += coord_layer.n_added_channels
 
-        for block_config,pooling_size_ in zip(block_configs,pooling_sizes):
-            blocks.append(
-                EncoderBlock(**dict(block_config),in_channels=in_channels)
-            )
+        for block_config, pooling_size_ in zip(block_configs, pooling_sizes):
+
+            blocks.append(EncoderBlock(**dict(block_config), in_channels=in_channels))
+            in_channels = block_config.n_channels[-1]
+
             if pooling_size_ is not None:
                 blocks.append(nn.AdaptiveMaxPool1d(pooling_size_))
 
-
         self.net = nn.Sequential(*blocks)
 
-        self._dim_out = ([conditioner_mask.sum().item()] + list(filter(lambda s: s is not None,pooling_sizes)))[-1]
+        self._dim_out = (
+            [conditioner_mask.sum().item()]
+            + list(filter(lambda s: s is not None, pooling_sizes))
+        )[-1]
         self._out_channels = block_configs[-1].n_channels[-1]
 
     @property
     def dim_out(self):
         return self._dim_out
-    
+
     @property
     def out_channels(self):
-        self._out_channels
+        return self._out_channels
 
     def forward(self, x):
         return self.net(x)
@@ -372,3 +386,15 @@ class MLPDecoder(nn.Module):
 
     def forward(self, x):
         return self.net(x)
+
+
+class NetConfig(BaseModel):
+
+    net_type: str
+    net_hidden: Optional[List[int]]
+    coord_layer_specifier: Optional[
+        Literal["rel_position", "abs_position", "rel_position+abs_position"]
+    ]
+
+    block_configs: Optional[List[EncoderBlockConfig]]
+    pooling_sizes: Optional[Union[List[Union[int, None]], None]] = None
