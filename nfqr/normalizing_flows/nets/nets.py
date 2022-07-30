@@ -1,7 +1,7 @@
 from typing import List, Literal, Optional, Union
 
 import torch
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator, validator
 from torch import nn
 
 from nfqr.registry import StrRegistry
@@ -245,7 +245,6 @@ class EncoderBlock(nn.Module):
         self.layers = nn.ModuleList()
         self.activation = Activation(activation_specifier=activation_specifier)
 
-        n_channels = n_channels if isinstance(n_channels,int) else [n_channels]
         n_channels_list = [in_channels] + n_channels
         norms = [None] * len(n_channels) if norms is None else norms
 
@@ -288,10 +287,19 @@ class EncoderBlock(nn.Module):
     
 class EncoderBlockConfig(BaseModel):
 
-    n_channels:Union[List[int],int]
+    n_channels: List[int]
     residual: bool = False
     activation_specifier: str = "mish"
     norms: Union[List[Union[str, None]], None] = None
+
+    @validator("n_channels",pre=True)
+    @classmethod
+    def to_list(cls,v):
+        if isinstance(v,int):
+            return [v]
+        else:
+            return v
+        
 
 
 @NET_REGISTRY.register("cnn_encoder")
@@ -336,7 +344,7 @@ class CNNEncoder(nn.Module):
             [conditioner_mask.sum().item()]
             + list(filter(lambda s: s is not None, pooling_sizes))
         )[-1]
-        self._out_channels = block_configs[-1].n_channels[-1]
+        self._out_channels = in_channels
 
     @property
     def dim_out(self):
