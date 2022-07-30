@@ -234,60 +234,63 @@ class Activation(nn.Module):
 class EncoderBlock(nn.Module):
     def __init__(
         self,
-        in_channels,
-        n_channels,
-        kernel_sizes,
+        in_channels: int,
+        n_channels: List[int],
         residual: bool,
-        activation_specifier,
-        norms,
+        activation_specifier: str,
+        norms: List[Union[str, None]],
     ) -> None:
         super().__init__()
 
-        self.modules = nn.ModuleList()
+        self.layers = nn.ModuleList()
         self.activation = Activation(activation_specifier=activation_specifier)
 
         n_channels_list = [in_channels] + n_channels
-        for in_, out_, kernel_size_, norm_ in zip(
-            n_channels_list[:-1], n_channels_list[1:], kernel_sizes, norms
-        ):
-            self.modules.append(
+        norms = [None] * len(n_channels) if norms is None else norms
+
+        for in_, out_, norm_ in zip(n_channels_list[:-1], n_channels_list[1:], norms):
+            self.layers.append(
                 nn.Conv1d(
                     in_channels=in_,
                     out_channels=out_,
-                    kernel_size=kernel_size_,
+                    kernel_size=3,
                     padding=1,
                     stride=1,
                     padding_mode="circular",
                 )
             )
-            self.modules.append(self.activation)
+            self.layers.append(self.activation)
 
             if norm_ == "batch":
-                self.modules.append(nn.BatchNorm1d(out_))
+                self.layers.append(nn.BatchNorm1d(out_))
 
         self.residual = residual
         if residual:
-            if not n_channels[-1] != in_channels:
+            if n_channels[-1] != in_channels:
                 raise ValueError(
                     "In channels do not match out channels, so residual construction not possible"
                 )
 
-        self.net = nn.Sequential(*self.modules)
+        self.net = nn.Sequential(*self.layers)
 
     def forward(self, x):
 
         x_net = self.net(x)
 
-        return self.activation(x + x_net)
+        if self.residual:
+            x = x + x_net
+        else:
+            x = x_net
+
+        return x
 
 
 class EncoderBlockConfig(BaseModel):
 
     n_channels: List[int]
-    kernel_sizes: List[str]
-    residual: bool
-    activation_specifier: str
-    norms: List[Union[str, None]]
+    residual: bool = False
+    activation_specifier: str = "mish"
+    norms: Union[List[Union[str, None]], None] = None
 
 
 @NET_REGISTRY.register("cnn_encoder")
@@ -305,6 +308,9 @@ class CNNEncoder(nn.Module):
         super().__init__()
 
         blocks = nn.ModuleList()
+        pooling_sizes = (
+            [None] * len(block_configs) if pooling_sizes is None else pooling_sizes
+        )
 
         if coord_layer_specifier is not None:
             coord_layer = CoordLayer(
@@ -316,7 +322,10 @@ class CNNEncoder(nn.Module):
             in_channels += coord_layer.n_added_channels
 
         for block_config, pooling_size_ in zip(block_configs, pooling_sizes):
+
             blocks.append(EncoderBlock(**dict(block_config), in_channels=in_channels))
+            in_channels = block_config.n_channels[-1]
+
             if pooling_size_ is not None:
                 blocks.append(nn.AdaptiveMaxPool1d(pooling_size_))
 
@@ -334,7 +343,7 @@ class CNNEncoder(nn.Module):
 
     @property
     def out_channels(self):
-        self._out_channels
+        return self._out_channels
 
     def forward(self, x):
         return self.net(x)
@@ -382,7 +391,9 @@ class NetConfig(BaseModel):
 
     net_type: str
     net_hidden: Optional[List[int]]
-    coord_layer_specifier: Optional[Literal["rel_position", "abs_position"]]
+    coord_layer_specifier: Optional[
+        Literal["rel_position", "abs_position", "rel_position+abs_position"]
+    ]
 
     block_configs: Optional[List[EncoderBlockConfig]]
-    pooling_sizes: Optional[List[Union[int, None]]]
+    pooling_sizes: Optional[Union[List[Union[int, None]], None]] = None
