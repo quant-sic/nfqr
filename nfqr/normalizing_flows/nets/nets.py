@@ -235,10 +235,12 @@ class EncoderBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
+        dim: int,
         n_channels: List[int],
         residual: bool,
         activation_specifier: str,
         norms: List[Union[str, None]],
+        kernel_sizes: Union[List[int], None],
     ) -> None:
         super().__init__()
 
@@ -247,15 +249,18 @@ class EncoderBlock(nn.Module):
 
         n_channels_list = [in_channels] + n_channels
         norms = [None] * len(n_channels) if norms is None else norms
+        kernel_sizes = [3] * len(n_channels) if kernel_sizes is None else kernel_sizes
 
-        for in_, out_, norm_ in zip(n_channels_list[:-1], n_channels_list[1:], norms):
+        for in_, out_, norm_, kernel_size_ in zip(
+            n_channels_list[:-1], n_channels_list[1:], norms, kernel_sizes
+        ):
             self.layers.append(
                 nn.Conv1d(
                     in_channels=in_,
                     out_channels=out_,
-                    kernel_size=3,
-                    padding=1,
+                    kernel_size=kernel_size_,
                     stride=1,
+                    padding=kernel_size_ // 2,
                     padding_mode="circular",
                 )
             )
@@ -263,6 +268,8 @@ class EncoderBlock(nn.Module):
 
             if norm_ == "batch":
                 self.layers.append(nn.BatchNorm1d(out_))
+            if norm_ == "layer":
+                self.layers.append(nn.LayerNorm(normalized_shape=(out_, dim)))
 
         self.residual = residual
         if residual:
@@ -291,6 +298,7 @@ class EncoderBlockConfig(BaseModel):
     residual: bool = False
     activation_specifier: str = "mish"
     norms: Union[List[Union[str, None]], None] = None
+    kernel_sizes: Union[List[int], None] = None
 
 
 @NET_REGISTRY.register("cnn_encoder")
@@ -311,6 +319,7 @@ class CNNEncoder(nn.Module):
         pooling_sizes = (
             [None] * len(block_configs) if pooling_sizes is None else pooling_sizes
         )
+        in_size = conditioner_mask.sum().item()
 
         if coord_layer_specifier is not None:
             coord_layer = CoordLayer(
@@ -323,11 +332,18 @@ class CNNEncoder(nn.Module):
 
         for block_config, pooling_size_ in zip(block_configs, pooling_sizes):
 
-            blocks.append(EncoderBlock(**dict(block_config), in_channels=in_channels))
+            blocks.append(
+                EncoderBlock(
+                    **dict(block_config),
+                    in_channels=in_channels,
+                    dim=in_size,
+                )
+            )
             in_channels = block_config.n_channels[-1]
 
             if pooling_size_ is not None:
                 blocks.append(nn.AdaptiveMaxPool1d(pooling_size_))
+                in_size = pooling_size_
 
         self.net = nn.Sequential(*blocks)
 
