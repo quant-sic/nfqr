@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint,EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from nfqr.globals import EXPERIMENTS_DIR
@@ -57,7 +57,7 @@ def train_flow_model(exp_dir, skip_done):
                     model_ckpt_path, **lit_model_config
                 )
 
-            callbacks = [LearningRateMonitor()]
+            callbacks = [LearningRateMonitor(),EarlyStopping(monitor="nip/ess_p/0-1/ess_p",stopping_threshold=.1)]
 
             trainer = Trainer(
                 **trainer_config.dict(

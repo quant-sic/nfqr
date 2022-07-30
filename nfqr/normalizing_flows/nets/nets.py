@@ -247,6 +247,7 @@ class EncoderBlock(nn.Module):
         self.layers = nn.ModuleList()
         self.activation = Activation(activation_specifier=activation_specifier)
 
+        n_channels = n_channels if isinstance(n_channels,int) else [n_channels]
         n_channels_list = [in_channels] + n_channels
         norms = [None] * len(n_channels) if norms is None else norms
         kernel_sizes = [3] * len(n_channels) if kernel_sizes is None else kernel_sizes
@@ -291,10 +292,10 @@ class EncoderBlock(nn.Module):
 
         return x
 
-
+    
 class EncoderBlockConfig(BaseModel):
 
-    n_channels: List[int]
+    n_channels:Union[List[int],int]
     residual: bool = False
     activation_specifier: str = "mish"
     norms: Union[List[Union[str, None]], None] = None
