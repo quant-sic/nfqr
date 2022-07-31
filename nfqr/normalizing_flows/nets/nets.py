@@ -190,7 +190,8 @@ class CoordLayer(nn.Module):
             ).item()
             added_channels_list += [
                 (
-                    2*torch.min(
+                    2
+                    * torch.min(
                         abs(torch.arange(len(conditioner_mask)) - transformed_position),
                         abs(
                             reversed(torch.arange(len(conditioner_mask)))
@@ -199,7 +200,9 @@ class CoordLayer(nn.Module):
                         ),
                     )[conditioner_mask]
                     / len(conditioner_mask)
-                ) * 2 - 1
+                )
+                * 2
+                - 1
             ]
 
         self.added_channels = nn.parameter.Parameter(
@@ -241,7 +244,7 @@ class EncoderBlock(nn.Module):
         activation_specifier: str,
         norms: List[Union[str, None]],
         kernel_sizes: Union[List[int], None],
-        concat_input:bool = False
+        concat_input: bool = False,
     ) -> None:
         super().__init__()
 
@@ -272,8 +275,6 @@ class EncoderBlock(nn.Module):
                 self.layers.append(nn.BatchNorm1d(out_))
             if norm_ == "layer":
                 self.layers.append(nn.LayerNorm(normalized_shape=(out_, dim)))
-            
-
 
         self.residual = residual
         if residual:
@@ -303,28 +304,27 @@ class EncoderBlock(nn.Module):
             x_out = x_net
 
         if self.concat_input:
-            x_out = torch.cat([x,x_out],dim=1)
+            x_out = torch.cat([x, x_out], dim=1)
 
         return x_out
 
-    
+
 class EncoderBlockConfig(BaseModel):
 
-    n_channels:Union[List[int],int]
+    n_channels: Union[List[int], int]
     residual: bool = False
     activation_specifier: str = "mish"
     norms: Union[List[Union[str, None]], None] = None
     kernel_sizes: Union[List[int], None] = None
-    concat_input:bool = False
+    concat_input: bool = False
 
-    @validator("n_channels",pre=True)
+    @validator("n_channels", pre=True)
     @classmethod
-    def to_list(cls,v):
-        if isinstance(v,int):
+    def to_list(cls, v):
+        if isinstance(v, int):
             return [v]
         else:
             return v
-        
 
 
 @NET_REGISTRY.register("cnn_encoder")
@@ -359,10 +359,10 @@ class CNNEncoder(nn.Module):
         for block_config, pooling_size_ in zip(block_configs, pooling_sizes):
 
             encoder_block = EncoderBlock(
-                    **dict(block_config),
-                    in_channels=in_channels,
-                    dim=in_size,
-                )
+                **dict(block_config),
+                in_channels=in_channels,
+                dim=in_size,
+            )
 
             blocks.append(encoder_block)
             in_channels = encoder_block.out_channels
@@ -402,34 +402,32 @@ class MLPDecoder(nn.Module):
         net_hidden: List[int],
         norms: Union[List[Union[str, None]], None] = None,
         activation_specifier: str = "mish",
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__()
 
         self.activation = Activation(activation_specifier=activation_specifier)
 
-
-        modules = nn.ModuleList()
-        modules.append(View([-1, in_size * in_channels]))
+        layers = nn.ModuleList()
+        layers.append(View([-1, in_size * in_channels]))
 
         sizes = [in_size * in_channels] + net_hidden + [out_size * out_channels]
         norms = [None] * len(net_hidden) if norms is None else norms
         norms += [None]
 
-        for idx,(in_,out_,norm_) in enumerate(zip(sizes[:-1],sizes[1:],norms)):
-            modules.append(nn.Linear(in_, out_))
+        for idx, (in_, out_, norm_) in enumerate(zip(sizes[:-1], sizes[1:], norms)):
+            layers.append(nn.Linear(in_, out_))
 
             if norm_ == "batch":
-                self.layers.append(nn.BatchNorm1d(out_))
+                layers.append(nn.BatchNorm1d(out_))
             if norm_ == "layer":
-                self.layers.append(nn.LayerNorm(normalized_shape=(out_)))                
+                layers.append(nn.LayerNorm(normalized_shape=(out_)))
 
             if idx != len(sizes) - 2:
-                modules.append(self.activation)
+                layers.append(self.activation)
 
-
-        modules.append(View([-1, out_size, out_channels]))
-        self.net = nn.Sequential(*modules)
+        layers.append(View([-1, out_size, out_channels]))
+        self.net = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.net(x)
@@ -439,7 +437,7 @@ class NetConfig(BaseModel):
 
     net_type: str
     net_hidden: Optional[List[int]]
-    norms:Optional[List[Union[str, None]]]
+    norms: Optional[List[Union[str, None]]]
     coord_layer_specifier: Optional[
         Literal["rel_position", "abs_position", "rel_position+abs_position"]
     ]
