@@ -46,7 +46,7 @@ if __name__ == "__main__":
             stats = mcmc.get_stats()
 
         sus_exact = SusceptibilityExact(
-            mcmc_config.action_config.specific_action_config.beta, *mcmc_config.dim
+            mcmc.action.beta, *mcmc_config.dim
         ).evaluate()
 
         result_config = MCMCResult(

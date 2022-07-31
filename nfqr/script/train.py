@@ -57,7 +57,7 @@ def train_flow_model(exp_dir, skip_done):
                     model_ckpt_path, **lit_model_config
                 )
 
-            callbacks = [LearningRateMonitor(),EarlyStopping(monitor="nip/ess_p/0-1/ess_p",stopping_threshold=.1)]
+            callbacks = [LearningRateMonitor()]
 
             trainer = Trainer(
                 **trainer_config.dict(

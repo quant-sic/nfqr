@@ -121,7 +121,7 @@ class MCMCConfig(BaseConfig):
 
         def set_dim(key, list_or_dict):
 
-            if key in ("trajectory_sampler_config",):
+            if key in ("trajectory_sampler_config","specific_action_config"):
                 if "dim" not in list_or_dict[key]:
 
                     list_or_dict[key]["dim"] = dim

@@ -1,7 +1,7 @@
 from typing import List, Literal, Optional, Union
 
 import torch
-from pydantic import BaseModel, root_validator, validator
+from pydantic import BaseModel, validator
 from torch import nn
 
 from nfqr.registry import StrRegistry
@@ -190,7 +190,7 @@ class CoordLayer(nn.Module):
             ).item()
             added_channels_list += [
                 (
-                    torch.min(
+                    2*torch.min(
                         abs(torch.arange(len(conditioner_mask)) - transformed_position),
                         abs(
                             reversed(torch.arange(len(conditioner_mask)))
@@ -198,8 +198,8 @@ class CoordLayer(nn.Module):
                             + 1
                         ),
                     )[conditioner_mask]
-                    / (len(conditioner_mask) - 1)
-                )
+                    / len(conditioner_mask)
+                ) * 2 - 1
             ]
 
         self.added_channels = nn.parameter.Parameter(
@@ -241,13 +241,13 @@ class EncoderBlock(nn.Module):
         activation_specifier: str,
         norms: List[Union[str, None]],
         kernel_sizes: Union[List[int], None],
+        concat_input:bool = False
     ) -> None:
         super().__init__()
 
         self.layers = nn.ModuleList()
         self.activation = Activation(activation_specifier=activation_specifier)
 
-        n_channels = n_channels if isinstance(n_channels,int) else [n_channels]
         n_channels_list = [in_channels] + n_channels
         norms = [None] * len(n_channels) if norms is None else norms
         kernel_sizes = [3] * len(n_channels) if kernel_sizes is None else kernel_sizes
@@ -265,32 +265,47 @@ class EncoderBlock(nn.Module):
                     padding_mode="circular",
                 )
             )
+
             self.layers.append(self.activation)
 
             if norm_ == "batch":
                 self.layers.append(nn.BatchNorm1d(out_))
             if norm_ == "layer":
                 self.layers.append(nn.LayerNorm(normalized_shape=(out_, dim)))
+            
+
 
         self.residual = residual
         if residual:
             if n_channels[-1] != in_channels:
                 raise ValueError(
-                    "In channels do not match out channels, so residual construction not possible"
+                    f"In channels {in_channels} do not match out channels {n_channels[-1]}, so residual construction not possible"
                 )
 
+        self.concat_input = concat_input
+        self._out_channels = n_channels[-1]
+        if self.concat_input:
+            self._out_channels += in_channels
+
         self.net = nn.Sequential(*self.layers)
+
+    @property
+    def out_channels(self):
+        return self._out_channels
 
     def forward(self, x):
 
         x_net = self.net(x)
 
         if self.residual:
-            x = x + x_net
+            x_out = x + x_net
         else:
-            x = x_net
+            x_out = x_net
 
-        return x
+        if self.concat_input:
+            x_out = torch.cat([x,x_out],dim=1)
+
+        return x_out
 
     
 class EncoderBlockConfig(BaseModel):
@@ -300,6 +315,7 @@ class EncoderBlockConfig(BaseModel):
     activation_specifier: str = "mish"
     norms: Union[List[Union[str, None]], None] = None
     kernel_sizes: Union[List[int], None] = None
+    concat_input:bool = False
 
     @validator("n_channels",pre=True)
     @classmethod
@@ -342,14 +358,14 @@ class CNNEncoder(nn.Module):
 
         for block_config, pooling_size_ in zip(block_configs, pooling_sizes):
 
-            blocks.append(
-                EncoderBlock(
+            encoder_block = EncoderBlock(
                     **dict(block_config),
                     in_channels=in_channels,
                     dim=in_size,
                 )
-            )
-            in_channels = block_config.n_channels[-1]
+
+            blocks.append(encoder_block)
+            in_channels = encoder_block.out_channels
 
             if pooling_size_ is not None:
                 blocks.append(nn.AdaptiveMaxPool1d(pooling_size_))
@@ -384,27 +400,33 @@ class MLPDecoder(nn.Module):
         out_size: int,
         out_channels: int,
         net_hidden: List[int],
-        activation: str = "mish",
-        **kwargs,
+        norms: Union[List[Union[str, None]], None] = None,
+        activation_specifier: str = "mish",
+        **kwargs
     ) -> None:
         super().__init__()
 
-        if activation == "leaky_relu":
-            activation_function = nn.LeakyReLU
-        elif activation == "mish":
-            activation_function = nn.Mish
-        else:
-            raise ValueError("Unknown Activation Function")
+        self.activation = Activation(activation_specifier=activation_specifier)
+
 
         modules = nn.ModuleList()
         modules.append(View([-1, in_size * in_channels]))
 
         sizes = [in_size * in_channels] + net_hidden + [out_size * out_channels]
+        norms = [None] * len(net_hidden) if norms is None else norms
+        norms += [None]
 
-        for i in range(len(sizes) - 1):
-            modules.append(nn.Linear(sizes[i], sizes[i + 1]))
-            if i != len(sizes) - 2:
-                modules.append(activation_function())
+        for idx,(in_,out_,norm_) in enumerate(zip(sizes[:-1],sizes[1:],norms)):
+            modules.append(nn.Linear(in_, out_))
+
+            if norm_ == "batch":
+                self.layers.append(nn.BatchNorm1d(out_))
+            if norm_ == "layer":
+                self.layers.append(nn.LayerNorm(normalized_shape=(out_)))                
+
+            if idx != len(sizes) - 2:
+                modules.append(self.activation)
+
 
         modules.append(View([-1, out_size, out_channels]))
         self.net = nn.Sequential(*modules)
@@ -417,6 +439,7 @@ class NetConfig(BaseModel):
 
     net_type: str
     net_hidden: Optional[List[int]]
+    norms:Optional[List[Union[str, None]]]
     coord_layer_specifier: Optional[
         Literal["rel_position", "abs_position", "rel_position+abs_position"]
     ]

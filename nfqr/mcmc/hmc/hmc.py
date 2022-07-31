@@ -85,7 +85,7 @@ class HMC(MCMC):
                 raise ValueError("Unknown Observable")
 
             if action_config.action_type == "qr":
-                cpp_action = hmc_cpp.QR(action_config.specific_action_config.beta)
+                cpp_action = hmc_cpp.QR(self.action.beta)
             else:
                 raise ValueError("Unknown Action")
 

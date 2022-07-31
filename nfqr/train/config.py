@@ -173,6 +173,7 @@ class LitModelConfig(BaseConfig):
                 "layer_chain_config",
                 "base_dist_config",
                 "trajectory_sampler_config",
+                "specific_action_config"
             ):
                 if "dim" not in list_or_dict[key]:
 
