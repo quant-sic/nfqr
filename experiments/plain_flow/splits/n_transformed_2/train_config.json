@@ -1,0 +1,89 @@
+{
+  "flow_config": {
+    "flow_type": "bare",
+    "domain": "u1",
+    "base_dist_config": {
+      "dist_type": "uniform",
+      "loc_requires_grad": false,
+      "concentration_requires_grad": false,
+      "loc": null,
+      "concentration_unconstrained": null
+    },
+    "layer_chain_config": {
+      "layer_configs": {
+        "layer_type": "coupling_layer",
+        "specific_layer_config": {
+          "domain": "u1",
+          "specific_layer_type": "bare",
+          "diffeomorphism": "ncp",
+          "expressivity": 3,
+          "net_config": {
+            "net_type": "mlp",
+            "net_hidden": [
+              50,
+              75,
+              100
+            ]
+          }
+        }
+      },
+      "layer_split_config": {
+        "split_type": "n_transforms",
+        "specific_split_type_config": {
+          "n_transformed": [
+            2,
+            3,
+            5,
+            8,
+            10,
+            12
+          ]
+        }
+      },
+      "num_layers": [
+        13,
+        9,
+        6,
+        5,
+        3,
+        3
+      ]
+    }
+  },
+  "observables": [
+    "Q",
+    "Chi_t"
+  ],
+  "action_config": {
+    "target_system": "qr",
+    "action_type": "qr",
+    "specific_action_config": {
+      "beta": 4.0
+    }
+  },
+  "dim": [
+    25
+  ],
+  "trainer_config": {
+    "learning_rate": 0.001,
+    "auto_lr_find": false,
+    "batch_size": 10000,
+    "train_num_batches": 100,
+    "val_num_batches": 5,
+    "max_epochs": 1000,
+    "log_every_n_steps": 25,
+    "task_parameters": [
+      "n_transformed",
+      "num_layers"
+    ],
+    "accumulate_grad_batches": 2,
+    "loss_configs": [
+      {
+        "loss_type": "reverse",
+        "specific_loss_config": {}
+      }
+    ],
+    "gradient_clip_val": null,
+    "lr_scheduler": null
+  }
+}

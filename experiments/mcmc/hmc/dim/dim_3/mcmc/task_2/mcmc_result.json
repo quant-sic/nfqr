@@ -1,0 +1,52 @@
+{
+  "mcmc_config": {
+    "mcmc_type": "leapfrog",
+    "mcmc_alg": "hmc",
+    "observables": [
+      "Chi_t"
+    ],
+    "n_steps": 5000000,
+    "dim": [
+      30
+    ],
+    "action_config": {
+      "target_system": "qr",
+      "action_type": "qr",
+      "specific_action_config": {
+        "beta": 1.0
+      }
+    },
+    "n_burnin_steps": 100000,
+    "out_dir": "/home/dechentf/MA/nfqr/experiments/mcmc/hmc/dim/dim_3/mcmc/task_2",
+    "n_traj_steps": 20,
+    "step_size": 0.05,
+    "autotune_step": true,
+    "hmc_engine": "cpp_batch",
+    "n_replicas": 10,
+    "n_samples_at_a_time": 50000,
+    "initial_config_sampler_config": {
+      "trajectory_sampler_config": {
+        "traj_type": "hot",
+        "dim": [
+          30
+        ],
+        "k": null,
+        "n_replicas": 10
+      },
+      "target_system": "qr"
+    },
+    "task_parameters": [
+      "dim"
+    ]
+  },
+  "acceptance_rate": 0.762733519077301,
+  "obs_stats": {
+    "Chi_t": {
+      "mean": 1.219247579574585,
+      "error": 0.005114579435111912,
+      "tau_int": 219.98746842656598,
+      "dtau_int": 2.829906023848158
+    }
+  },
+  "sus_exact": 1.2190870795684212
+}

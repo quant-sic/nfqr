@@ -308,6 +308,31 @@ class EncoderBlock(nn.Module):
 
         return x_out
 
+class Pooling(nn.Module):
+    def __init__(self,pooling_type,pooling_out_size) -> None:
+        super().__init__()
+
+        if pooling_type=="max":
+            self.pooling = nn.AdaptiveMaxPool1d(output_size=pooling_out_size)
+        elif pooling_type=="avg":
+            self.pooling = nn.AdaptiveAvgPool1d(output_size=pooling_out_size)
+        else:
+            raise ValueError(f"Unknown pooling type {pooling_type}")       
+
+        self._out_size= pooling_out_size
+
+    @property
+    def out_size(self):
+        return self._out_size
+
+    def forward(self,x):
+        return self.pooling(x)
+
+class PoolingConfig(BaseModel):
+
+    pooling_type:Literal["max","avg"]
+    pooling_out_size:int
+
 
 class EncoderBlockConfig(BaseModel):
 
@@ -335,15 +360,15 @@ class CNNEncoder(nn.Module):
         transformed_mask,
         in_channels,
         block_configs: List[EncoderBlockConfig],
-        pooling_sizes: List[Union[int, None]],
+        pooling_configs: List[Union[PoolingConfig, None]],
         coord_layer_specifier: Union[bool, str, None] = "rel_position",
         **kwargs,
     ) -> None:
         super().__init__()
 
         blocks = nn.ModuleList()
-        pooling_sizes = (
-            [None] * len(block_configs) if pooling_sizes is None else pooling_sizes
+        pooling_configs = (
+            [None] * len(block_configs) if pooling_configs is None else pooling_configs
         )
         in_size = conditioner_mask.sum().item()
 
@@ -356,7 +381,7 @@ class CNNEncoder(nn.Module):
             blocks.append(coord_layer)
             in_channels += coord_layer.n_added_channels
 
-        for block_config, pooling_size_ in zip(block_configs, pooling_sizes):
+        for block_config, pooling_config in zip(block_configs, pooling_configs):
 
             encoder_block = EncoderBlock(
                 **dict(block_config),
@@ -367,16 +392,14 @@ class CNNEncoder(nn.Module):
             blocks.append(encoder_block)
             in_channels = encoder_block.out_channels
 
-            if pooling_size_ is not None:
-                blocks.append(nn.AdaptiveMaxPool1d(pooling_size_))
-                in_size = pooling_size_
+            if pooling_config is not None:
+                pooling = Pooling(**dict(pooling_config))
+                blocks.append(pooling)
+                in_size = pooling.out_size
 
         self.net = nn.Sequential(*blocks)
 
-        self._dim_out = (
-            [conditioner_mask.sum().item()]
-            + list(filter(lambda s: s is not None, pooling_sizes))
-        )[-1]
+        self._dim_out = in_size
         self._out_channels = in_channels
 
     @property
@@ -418,13 +441,15 @@ class MLPDecoder(nn.Module):
         for idx, (in_, out_, norm_) in enumerate(zip(sizes[:-1], sizes[1:], norms)):
             layers.append(nn.Linear(in_, out_))
 
+            if idx != len(sizes) - 2:
+                layers.append(self.activation)
+                
             if norm_ == "batch":
                 layers.append(nn.BatchNorm1d(out_))
             if norm_ == "layer":
                 layers.append(nn.LayerNorm(normalized_shape=(out_)))
 
-            if idx != len(sizes) - 2:
-                layers.append(self.activation)
+
 
         layers.append(View([-1, out_size, out_channels]))
         self.net = nn.Sequential(*layers)
@@ -443,4 +468,4 @@ class NetConfig(BaseModel):
     ]
 
     block_configs: Optional[List[EncoderBlockConfig]]
-    pooling_sizes: Optional[Union[List[Union[int, None]], None]] = None
+    pooling_configs: Optional[List[Union[PoolingConfig, None]]] = None

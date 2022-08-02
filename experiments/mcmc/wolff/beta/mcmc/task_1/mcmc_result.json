@@ -1,0 +1,18 @@
+{
+  "observables": [
+    "Chi_t"
+  ],
+  "mcmc_type": "wolff",
+  "mcmc_alg": "cluster",
+  "acceptance_rate": 1.0,
+  "n_steps": 100000,
+  "obs_stats": {
+    "Chi_t": {
+      "mean": 1.4713599681854248,
+      "error": 0.02025712025154982,
+      "tau_int": 4.652388290827018,
+      "dtau_int": 0.17617166670160955
+    }
+  },
+  "sus_exact": 1.4873970932723264
+}

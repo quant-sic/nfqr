@@ -1,0 +1,81 @@
+{
+  "flow_config": {
+    "flow_type": "bare",
+    "domain": "u1",
+    "base_dist_config": {
+      "dist_type": "uniform",
+      "loc_requires_grad": false,
+      "concentration_requires_grad": false,
+      "loc": null,
+      "concentration_unconstrained": null
+    },
+    "layer_chain_config": {
+      "layers_config": {
+        "domain": "u1",
+        "coupling_type": "bare",
+        "diffeomorphism": "ncp",
+        "expressivity": 8,
+        "net_config": {
+          "net_type": "mlp",
+          "net_hidden": [
+            50,
+            50,
+            50
+          ]
+        }
+      },
+      "split_type": "checkerboard",
+      "num_layers": 5
+    }
+  },
+  "target_system": "qr",
+  "action": "qr",
+  "observables": [
+    "Chi_t"
+  ],
+  "train_setup": "reverse",
+  "action_config": {
+    "beta": 1.5
+  },
+  "dim": [
+    25
+  ],
+  "trainer_config": {
+    "batch_size": 5000,
+    "num_batches": 100,
+    "max_epochs": 1000,
+    "log_every_n_steps": 50,
+    "task_parameters": [
+      "max_observed_change_rate"
+    ],
+    "accumulate_grad_batches": 2,
+    "scheduler_configs": [
+      {
+        "target_beta": 4.0,
+        "damping_constant": {
+          "Chi_t": 50
+        },
+        "max_observed_change_rate": [
+          {
+            "Chi_t": 0.005
+          },
+          {
+            "Chi_t": 0.01
+          },
+          {
+            "Chi_t": 0.02
+          },
+          {
+            "Chi_t": 0.03
+          },
+          {
+            "Chi_t": 0.05
+          }
+        ],
+        "change_rate": 0.1,
+        "cooldown_steps": 1000,
+        "metric_window_length": 1000
+      }
+    ]
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "mcmc_config": {
+    "mcmc_type": "leapfrog",
+    "mcmc_alg": "hmc",
+    "observables": [
+      "Chi_t"
+    ],
+    "n_steps": 10000000,
+    "dim": [
+      28
+    ],
+    "action_config": {
+      "target_system": "qr",
+      "action_type": "qr",
+      "specific_action_config": {
+        "beta": null,
+        "dim": [
+          28
+        ],
+        "T": 4.0,
+        "mom_inertia": 0.25
+      }
+    },
+    "n_burnin_steps": 1000000,
+    "out_dir": "/home/dechentf/MA/nfqr/experiments/mcmc/hmc/clp/mcmc/task_9",
+    "n_traj_steps": 20,
+    "step_size": 0.05,
+    "autotune_step": true,
+    "hmc_engine": "cpp_batch",
+    "n_replicas": 10,
+    "n_samples_at_a_time": 50000,
+    "initial_config_sampler_config": {
+      "trajectory_sampler_config": {
+        "traj_type": "hot",
+        "dim": [
+          28
+        ],
+        "k": null,
+        "n_replicas": 10
+      },
+      "target_system": "qr"
+    },
+    "task_parameters": [
+      "dim"
+    ]
+  },
+  "acceptance_rate": 0.7849804759025574,
+  "obs_stats": {
+    "Chi_t": {
+      "mean": 0.6459122896194458,
+      "error": 0.005549633238682695,
+      "tau_int": 1808.3105962367536,
+      "dtau_int": 44.17046461560886
+    }
+  },
+  "sus_exact": 0.6439874072967454
+}
