@@ -1,5 +1,4 @@
-from calendar import c
-from typing import List, Literal, Union
+from typing import Literal, Union
 
 import torch
 from pydantic import BaseModel
@@ -11,34 +10,6 @@ from nfqr.registry import StrRegistry
 
 ENCODER_REGISTRY = StrRegistry("encoders")
 DECODER_REGISTRY = StrRegistry("decoders")
-
-# class ConditionerU1(Module):
-#     def __init__(self, dim_in,in_channels, dim_out, expressivity, num_splits, net_config):
-#         super(ConditionerU1, self).__init__()
-
-#         self.net = NET_REGISTRY[net_config.net_type](
-#             in_size=dim_in * 2,
-#             in_channels=in_channels * 2,
-#             out_size=dim_out,
-#             out_channels=expressivity * num_splits,
-#             **dict(net_config)
-#         )
-#         self.expressivity = expressivity
-
-#     def forward(self, z):
-
-#         z_u1 = torch.stack(
-#             [
-#                 torch.cos(z),
-#                 torch.sin(z),
-#             ],
-#             -1,
-#         ).view(*z.shape[:-1], -1)
-
-#         out = self.net(z_u1)
-#         h_pars = torch.split(out, self.expressivity, dim=-1)
-
-#         return h_pars
 
 
 @ENCODER_REGISTRY.register("u1")
@@ -58,7 +29,7 @@ class U1Encoder(Module):
                 in_channels=2 * in_channels,
                 **dict(net_config),
                 conditioner_mask=conditioner_mask,
-                transformed_mask=transformed_mask
+                transformed_mask=transformed_mask,
             )
             self._dim_out = self.net.dim_out
             self._out_channels = self.net.out_channels
@@ -96,23 +67,35 @@ class U1Decoder(Module):
         num_splits,
         net_config,
         transformed_mask,
+        num_nets: int = 1,
     ):
         super(U1Decoder, self).__init__()
 
         dim_out = transformed_mask.sum().item()
 
-        self.net = NET_REGISTRY[net_config.net_type](
-            in_size=dim_in,
-            in_channels=in_channels,
-            out_size=dim_out,
-            out_channels=expressivity * num_splits,
-            **dict(net_config)
-        )
+        if not dim_out % num_nets == 0:
+            raise ValueError(
+                f"dim_out({dim_out}) must be divisible by num_nets ({num_nets}) supported"
+            )
+        dim_out_per_net = int(dim_out / num_nets)
+
+        self.nets = nn.ModuleList()
+
+        for _ in range(num_nets):
+            self.nets.append(
+                NET_REGISTRY[net_config.net_type](
+                    in_size=dim_in,
+                    in_channels=in_channels,
+                    out_size=dim_out_per_net,
+                    out_channels=expressivity * num_splits,
+                    **dict(net_config),
+                )
+            )
         self.expressivity = expressivity
 
     def forward(self, z):
 
-        out = self.net(z)
+        out = torch.cat([net(z) for net in self.nets], dim=1)
         h_pars = torch.split(out, self.expressivity, dim=-1)
 
         return h_pars
@@ -128,6 +111,8 @@ class ConditionerChain(Module):
         num_pars: int,
         expressivity: int,
         layer_splits,
+        num_enocders: int = 1,
+        num_decoders: int = 1,
         domain="u1",
     ) -> None:
         super().__init__()
@@ -137,6 +122,8 @@ class ConditionerChain(Module):
 
         self.encoder_config = encoder_config
         self.decoder_config = decoder_config
+        self.num_encoders = num_enocders
+        self.num_decoders = num_decoders
 
         self.num_pars = num_pars
         self.expressivity = expressivity
@@ -171,6 +158,7 @@ class ConditionerChain(Module):
             num_splits=self.num_pars,
             net_config=self.decoder_config,
             transformed_mask=transformed_mask,
+            num_nets=self.num_decoders,
         )
 
     def __iter__(self):
@@ -220,4 +208,6 @@ class ConditionerChainConfig(BaseModel):
     share_encoder: bool
     share_decoder: bool
     expressivity: int
+    num_enocders: int = 1
+    num_decoders: int = 1
     # validators ..
