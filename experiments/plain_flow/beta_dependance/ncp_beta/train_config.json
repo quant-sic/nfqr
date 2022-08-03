@@ -66,9 +66,6 @@
     "val_num_batches": 5,
     "max_epochs": 1000,
     "log_every_n_steps": 25,
-    "task_parameters": [
-      "beta"
-    ],
     "accumulate_grad_batches": 2,
     "loss_configs": [
       {
@@ -76,5 +73,8 @@
         "specific_loss_config": {}
       }
     ]
-  }
+  },
+  "task_parameters": [
+    "beta"
+  ]
 }
