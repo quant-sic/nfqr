@@ -40,8 +40,6 @@ class LayerChain(Module):
         elif not isinstance(layer_configs, list):
             layer_configs = [layer_configs]
 
-        self.layer_chain_conditioners = torch.nn.ModuleList()
-
         split_num_offsets = [0] + list(map(lambda c: c.num_layers, layer_configs))
         for layer_config_idx, layer_config in enumerate(layer_configs):
 
@@ -58,7 +56,10 @@ class LayerChain(Module):
                 ),
             )
 
-            if layer_config.layer_type not in ("coupling_layer",) and (layer_config.conditioner_chain_config.share_encoder or layer_config.conditioner_chain_config.share_decoder ):
+            if layer_config.layer_type not in ("coupling_layer",) and (
+                layer_config.conditioner_chain_config.share_encoder
+                or layer_config.conditioner_chain_config.share_decoder
+            ):
                 raise ValueError(
                     "conditioner sharing only implemented for Coupling layers"
                 )
@@ -91,8 +92,6 @@ class LayerChain(Module):
                 )
 
                 self.layers.append(c)
-                self.layer_chain_conditioners.append(conditioner)
-                
 
     def encode(self, x):
 
