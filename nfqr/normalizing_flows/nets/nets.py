@@ -233,6 +233,23 @@ class Activation(nn.Module):
     def forward(self, x):
         return self.activation(x)
 
+class LayerNormalization(nn.Module):
+
+    def __init__(self,norm_type,out_channel,out_size,norm_affine) -> None:
+        super().__init__()
+
+        if norm_type == "batch":
+            self.norm = nn.BatchNorm1d(out_channel,affine=norm_affine)
+        if norm_type == "layer":
+            self.norm = nn.LayerNorm(normalized_shape=(out_channel, out_size),elementwise_affine=norm_affine)
+
+    def forward(self,x):
+        return self.norm(x)
+
+class LayerNormalizationConfig(BaseModel):
+
+    norm_type:Literal["batch","layer"]
+    norm_affine:bool=True
 
 class EncoderBlock(nn.Module):
     def __init__(
@@ -242,7 +259,7 @@ class EncoderBlock(nn.Module):
         n_channels: List[int],
         residual: bool,
         activation_specifier: str,
-        norms: List[Union[str, None]],
+        norm_configs: List[Union[LayerNormalizationConfig, None]],
         kernel_sizes: Union[List[int], None],
         concat_input: bool = False,
     ) -> None:
@@ -252,11 +269,11 @@ class EncoderBlock(nn.Module):
         self.activation = Activation(activation_specifier=activation_specifier)
 
         n_channels_list = [in_channels] + n_channels
-        norms = [None] * len(n_channels) if norms is None else norms
+        norm_configs = [None] * len(n_channels) if norm_configs is None else norm_configs
         kernel_sizes = [3] * len(n_channels) if kernel_sizes is None else kernel_sizes
 
-        for in_, out_, norm_, kernel_size_ in zip(
-            n_channels_list[:-1], n_channels_list[1:], norms, kernel_sizes
+        for in_, out_, norm_config, kernel_size_ in zip(
+            n_channels_list[:-1], n_channels_list[1:], norm_configs, kernel_sizes
         ):
             self.layers.append(
                 nn.Conv1d(
@@ -271,10 +288,9 @@ class EncoderBlock(nn.Module):
 
             self.layers.append(self.activation)
 
-            if norm_ == "batch":
-                self.layers.append(nn.BatchNorm1d(out_))
-            if norm_ == "layer":
-                self.layers.append(nn.LayerNorm(normalized_shape=(out_, dim)))
+            if norm_config is not None:
+                self.layers.append(LayerNormalization(**dict(norm_config),out_channel=out_,out_size=dim))
+
 
         self.residual = residual
         if residual:
@@ -339,7 +355,7 @@ class EncoderBlockConfig(BaseModel):
     n_channels: Union[List[int], int]
     residual: bool = False
     activation_specifier: str = "mish"
-    norms: Union[List[Union[str, None]], None] = None
+    norm_configs: Union[List[Union[LayerNormalizationConfig, None]], None] = None
     kernel_sizes: Union[List[int], None] = None
     concat_input: bool = False
 
@@ -423,7 +439,7 @@ class MLPDecoder(nn.Module):
         out_size: int,
         out_channels: int,
         net_hidden: List[int],
-        norms: Union[List[Union[str, None]], None] = None,
+        norm_configs: Union[List[Union[LayerNormalizationConfig, None]],None] = None,
         activation_specifier: str = "mish",
         **kwargs,
     ) -> None:
@@ -435,20 +451,17 @@ class MLPDecoder(nn.Module):
         layers.append(View([-1, in_size * in_channels]))
 
         sizes = [in_size * in_channels] + net_hidden + [out_size * out_channels]
-        norms = [None] * len(net_hidden) if norms is None else norms
-        norms += [None]
+        norm_configs = [None] * len(net_hidden) if norm_configs is None else norm_configs
+        norm_configs += [None]
 
-        for idx, (in_, out_, norm_) in enumerate(zip(sizes[:-1], sizes[1:], norms)):
+        for idx, (in_, out_, norm_config) in enumerate(zip(sizes[:-1], sizes[1:], norm_configs)):
             layers.append(nn.Linear(in_, out_))
 
             if idx != len(sizes) - 2:
                 layers.append(self.activation)
-                
-            if norm_ == "batch":
-                layers.append(nn.BatchNorm1d(out_))
-            if norm_ == "layer":
-                layers.append(nn.LayerNorm(normalized_shape=(out_)))
-
+            
+            if norm_config is not None:
+                layers.append(LayerNormalization(**dict(norm_config),out_channel=out_,out_size=1))
 
 
         layers.append(View([-1, out_size, out_channels]))
@@ -462,7 +475,7 @@ class NetConfig(BaseModel):
 
     net_type: str
     net_hidden: Optional[List[int]]
-    norms: Optional[List[Union[str, None]]]
+    norm_configs: Optional[List[Union[LayerNormalizationConfig, None]]]
     coord_layer_specifier: Optional[
         Literal["rel_position", "abs_position", "rel_position+abs_position"]
     ]

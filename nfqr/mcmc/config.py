@@ -35,6 +35,7 @@ class MCMCConfig(BaseConfig):
     hmc_engine: Optional[Literal["cpp_batch", "cpp_single", "python"]] = "cpp_single"
     n_replicas: Optional[int] = 1
     n_samples_at_a_time: Optional[int] = 10000
+    int_time:Optional[Union[float,None]]=None
 
     initial_config_sampler_config: InitialConfigSamplerConfig
 
@@ -181,5 +182,5 @@ class MCMCResult(BaseConfig):
     mcmc_config: Optional[MCMCConfig]
     acceptance_rate: float
     obs_stats: Dict[OBSERVABLE_REGISTRY.enum, Dict[str, float]]
-
+    step_size:Optional[float]
     sus_exact: Optional[float]

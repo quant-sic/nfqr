@@ -55,6 +55,7 @@ if __name__ == "__main__":
             n_steps=stats["n_steps"],
             obs_stats=stats["obs_stats"],
             sus_exact=sus_exact,
+            step_size = stats["step_size"]
         )
 
         result_config.save(mcmc_config.out_dir)

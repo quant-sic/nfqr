@@ -37,6 +37,7 @@ class HMC(MCMC):
         n_samples_at_a_time=10000,
         initial_config_sampler_config=None,
         delete_existing_data=True,
+        int_time:Union[float,None]=None,
         **kwargs,
     ) -> None:
         super(HMC, self).__init__(
@@ -53,8 +54,9 @@ class HMC(MCMC):
         self.n_burnin_steps = n_burnin_steps
         self.n_steps = n_steps
         self.initial_step_size = step_size
-        self.n_traj_steps = n_traj_steps
+        self._n_traj_steps = n_traj_steps
         self.n_samples_at_a_time = n_samples_at_a_time
+        self.int_time = int_time
 
         self.target_system = action_config.target_system
         self.action = ACTION_REGISTRY[action_config.target_system][
@@ -120,6 +122,14 @@ class HMC(MCMC):
             self._step_size = self.initial_step_size
 
         return self._step_size
+
+    @property
+    def n_traj_steps(self):
+
+        if self.int_time is not None:
+            return int(self.int_time/self.step_size)
+        else:
+            return self._n_traj_steps
 
     @property
     def data_specs(self):
@@ -189,9 +199,9 @@ class HMC(MCMC):
     def autotune_step_size(self, desired_acceptance_percentage):
 
         n_autotune_samples = 1000
-        tolerance = 0.05  # Tolerance
-        step_size_min = 0.01 * self.initial_step_size
-        step_size_max = 100 * self.initial_step_size
+        tolerance = 0.003  # Tolerance
+        step_size_min = 1e-5
+        step_size_max = .5 if self.int_time is None else .5*self.int_time
         converged = False
         tune_steps = 100
 
@@ -200,10 +210,15 @@ class HMC(MCMC):
 
             self.initialize(burn_in=False, log=False)
             self._step_size = 0.5 * (step_size_min + step_size_max)
+            
+            if self.int_time is not None:
+                n_traj_steps = int(self.int_time/self._step_size)
+            else:
+                n_traj_steps = self._n_traj_steps
 
             self.hmc.advance(
                 n_steps=n_autotune_samples,
-                n_traj_steps=self.n_traj_steps,
+                n_traj_steps=n_traj_steps,
                 step_size=self._step_size,
             )
 
@@ -212,13 +227,15 @@ class HMC(MCMC):
             else:
                 step_size_max = self._step_size
 
+            pbar.set_description(
+                f"step_size: {self._step_size}, Acceptance Rate {self.acceptance_rate}"
+            )
+
             if abs(self.acceptance_rate - desired_acceptance_percentage) < tolerance:
                 converged = True
                 break
 
-            pbar.set_description(
-                f"step_size: {self._step_size}, Acceptance Rate {self.acceptance_rate}"
-            )
+
 
         if not converged:
             self._step_size = self.initial_step_size

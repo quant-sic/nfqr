@@ -58,12 +58,17 @@ class MCMC(Sampler):
         return 0
 
     @property
+    def step_size(self):
+        return 0
+
+    @property
     def _stats(self):
         return {
             "acc_rate": self.acceptance_rate,
             "n_steps": self.n_current_steps,
             "obs_stats": self.aggregate(),
             "n_skipped": self.n_skipped,
+            "step_size":self.step_size
         }
 
     def _evaluate_obs(self, obs):
