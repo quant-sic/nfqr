@@ -10,22 +10,30 @@
       "concentration_unconstrained": null
     },
     "layer_chain_config": {
-      "layers_config": {
-        "domain": "u1",
-        "coupling_type": "bare",
-        "diffeomorphism": "ncp",
-        "expressivity": 8,
-        "net_config": {
-          "net_type": "mlp",
-          "net_hidden": [
-            50,
-            50,
-            50
-          ]
-        }
+      "layer_configs": {
+        "layer_type":"coupling_layer",
+        "specific_layer_config":{
+          "domain": "u1",
+          "specific_layer_type": "bare",
+          "diffeomorphism": "ncp"
+        },
+        "conditioner_chain_config":{
+          "expressivity": 8,
+          "encoder_config":null,
+          "decoder_config": {
+            "net_type": "mlp",
+            "net_hidden": [
+              50,
+              50,
+              50
+            ]
+          },
+          "share_encoder":true,
+          "share_decoder":false
       },
-      "split_type": "checkerboard",
-      "num_layers": 5
+        "num_layers":5
+      },
+      "split_type": "checkerboard"
     }
   },
   "observables": [
@@ -58,7 +66,7 @@
   "dim": [
     25
   ],
-  "trainer_config": {
+  "trainer_configs": {
     "learning_rate": 0.001,
     "auto_lr_find": false,
     "batch_size": 5000,
