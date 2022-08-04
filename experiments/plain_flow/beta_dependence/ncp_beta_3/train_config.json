@@ -16,15 +16,6 @@
           "domain": "u1",
           "specific_layer_type": "global_non_trainable_residual",
           "diffeomorphism": "ncp",
-          "expressivity": 3,
-          "net_config": {
-            "net_type": "mlp",
-            "net_hidden": [
-              50,
-              75,
-              100
-            ]
-          },
           "initial_rho_id": 0.1
         },
         "num_layers": 25,
@@ -33,6 +24,20 @@
           "specific_split_type_config": {
             "n_transformed": 1
           }
+        },
+        "conditioner_chain_config":{
+          "expressivity": 3,
+          "encoder_config": null,
+          "decoder_config": {
+            "net_type": "mlp",
+            "net_hidden": [
+              50,
+              75,
+              100
+            ]
+          },
+          "share_encoder":false,
+          "share_decoder":false
         }
       }
     }
@@ -67,7 +72,7 @@
   "dim": [
     25
   ],
-  "trainer_config": {
+  "trainer_configs": {
     "learning_rate": 0.001,
     "auto_lr_find": false,
     "batch_size": 10000,
@@ -75,9 +80,6 @@
     "val_num_batches": 5,
     "max_epochs": 1000,
     "log_every_n_steps": 25,
-    "task_parameters": [
-      "beta"
-    ],
     "accumulate_grad_batches": 3,
     "loss_configs": [
       {
@@ -103,5 +105,8 @@
         }
       }
     ]
-  }
+  },    
+  "task_parameters": [
+    "beta"
+  ]
 }

@@ -117,7 +117,7 @@
       100
     ]
   ],
-  "trainer_config": {
+  "trainer_configs": {
     "learning_rate": 0.001,
     "auto_lr_find": false,
     "batch_size": 2500,
@@ -136,12 +136,7 @@
     "val_num_batches": 5,
     "max_epochs": 500,
     "log_every_n_steps": 25,
-    "task_parameters": [
-      "dim",
-      "net_hidden",
-      "accumulate_grad_batches",
-      "train_num_batches"
-    ],
+    
     "accumulate_grad_batches": [
       1,
       2,
@@ -160,5 +155,11 @@
         "specific_loss_config": {}
       }
     ]
-  }
+  },
+  "task_parameters": [
+    "dim",
+    "net_hidden",
+    "accumulate_grad_batches",
+    "train_num_batches"
+  ]
 }
