@@ -30,15 +30,17 @@ class LayerSplit(object):
 
         if split_type == "n_transforms":
             self.split_fn = self.n_transforms_mask
-
-        if split_type == "checkerboard":
+        elif split_type == "n_transforms_close":
+            self.split_fn = self.n_transforms_close_mask
+        elif split_type == "checkerboard":
             self.split_fn = self.checkerboard_mask
-
+        elif split_type == "kernel":
+            self.split_fn = self.kernel_mask
         if safe_guard:
             self.check_all_transformed()
 
     @classmethod
-    def n_transforms(cls, dim, num_layers, n_transformed, num_offset, safe_guard=True):
+    def n_transforms(cls, dim, num_layers, n_transformed, num_offset, safe_guard=True,**kwargs):
         if n_transformed is None:
             raise ValueError("Need n for n_transforms split")
 
@@ -52,7 +54,39 @@ class LayerSplit(object):
         )
 
     @classmethod
-    def checkerboard(cls, dim, num_layers, num_offset, safe_guard=True):
+    def kernel(cls, dim, num_layers, kernel_size,dilation,stride,departmentalization, num_offset, safe_guard=True,**kwargs):
+        if any(v is None for v in (kernel_size,dilation,stride)):
+            raise ValueError("Need kernel_size,dilation,stride for kernel split")
+
+        return cls(
+            dim=dim,
+            num_layers=num_layers,
+            safe_guard=safe_guard,
+            split_type="kernel",
+            kernel_size=kernel_size,
+            dilation=dilation,
+            stride=stride,
+            departmentalization=departmentalization,
+            num_offset=num_offset,
+        )
+
+    @classmethod
+    def n_transforms_close(cls, dim, num_layers, n_transformed, stride, num_offset, safe_guard=True,**kwargs):
+        if any(v is None for v in (n_transformed,stride)):
+            raise ValueError("Need n and stride for n_transforms_close split")
+
+        return cls(
+            dim=dim,
+            num_layers=num_layers,
+            safe_guard=safe_guard,
+            split_type="n_transforms_close",
+            n_transformed=n_transformed,
+            stride=stride,
+            num_offset=num_offset,
+        )
+
+    @classmethod
+    def checkerboard(cls, dim, num_layers, num_offset, safe_guard=True,**kwargs):
         return cls(
             dim=dim,
             num_layers=num_layers,
@@ -81,6 +115,33 @@ class LayerSplit(object):
         step_size = int(np.ceil(size / n_transformed))
 
         transformed_idx = (torch.arange(n_transformed) * step_size + mask_num) % size
+        mask[transformed_idx] = True
+
+        return ~mask, mask
+
+    @staticmethod
+    def n_transforms_close_mask(size, mask_num, n_transformed,stride, **kwargs):
+
+        mask = torch.zeros(size).bool()
+
+        transformed_idx = (torch.arange(n_transformed) + mask_num*stride) % size
+        mask[transformed_idx] = True
+
+        return ~mask, mask
+
+    @staticmethod
+    def kernel_mask(size, mask_num, kernel_size, stride, dilation,departmentalization, **kwargs):
+
+        if stride>1 and departmentalization:
+            raise ValueError("For departmentalization stride cannot be greater than 1")
+
+        mask = torch.zeros(size).bool()
+
+        department = int(mask_num/dilation)
+        department_step = kernel_size*dilation
+        extra_step = mask_num*stride if not departmentalization else department*department_step + mask_num%dilation
+        
+        transformed_idx = (torch.arange(kernel_size)*dilation +  extra_step) % size
         mask[transformed_idx] = True
 
         return ~mask, mask
@@ -123,10 +184,16 @@ class LayerSplit(object):
 
 SPLIT_TYPES_REGISTRY.register("checkerboard", LayerSplit.checkerboard)
 SPLIT_TYPES_REGISTRY.register("n_transforms", LayerSplit.n_transforms)
+SPLIT_TYPES_REGISTRY.register("n_transforms_close", LayerSplit.n_transforms_close)
+SPLIT_TYPES_REGISTRY.register("kernel", LayerSplit.kernel)
 
 
 class SplitTypeConfig(BaseModel):
     n_transformed: Optional[int]
+    kernel_size: Optional[int]
+    dilation: Optional[int]
+    stride: Optional[int]
+    departmentalization:Optional[bool]
 
 
 class LayerSplitConfig(BaseModel):

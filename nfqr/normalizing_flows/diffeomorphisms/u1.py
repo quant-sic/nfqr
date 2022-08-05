@@ -13,6 +13,7 @@ from nfqr.normalizing_flows.misc.constraints import (
     nf_constraints_standard,
     simplex,
     torch_transform_to,
+    nf_constraints_alternative
 )
 from nfqr.registry import StrRegistry
 
@@ -94,7 +95,7 @@ class NCP(Diffeomorphism):
 
     num_pars = 3
 
-    def __init__(self, alpha_min=1e-3, boundary_mode="taylor") -> None:
+    def __init__(self, alpha_min=1e-3, boundary_mode="taylor",greater_than_transform="softplus") -> None:
         super(NCP).__init__()
 
         if boundary_mode == "taylor":
@@ -112,7 +113,11 @@ class NCP(Diffeomorphism):
             "kwargs": {"ret_logabsdet": False},
         }
 
-        self.alpha_transform = nf_constraints_standard(greater_than_eq(alpha_min))
+        if greater_than_transform == "softplus":
+            self.alpha_transform = nf_constraints_standard(greater_than_eq(alpha_min))
+        elif greater_than_transform == "exp":
+            self.alpha_transform = nf_constraints_alternative(greater_than_eq(alpha_min))
+
         self.rho_transform = torch_transform_to(simplex)
 
     @classmethod
@@ -122,6 +127,10 @@ class NCP(Diffeomorphism):
     @classmethod
     def use_taylor_for_boundary(cls, alpha_min=1e-3):
         return cls(alpha_min, boundary_mode="taylor")
+
+    @classmethod
+    def use_exp_for_greater_than(cls, alpha_min=1e-3):
+        return cls(alpha_min, boundary_mode="taylor",greater_than_transform="exp")
 
     @property
     def map_to_range(self):
@@ -190,6 +199,7 @@ class NCP(Diffeomorphism):
 
 U1_DIFFEOMORPHISM_REGISTRY.register("ncp_mod", NCP.use_modulo_for_boundary)
 U1_DIFFEOMORPHISM_REGISTRY.register("ncp", NCP.use_taylor_for_boundary)
+U1_DIFFEOMORPHISM_REGISTRY.register("ncp_exp", NCP.use_exp_for_greater_than)
 
 
 def moebius(phi, w, rho, ret_logabsdet=True):

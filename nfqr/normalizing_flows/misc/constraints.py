@@ -86,3 +86,9 @@ nf_constraints_alternative = ConstraintRegistry()
 @nf_constraints_alternative.register(positive)
 def _transform_to_positive(constraint):
     return transforms.ExpTransform()
+
+@nf_constraints_alternative.register(greater_than_eq)
+def _transform_to_greater_than(constraint):
+    return transforms.ComposeTransform(
+        [transforms.ExpTransform(), transforms.AffineTransform(constraint.lower_bound, 1)]
+    )
