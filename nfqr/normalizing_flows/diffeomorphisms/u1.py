@@ -1,3 +1,4 @@
+from typing import Literal,Optional
 import numpy as np
 import torch
 from numpy import pi
@@ -16,6 +17,7 @@ from nfqr.normalizing_flows.misc.constraints import (
     nf_constraints_alternative
 )
 from nfqr.registry import StrRegistry
+from pydantic import BaseModel
 
 U1_DIFFEOMORPHISM_REGISTRY = StrRegistry("u1")
 
@@ -90,7 +92,7 @@ def ncp_mod(phi, alpha, beta, rho, ret_logabsdet=True):
     else:
         return conv_comb
 
-
+@U1_DIFFEOMORPHISM_REGISTRY.register("ncp")
 class NCP(Diffeomorphism):
 
     num_pars = 3
@@ -120,17 +122,6 @@ class NCP(Diffeomorphism):
 
         self.rho_transform = torch_transform_to(simplex)
 
-    @classmethod
-    def use_modulo_for_boundary(cls, alpha_min=1e-3):
-        return cls(alpha_min, boundary_mode="modulo")
-
-    @classmethod
-    def use_taylor_for_boundary(cls, alpha_min=1e-3):
-        return cls(alpha_min, boundary_mode="taylor")
-
-    @classmethod
-    def use_exp_for_greater_than(cls, alpha_min=1e-3):
-        return cls(alpha_min, boundary_mode="taylor",greater_than_transform="exp")
 
     @property
     def map_to_range(self):
@@ -197,9 +188,7 @@ class NCP(Diffeomorphism):
             return phi_out
 
 
-U1_DIFFEOMORPHISM_REGISTRY.register("ncp_mod", NCP.use_modulo_for_boundary)
-U1_DIFFEOMORPHISM_REGISTRY.register("ncp", NCP.use_taylor_for_boundary)
-U1_DIFFEOMORPHISM_REGISTRY.register("ncp_exp", NCP.use_exp_for_greater_than)
+
 
 
 def moebius(phi, w, rho, ret_logabsdet=True):
@@ -826,3 +815,11 @@ class Bump(Diffeomorphism):
             return phi_out, -ld
         else:
             return phi_out
+
+
+class NCPConfig(BaseModel):
+
+    greater_than_func:Literal["exp","softplus"]
+    boundary_mode:Literal["taylor","modulo"]
+    alpha_min:Optional[float]=1e-3
+
