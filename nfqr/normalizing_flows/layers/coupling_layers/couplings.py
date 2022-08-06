@@ -7,7 +7,7 @@ import torch
 from pydantic import BaseModel, Field
 from torch.nn import Module, parameter
 
-from nfqr.normalizing_flows.diffeomorphisms import DIFFEOMORPHISMS_REGISTRY
+from nfqr.normalizing_flows.diffeomorphisms import DIFFEOMORPHISMS_REGISTRY,DiffeomorphismConfig
 from nfqr.normalizing_flows.diffeomorphisms.inversion import NumericalInverse
 from nfqr.normalizing_flows.layers.conditioners import ConditionerChain
 from nfqr.normalizing_flows.misc.constraints import nf_constraints_standard, simplex
@@ -25,7 +25,7 @@ class CouplingLayer(Module):
         self,
         conditioner_mask,
         transformed_mask,
-        diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
+        diffeomorphism_config:DiffeomorphismConfig,
         domain: Literal["u1"] = "u1",
         conditioner=None,
         **kwargs,
@@ -35,7 +35,7 @@ class CouplingLayer(Module):
         self.conditioner_mask = conditioner_mask
         self.transformed_mask = transformed_mask
 
-        self.diffeomorphism = DIFFEOMORPHISMS_REGISTRY[domain][diffeomorphism]()
+        self.diffeomorphism = DIFFEOMORPHISMS_REGISTRY[domain][diffeomorphism_config.diffeomorphism_type](**(dict(diffeomorphism_config.specific_diffeomorphism_config if diffeomorphism_config.specific_diffeomorphism_config is not None else {})))
 
         if conditioner is not None:
             self.conditioner = conditioner
@@ -103,7 +103,7 @@ class ResidualCoupling(CouplingLayer, Module):
         self,
         conditioner_mask,
         transformed_mask,
-        diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
+        diffeomorphism_config: DiffeomorphismConfig,
         domain: Literal["u1"] = "u1",
         residual_type="global",
         initial_rho_id=None,
@@ -113,7 +113,7 @@ class ResidualCoupling(CouplingLayer, Module):
         super().__init__(
             conditioner_mask=conditioner_mask,
             transformed_mask=transformed_mask,
-            diffeomorphism=diffeomorphism,
+            diffeomorphism_config=diffeomorphism_config,
             domain=domain,
             conditioner=conditioner,
             **kwargs,
@@ -183,7 +183,7 @@ class ResidualCoupling(CouplingLayer, Module):
         cls,
         conditioner_mask,
         transformed_mask,
-        diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
+        diffeomorphism_config: DiffeomorphismConfig,
         domain: Literal["u1"] = "u1",
         initial_rho_id: float = 0.5,
         conditioner=None,
@@ -192,7 +192,7 @@ class ResidualCoupling(CouplingLayer, Module):
         return cls(
             conditioner_mask=conditioner_mask,
             transformed_mask=transformed_mask,
-            diffeomorphism=diffeomorphism,
+            diffeomorphism_config=diffeomorphism_config,
             domain=domain,
             residual_type="global",
             initial_rho_id=initial_rho_id,
@@ -204,7 +204,7 @@ class ResidualCoupling(CouplingLayer, Module):
         cls,
         conditioner_mask,
         transformed_mask,
-        diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
+        diffeomorphism_config: DiffeomorphismConfig,
         domain: Literal["u1"] = "u1",
         initial_rho_id: float = 0.5,
         conditioner=None,
@@ -213,7 +213,7 @@ class ResidualCoupling(CouplingLayer, Module):
         return cls(
             conditioner_mask=conditioner_mask,
             transformed_mask=transformed_mask,
-            diffeomorphism=diffeomorphism,
+            diffeomorphism_config=diffeomorphism_config,
             domain=domain,
             residual_type="global_non_trainable",
             initial_rho_id=initial_rho_id,
@@ -225,7 +225,7 @@ class ResidualCoupling(CouplingLayer, Module):
         cls,
         conditioner_mask,
         transformed_mask,
-        diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
+        diffeomorphism_config: DiffeomorphismConfig,
         domain: Literal["u1"] = "u1",
         conditioner=None,
         **kwargs,
@@ -233,7 +233,7 @@ class ResidualCoupling(CouplingLayer, Module):
         return cls(
             conditioner_mask=conditioner_mask,
             transformed_mask=transformed_mask,
-            diffeomorphism=diffeomorphism,
+            diffeomorphism_config=diffeomorphism_config,
             domain=domain,
             residual_type="conditioned",
             conditioner=conditioner,
@@ -365,6 +365,6 @@ class CouplingConfig(BaseModel):
 
     domain: Literal["u1"] = "u1"
     specific_layer_type: COUPLING_LAYER_REGISTRY.enum = Field(...)
-    diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum
+    diffeomorphism_config: DiffeomorphismConfig
     initial_rho_id: Optional[float]
     # validators ..
