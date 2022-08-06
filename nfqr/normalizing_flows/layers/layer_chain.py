@@ -69,7 +69,7 @@ class LayerChain(Module):
                 layer_splits=layer_splits,
                 num_pars=DIFFEOMORPHISMS_REGISTRY[
                     layer_config.specific_layer_config.domain
-                ][layer_config.specific_layer_config.diffeomorphism_config.diffeomorphism_type](**(dict(layer_config.specific_layer_config.diffeomorphism_config.specific_diffeomorphism_config if layer_config.specific_layer_config.diffeomorphism_config.specific_diffeomorphism_config is not None else {}))).num_pars,
+                ][layer_config.specific_layer_config.diffeomorphism_config.diffeomorphism_type](**(dict(layer_config.specific_layer_config.diffeomorphism_config.specific_diffeomorphism_config) if layer_config.specific_layer_config.diffeomorphism_config.specific_diffeomorphism_config is not None else {})).num_pars,
             )
 
             for (conditioner_mask, transformed_mask), conditioner in zip(
