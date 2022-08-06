@@ -233,23 +233,27 @@ class Activation(nn.Module):
     def forward(self, x):
         return self.activation(x)
 
-class LayerNormalization(nn.Module):
 
-    def __init__(self,norm_type,out_channel,out_size,norm_affine) -> None:
+class LayerNormalization(nn.Module):
+    def __init__(self, norm_type, out_channel, out_size, norm_affine) -> None:
         super().__init__()
 
         if norm_type == "batch":
-            self.norm = nn.BatchNorm1d(out_channel,affine=norm_affine)
+            self.norm = nn.BatchNorm1d(out_channel, affine=norm_affine)
         if norm_type == "layer":
-            self.norm = nn.LayerNorm(normalized_shape=(out_channel, out_size),elementwise_affine=norm_affine)
+            self.norm = nn.LayerNorm(
+                normalized_shape=(out_channel, out_size), elementwise_affine=norm_affine
+            )
 
-    def forward(self,x):
+    def forward(self, x):
         return self.norm(x)
+
 
 class LayerNormalizationConfig(BaseModel):
 
-    norm_type:Literal["batch","layer"]
-    norm_affine:bool=True
+    norm_type: Literal["batch", "layer"]
+    norm_affine: bool = True
+
 
 class EncoderBlock(nn.Module):
     def __init__(
@@ -269,7 +273,9 @@ class EncoderBlock(nn.Module):
         self.activation = Activation(activation_specifier=activation_specifier)
 
         n_channels_list = [in_channels] + n_channels
-        norm_configs = [None] * len(n_channels) if norm_configs is None else norm_configs
+        norm_configs = (
+            [None] * len(n_channels) if norm_configs is None else norm_configs
+        )
         kernel_sizes = [3] * len(n_channels) if kernel_sizes is None else kernel_sizes
 
         for in_, out_, norm_config, kernel_size_ in zip(
@@ -289,8 +295,11 @@ class EncoderBlock(nn.Module):
             self.layers.append(self.activation)
 
             if norm_config is not None:
-                self.layers.append(LayerNormalization(**dict(norm_config),out_channel=out_,out_size=dim))
-
+                self.layers.append(
+                    LayerNormalization(
+                        **dict(norm_config), out_channel=out_, out_size=dim
+                    )
+                )
 
         self.residual = residual
         if residual:
@@ -324,30 +333,32 @@ class EncoderBlock(nn.Module):
 
         return x_out
 
+
 class Pooling(nn.Module):
-    def __init__(self,pooling_type,pooling_out_size) -> None:
+    def __init__(self, pooling_type, pooling_out_size) -> None:
         super().__init__()
 
-        if pooling_type=="max":
+        if pooling_type == "max":
             self.pooling = nn.AdaptiveMaxPool1d(output_size=pooling_out_size)
-        elif pooling_type=="avg":
+        elif pooling_type == "avg":
             self.pooling = nn.AdaptiveAvgPool1d(output_size=pooling_out_size)
         else:
-            raise ValueError(f"Unknown pooling type {pooling_type}")       
+            raise ValueError(f"Unknown pooling type {pooling_type}")
 
-        self._out_size= pooling_out_size
+        self._out_size = pooling_out_size
 
     @property
     def out_size(self):
         return self._out_size
 
-    def forward(self,x):
+    def forward(self, x):
         return self.pooling(x)
+
 
 class PoolingConfig(BaseModel):
 
-    pooling_type:Literal["max","avg"]
-    pooling_out_size:int
+    pooling_type: Literal["max", "avg"]
+    pooling_out_size: int
 
 
 class EncoderBlockConfig(BaseModel):
@@ -439,7 +450,7 @@ class MLPDecoder(nn.Module):
         out_size: int,
         out_channels: int,
         net_hidden: List[int],
-        norm_configs: Union[List[Union[LayerNormalizationConfig, None]],None] = None,
+        norm_configs: Union[List[Union[LayerNormalizationConfig, None]], None] = None,
         activation_specifier: str = "mish",
         **kwargs,
     ) -> None:
@@ -451,18 +462,25 @@ class MLPDecoder(nn.Module):
         layers.append(View([-1, in_size * in_channels]))
 
         sizes = [in_size * in_channels] + net_hidden + [out_size * out_channels]
-        norm_configs = [None] * len(net_hidden) if norm_configs is None else norm_configs
+        norm_configs = (
+            [None] * len(net_hidden) if norm_configs is None else norm_configs
+        )
         norm_configs += [None]
 
-        for idx, (in_, out_, norm_config) in enumerate(zip(sizes[:-1], sizes[1:], norm_configs)):
+        for idx, (in_, out_, norm_config) in enumerate(
+            zip(sizes[:-1], sizes[1:], norm_configs)
+        ):
             layers.append(nn.Linear(in_, out_))
 
             if idx != len(sizes) - 2:
                 layers.append(self.activation)
-            
-            if norm_config is not None:
-                layers.append(LayerNormalization(**dict(norm_config),out_channel=out_,out_size=1))
 
+            if norm_config is not None:
+                layers.append(
+                    LayerNormalization(
+                        **dict(norm_config), out_channel=out_, out_size=1
+                    )
+                )
 
         layers.append(View([-1, out_size, out_channels]))
         self.net = nn.Sequential(*layers)
