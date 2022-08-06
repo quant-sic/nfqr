@@ -1,9 +1,7 @@
 from collections import defaultdict
-from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Dict, List, Optional, Union
 
-import numpy as np
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.utilities.types import (
@@ -12,7 +10,6 @@ from pytorch_lightning.utilities.types import (
     STEP_OUTPUT,
     TRAIN_DATALOADERS,
 )
-from scipy import stats
 
 from nfqr.eval.evaluation import (
     estimate_ess_p_nip,
@@ -26,39 +23,16 @@ from nfqr.normalizing_flows.target_density import TargetDensity
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
 from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.train.config import TrainerConfig
-from nfqr.train.scheduler import SCHEDULER_REGISTRY, BetaScheduler, LossScheduler
+from nfqr.train.metrics import Metrics
+from nfqr.train.scheduler import (
+    SCHEDULER_REGISTRY,
+    BetaScheduler,
+    LossScheduler,
+    MaxFluctuationLRScheduler,
+)
 from nfqr.utils import create_logger
 
 logger = create_logger(__name__)
-
-
-@dataclass
-class Metrics:
-
-    metrics_dict: Dict = field(default_factory=lambda: defaultdict(list))
-
-    def add_batch_wise(
-        self,
-        _metrics_dict: Dict[str, Union[int, float]],
-    ):
-
-        for _key, _value in _metrics_dict.items():
-            if isinstance(_value, torch.Tensor):
-                _value = _value.item()
-            self.metrics_dict[_key] += [_value]
-
-    def last_slope(self, key: str, window_length: int):
-
-        data = self.metrics_dict[key][-window_length:]
-        slope = stats.linregress(np.arange(len(data)), data).slope
-
-        slope_per_window = slope * len(data)
-        return slope_per_window
-
-    def last_mean(self, key: str, window_length: int):
-
-        data = self.metrics_dict[key][-window_length:]
-        return sum(data) / len(data)
 
 
 class LitFlow(pl.LightningModule):
@@ -85,10 +59,9 @@ class LitFlow(pl.LightningModule):
             self.set_final_beta()
         elif mode == "train":
             if self.trainer_config is None:
-                raise ValueError(f"Trainer Config None not allowed for mode == train!")
+                raise ValueError("Trainer Config None not allowed for mode == train!")
 
             self.learning_rate = trainer_config.learning_rate
-
 
     @cached_property
     def target(self):
@@ -314,6 +287,29 @@ class LitFlow(pl.LightningModule):
                 ),
                 "interval": "epoch",
                 "monitor": "loss",
+            }
+        elif lr_scheduler_dict["type"] == "max_fluctuations":
+            configuration_dict["lr_scheduler"] = {
+                "scheduler": MaxFluctuationLRScheduler(
+                    optimizer=configuration_dict["optimizer"],
+                    max_fluctuation_base=lr_scheduler_dict.get(
+                        "max_fluctuation_base", 0.05
+                    ),
+                    final_max_fluctuations=lr_scheduler_dict.get(
+                        "final_max_fluctuations", None
+                    ),
+                    n_steps=lr_scheduler_dict.get("n_steps", None),
+                    max_fluctuation_step=lr_scheduler_dict.get(
+                        "max_fluctuation_step", 0.001
+                    ),
+                    cooldown_steps=lr_scheduler_dict.get("patience", 75),
+                    metric_window_length=lr_scheduler_dict.get(
+                        "metric_window_length", 100
+                    ),
+                    change_rate=lr_scheduler_dict.get("factor", 0.9),
+                    min_lr=lr_scheduler_dict.get("min_lr", 5e-5),
+                ),
+                "interval": "epoch",
             }
         else:
             raise ValueError(

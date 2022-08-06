@@ -1,10 +1,12 @@
 import inspect
+import warnings
 from collections import defaultdict
 from functools import cached_property
 from typing import Dict, List, Union
 
 import numpy as np
 from pydantic import BaseModel
+from torch.optim.lr_scheduler import _LRScheduler
 
 from nfqr.normalizing_flows.layers.coupling_layers import (
     ResidualCouplingScheduler,
@@ -18,6 +20,118 @@ logger = create_logger(__name__)
 SCHEDULER_REGISTRY = StrRegistry("scheduler")
 
 SCHEDULER_REGISTRY.register("rho_residual", ResidualCouplingScheduler)
+
+
+class MaxFluctuationLRScheduler(_LRScheduler):
+    def __init__(
+        self,
+        optimizer,
+        max_fluctuation_base: float,
+        cooldown_steps: int,
+        metric_window_length: int,
+        max_fluctuation_step: Union[float, None] = None,
+        n_steps: Union[int, None] = None,
+        final_max_fluctuations: Union[float, None] = None,
+        key: str = "Chi_t",
+        change_rate: float = 0.9,
+        last_epoch=-1,
+        verbose=False,
+        min_lr=1e-6,
+    ) -> None:
+
+        self.metric_window_length = metric_window_length
+        self.max_fluctuation = max_fluctuation_base
+
+        if max_fluctuation_step is not None:
+            self.max_fluctuation_step = max_fluctuation_step
+        else:
+            assert not any(
+                v is None for v in (final_max_fluctuations, n_steps)
+            ), "If max_fluctuations_step is None then (final_max_fluctuations,n_steps) cannot be None"
+            self.max_fluctuation_step = (
+                max_fluctuation_base - final_max_fluctuations
+            ) / n_steps
+
+        self.n_steps_since_change = 0
+        self.key = key
+        self.cooldown_steps = cooldown_steps
+        self.change_rate = change_rate
+        self.min_lr = min_lr
+
+        self.factor = 1
+        super(MaxFluctuationLRScheduler, self).__init__(optimizer, last_epoch, verbose)
+
+    @property
+    def metrics(self):
+        if not hasattr(self, "_metrics"):
+            raise RuntimeError("metrics not set yet")
+        else:
+            return self._metrics
+
+    @metrics.setter
+    def metrics(self, m):
+        self._metrics = m
+
+    def state_dict(self):
+        """Returns the state of the scheduler as a :class:`dict`.
+
+        It contains an entry for every variable in self.__dict__ which
+        is not the optimizer.
+        The learning rate lambda functions will only be saved if they are callable objects
+        and not if they are functions or lambdas.
+
+        When saving or loading the scheduler, please make sure to also save or load the state of the optimizer.
+        """
+
+        state_dict = {
+            key: value
+            for key, value in self.__dict__.items()
+            if key not in ("optimizer", "lr_factor")
+        }
+        state_dict["lr_factor"] = self.factor
+
+        return state_dict
+
+    def load_state_dict(self, state_dict):
+        """Loads the schedulers state.
+
+        When saving or loading the scheduler, please make sure to also save or load the state of the optimizer.
+
+        Args:
+            state_dict (dict): scheduler state. Should be an object returned
+                from a call to :meth:`state_dict`.
+        """
+
+        lr_factor = state_dict.pop("lr_factor")
+        self.__dict__.update(state_dict)
+        # Restore state_dict keys in order to prevent side effects
+        # https://github.com/pytorch/pytorch/issues/32756
+        state_dict["lr_factor"] = lr_factor
+
+    def get_lr(self):
+        if not self._get_lr_called_within_step:
+            warnings.warn(
+                "To get the last learning rate computed by the scheduler, "
+                "please use `get_last_lr()`."
+            )
+
+        self.n_steps_since_change += 1
+        if not (self.n_steps_since_change > self.cooldown_steps):
+            pass
+        else:
+            last_fluctuations = self.metrics.last_fluctuation_around_linear(
+                self.key, self.metric_window_length
+            )
+            self.max_fluctuation = abs(self.max_fluctuation - self.max_fluctuation_step)
+
+            if last_fluctuations > self.max_fluctuation:
+                self.factor *= self.change_rate
+            elif last_fluctuations < self.max_fluctuation:
+                self.factor /= self.change_rate
+
+            self.n_steps_since_change = 0
+
+        return [max(base_lr * self.factor, self.min_lr) for base_lr in self.base_lrs]
 
 
 @SCHEDULER_REGISTRY.register("beta")
