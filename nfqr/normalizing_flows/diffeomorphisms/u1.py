@@ -1,7 +1,9 @@
-from typing import Literal,Optional
+from typing import Literal, Optional
+
 import numpy as np
 import torch
 from numpy import pi
+from pydantic import BaseModel
 from torch.nn import functional as F
 
 from nfqr.normalizing_flows.diffeomorphisms.diffeomorphism_base import Diffeomorphism
@@ -11,13 +13,12 @@ from nfqr.normalizing_flows.diffeomorphisms.inversion import (
 )
 from nfqr.normalizing_flows.misc.constraints import (
     greater_than_eq,
+    nf_constraints_alternative,
     nf_constraints_standard,
     simplex,
     torch_transform_to,
-    nf_constraints_alternative
 )
 from nfqr.registry import StrRegistry
-from pydantic import BaseModel
 
 U1_DIFFEOMORPHISM_REGISTRY = StrRegistry("u1")
 
@@ -92,12 +93,19 @@ def ncp_mod(phi, alpha, beta, rho, ret_logabsdet=True):
     else:
         return conv_comb
 
+
 @U1_DIFFEOMORPHISM_REGISTRY.register("ncp")
 class NCP(Diffeomorphism):
 
     num_pars = 3
 
-    def __init__(self, alpha_min=1e-3, boundary_mode="taylor",greater_than_transform="softplus") -> None:
+    def __init__(
+        self,
+        alpha_min=1e-3,
+        boundary_mode="taylor",
+        greater_than_func="softplus",
+        beta_exponent=1,
+    ) -> None:
         super(NCP).__init__()
 
         if boundary_mode == "taylor":
@@ -115,13 +123,18 @@ class NCP(Diffeomorphism):
             "kwargs": {"ret_logabsdet": False},
         }
 
-        if greater_than_transform == "softplus":
+        if greater_than_func == "softplus":
             self.alpha_transform = nf_constraints_standard(greater_than_eq(alpha_min))
-        elif greater_than_transform == "exp":
-            self.alpha_transform = nf_constraints_alternative(greater_than_eq(alpha_min))
+        elif greater_than_func == "exp":
+            self.alpha_transform = nf_constraints_alternative(
+                greater_than_eq(alpha_min)
+            )
+        else:
+            raise ValueError(f"greater_than_func {greater_than_func} not recognized")
 
         self.rho_transform = torch_transform_to(simplex)
-
+        self.beta_exponent = beta_exponent
+        assert beta_exponent % 2 == 1, "beta exponent should be uneven"
 
     @property
     def map_to_range(self):
@@ -131,6 +144,7 @@ class NCP(Diffeomorphism):
 
         alpha = self.alpha_transform(alpha_unconstrained)
         rho = self.rho_transform(rho_unconstrained)
+        beta = beta**self.beta_exponent
 
         return alpha, beta, rho
 
@@ -186,9 +200,6 @@ class NCP(Diffeomorphism):
             return phi_out, -ld
         else:
             return phi_out
-
-
-
 
 
 def moebius(phi, w, rho, ret_logabsdet=True):
@@ -819,7 +830,7 @@ class Bump(Diffeomorphism):
 
 class NCPConfig(BaseModel):
 
-    greater_than_func:Literal["exp","softplus"]
-    boundary_mode:Literal["taylor","modulo"]
-    alpha_min:Optional[float]=1e-3
-
+    greater_than_func: Literal["exp", "softplus"]
+    boundary_mode: Literal["taylor", "modulo"]
+    alpha_min: Optional[float] = 1e-3
+    beta_exponent: int = 1
