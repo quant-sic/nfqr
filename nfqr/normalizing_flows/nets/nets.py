@@ -269,8 +269,7 @@ class EncoderBlock(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.layers = nn.ModuleList()
-        self.activation = Activation(activation_specifier=activation_specifier)
+        self.layers = []
 
         n_channels_list = [in_channels] + n_channels
         norm_configs = (
@@ -292,7 +291,7 @@ class EncoderBlock(nn.Module):
                 )
             )
 
-            self.layers.append(self.activation)
+            self.layers.append(Activation(activation_specifier=activation_specifier))
 
             if norm_config is not None:
                 self.layers.append(
@@ -393,7 +392,7 @@ class CNNEncoder(nn.Module):
     ) -> None:
         super().__init__()
 
-        blocks = nn.ModuleList()
+        blocks = []
         pooling_configs = (
             [None] * len(block_configs) if pooling_configs is None else pooling_configs
         )
@@ -456,9 +455,7 @@ class MLPDecoder(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.activation = Activation(activation_specifier=activation_specifier)
-
-        layers = nn.ModuleList()
+        layers = []
         layers.append(View([-1, in_size * in_channels]))
 
         sizes = [in_size * in_channels] + net_hidden + [out_size * out_channels]
@@ -473,7 +470,7 @@ class MLPDecoder(nn.Module):
             layers.append(nn.Linear(in_, out_))
 
             if idx != len(sizes) - 2:
-                layers.append(self.activation)
+                layers.append(Activation(activation_specifier=activation_specifier))
 
             if norm_config is not None:
                 layers.append(
