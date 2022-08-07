@@ -256,6 +256,34 @@ class LayerNormalizationConfig(BaseModel):
     norm_affine: bool = True
 
 
+class AtrousConvolution(nn.Module):
+    def __init__(self,dilations,in_channels,out_channels,
+                        kernel_size,
+                        stride,
+                        padding,
+                        padding_mode,
+                        groups) -> None:
+        super().__init__()
+
+        self.convs = []
+
+        for d in dilations:
+            self.convs.append(
+                nn.Conv1d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        stride=stride,
+                        padding=padding,
+                        padding_mode=padding_mode,
+                        groups=groups,
+                        dilation=d
+                    ))
+
+    def forward(self,x):
+        return torch.cat([conv(x) for conv in self.convs],dim=1)
+
+
 class EncoderBlock(nn.Module):
     def __init__(
         self,
@@ -268,6 +296,7 @@ class EncoderBlock(nn.Module):
         kernel_sizes: Union[List[int], None],
         concat_input: bool = False,
         n_groups: int = 1,
+        dilations:List[int]=[1]
     ) -> None:
         super().__init__()
 
@@ -278,20 +307,18 @@ class EncoderBlock(nn.Module):
             [None] * len(n_channels) if norm_configs is None else norm_configs
         )
         kernel_sizes = [3] * len(n_channels) if kernel_sizes is None else kernel_sizes
-
+            
         for in_, out_, norm_config, kernel_size_ in zip(
             n_channels_list[:-1], n_channels_list[1:], norm_configs, kernel_sizes
-        ):
-            self.layers.append(
-                nn.Conv1d(
-                    in_channels=in_,
+        ):  
+            self.layers.append(AtrousConvolution(dilations=dilations,in_channels=in_,
                     out_channels=out_,
                     kernel_size=kernel_size_,
                     stride=1,
                     padding=kernel_size_ // 2,
                     padding_mode="circular",
-                    groups=n_groups,
-                )
+                    groups=n_groups)
+
             )
 
             self.layers.append(Activation(activation_specifier=activation_specifier))
@@ -372,6 +399,7 @@ class EncoderBlockConfig(BaseModel):
     kernel_sizes: Union[List[int], None] = None
     concat_input: bool = False
     n_groups: int = 1
+    dilations:List[int]=[1]
 
     @validator("n_channels", pre=True)
     @classmethod
