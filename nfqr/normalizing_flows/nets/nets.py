@@ -1,8 +1,9 @@
 from typing import List, Literal, Optional, Union
 
 import torch
+import torch.nn.functional as F
 from pydantic import BaseModel, validator
-from torch import nn
+from torch import Tensor, nn
 
 from nfqr.registry import StrRegistry
 
@@ -266,6 +267,7 @@ class EncoderBlock(nn.Module):
         norm_configs: List[Union[LayerNormalizationConfig, None]],
         kernel_sizes: Union[List[int], None],
         concat_input: bool = False,
+        n_groups: int = 1,
     ) -> None:
         super().__init__()
 
@@ -288,6 +290,7 @@ class EncoderBlock(nn.Module):
                     stride=1,
                     padding=kernel_size_ // 2,
                     padding_mode="circular",
+                    groups=n_groups,
                 )
             )
 
@@ -368,6 +371,7 @@ class EncoderBlockConfig(BaseModel):
     norm_configs: Union[List[Union[LayerNormalizationConfig, None]], None] = None
     kernel_sizes: Union[List[int], None] = None
     concat_input: bool = False
+    n_groups: int = 1
 
     @validator("n_channels", pre=True)
     @classmethod
@@ -440,6 +444,48 @@ class CNNEncoder(nn.Module):
         return self.net(x)
 
 
+class MaskedLinear(nn.Linear):
+    """Linear transformation with masked out elements. y = x.dot(mask*W.T) + b"""
+
+    def __init__(
+        self, dim_in: int, dim_out: int, bias: bool = True, mask: Tensor = None
+    ) -> None:
+        """
+        Args:
+            n_in: Size of each input sample.
+            n_out:Size of each output sample.
+            bias: Whether to include additive bias. Default: True.
+        """
+        super().__init__(dim_in, dim_out, bias)
+        self._mask = mask
+
+    @property
+    def mask(self):
+        return self._mask
+
+    @mask.setter
+    def mask(self, m):
+        self._mask = m
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Apply masked linear transformation."""
+        return F.linear(x, self.mask * self.weight, self.bias)
+
+
+def grouped_conv_mask_for_linear(dim_in, dim_out, n_channels):
+
+    mask = torch.zeros(dim_out, n_channels, dim_in)
+
+    for g in range(dim_out):
+
+        g_first, g_last = g * int(n_channels / dim_out), (g + 1) * int(
+            n_channels / dim_out
+        )
+        mask[g, g_first:g_last, :] = 1
+
+    return mask.view(dim_out, n_channels * dim_in)
+
+
 @NET_REGISTRY.register("mlp_decoder")
 class MLPDecoder(nn.Module):
     def __init__(
@@ -451,12 +497,16 @@ class MLPDecoder(nn.Module):
         net_hidden: List[int],
         norm_configs: Union[List[Union[LayerNormalizationConfig, None]], None] = None,
         activation_specifier: str = "mish",
+        n_groups: int = 1,
         **kwargs,
     ) -> None:
         super().__init__()
 
         layers = []
         layers.append(View([-1, in_size * in_channels]))
+
+        if n_groups > 1 and len(net_hidden) > 0:
+            raise ValueError("for hidden layers n_groups>1 undefined and ignored")
 
         sizes = [in_size * in_channels] + net_hidden + [out_size * out_channels]
         norm_configs = (
@@ -467,7 +517,16 @@ class MLPDecoder(nn.Module):
         for idx, (in_, out_, norm_config) in enumerate(
             zip(sizes[:-1], sizes[1:], norm_configs)
         ):
-            layers.append(nn.Linear(in_, out_))
+            if n_groups == 1:
+                layers.append(nn.Linear(in_, out_))
+            else:
+                layers.append(
+                    MaskedLinear(
+                        in_,
+                        out_,
+                        mask=grouped_conv_mask_for_linear(in_, out_, in_channels),
+                    )
+                )
 
             if idx != len(sizes) - 2:
                 layers.append(Activation(activation_specifier=activation_specifier))
@@ -494,6 +553,7 @@ class NetConfig(BaseModel):
     coord_layer_specifier: Optional[
         Literal["rel_position", "abs_position", "rel_position+abs_position"]
     ]
+    n_groups: Optional[int] = 1
 
     block_configs: Optional[List[EncoderBlockConfig]]
     pooling_configs: Optional[List[Union[PoolingConfig, None]]] = None
