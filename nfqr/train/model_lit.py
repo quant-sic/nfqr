@@ -255,8 +255,9 @@ class LitFlow(pl.LightningModule):
 
         for scheduler in self.schedulers:
             scheduler.step()
-            for key, value in scheduler.log_stats.items():
-                self.log(key, value)
+            if hasattr(scheduler,"log_stats"):
+                for key, value in scheduler.log_stats.items():
+                    self.log(key, value)
 
         self.log_model_pars()
 
@@ -321,6 +322,11 @@ class LitFlow(pl.LightningModule):
             )
 
         return configuration_dict
+
+    def lr_scheduler_step(self, scheduler, *args,**kwargs):
+        
+        if self.current_epoch > self.trainer_config.lr_scheduler["initial_waiting_epochs"]:
+            scheduler.step()
 
     def log_all_values_in_stats_dict(
         self, node: Union[Dict, int, float], str_path_to_node: str
@@ -437,6 +443,11 @@ class LitFlow(pl.LightningModule):
             "loss_std_epoch",
             self.metrics.last_mean("loss_std", self.trainer_config.train_num_batches),
         )
+
+        for scheduler in [self.lr_schedulers()]:
+            if hasattr(scheduler,"log_stats"):
+                for key, value in scheduler.log_stats.items():
+                    self.log(key, value)
 
         return super().on_train_epoch_end()
 

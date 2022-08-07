@@ -39,7 +39,7 @@ class MaxFluctuationLRScheduler(_LRScheduler):
         min_lr=1e-6,
     ) -> None:
 
-        self.metric_window_length = metric_window_length
+        self.metric_window_length = int(metric_window_length)
         self.max_fluctuation = max_fluctuation_base
 
         if max_fluctuation_step is not None:
@@ -58,6 +58,8 @@ class MaxFluctuationLRScheduler(_LRScheduler):
         self.change_rate = change_rate
         self.min_lr = min_lr
 
+        self.current_fluctuations=np.nan
+
         self.factor = 1
         super(MaxFluctuationLRScheduler, self).__init__(optimizer, last_epoch, verbose)
 
@@ -71,6 +73,11 @@ class MaxFluctuationLRScheduler(_LRScheduler):
     @metrics.setter
     def metrics(self, m):
         self._metrics = m
+
+    @property
+    def log_stats(self):
+        return {f"fluctuation_around_linear/{self.key}": self.current_fluctuations}
+
 
     def state_dict(self):
         """Returns the state of the scheduler as a :class:`dict`.
@@ -86,7 +93,7 @@ class MaxFluctuationLRScheduler(_LRScheduler):
         state_dict = {
             key: value
             for key, value in self.__dict__.items()
-            if key not in ("optimizer", "lr_factor")
+            if key not in ("optimizer", "lr_factor","metrics","_metrics","factor")
         }
         state_dict["lr_factor"] = self.factor
 
@@ -119,14 +126,14 @@ class MaxFluctuationLRScheduler(_LRScheduler):
         if not (self.n_steps_since_change > self.cooldown_steps):
             pass
         else:
-            last_fluctuations = self.metrics.last_fluctuation_around_linear(
+            self.current_fluctuations = self.metrics.last_fluctuation_around_linear(
                 self.key, self.metric_window_length
             )
             self.max_fluctuation = abs(self.max_fluctuation - self.max_fluctuation_step)
 
-            if last_fluctuations > self.max_fluctuation:
+            if self.current_fluctuations > self.max_fluctuation:
                 self.factor *= self.change_rate
-            elif last_fluctuations < self.max_fluctuation:
+            elif self.current_fluctuations < self.max_fluctuation:
                 self.factor /= self.change_rate
 
             self.n_steps_since_change = 0
@@ -146,7 +153,7 @@ class BetaScheduler(object):
         metric_window_length: int,
     ) -> None:
 
-        self.metric_window_length = metric_window_length
+        self.metric_window_length = int(metric_window_length)
         self.target_beta = target_beta
         self.change_rate = change_rate
         self.damping_constant = damping_constant

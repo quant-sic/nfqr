@@ -97,7 +97,7 @@ class U1Decoder(Module):
 
         out = torch.cat([net(z) for net in self.nets], dim=1)
         h_pars = torch.split(out, self.expressivity, dim=-1)
-
+        
         return h_pars
 
 

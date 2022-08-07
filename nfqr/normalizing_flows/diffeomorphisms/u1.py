@@ -19,6 +19,9 @@ from nfqr.normalizing_flows.misc.constraints import (
     torch_transform_to,
 )
 from nfqr.registry import StrRegistry
+from nfqr.utils import create_logger
+
+logger = create_logger(__name__)
 
 U1_DIFFEOMORPHISM_REGISTRY = StrRegistry("u1")
 
@@ -43,7 +46,7 @@ def bring_back_to_u1(phi, **kwargs):
 
 
 def ncp(phi, alpha, beta, rho, ret_logabsdet=True):
-
+    
     left_bound_mask = phi < 1e-3
     right_bound_mask = phi > (2 * pi - 1e-3)
 

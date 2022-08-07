@@ -5,7 +5,9 @@ from typing import Dict, Union
 import numpy as np
 import torch
 from scipy import stats
+from nfqr.utils import create_logger
 
+logger = create_logger(__name__)
 
 @dataclass
 class Metrics:

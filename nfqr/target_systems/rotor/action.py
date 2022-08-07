@@ -30,7 +30,12 @@ class QuantumRotor(ClusterAction):
         if self._beta is not None:
             return self._beta
         else:
-            return self._mom_inertia/(self._T/self._dim[0])
+            self._beta = self._mom_inertia/(self._T/self._dim[0])
+            return self._beta
+
+    @beta.setter
+    def beta(self,v):
+        self._beta = v
 
     @classmethod
     def use_diffs(cls, beta):
