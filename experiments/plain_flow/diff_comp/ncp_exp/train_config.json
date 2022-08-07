@@ -11,11 +11,79 @@
         "specific_layer_config": {
           "domain": "u1",
           "specific_layer_type": "bare",
-          "diffeomorphism": [
-            "ncp",
-            "ncp_exp",
-            "ncp",
-            "ncp_exp"
+          "diffeomorphism_config": [
+            {
+              "diffeomorphism_type": "ncp",
+              "specific_diffeomorphism_config": {
+                "greater_than_func": "softplus",
+                "boundary_mode": "taylor",
+                "beta_exponent": 1
+              }
+            },
+            {
+              "diffeomorphism_type": "ncp",
+              "specific_diffeomorphism_config": {
+                "greater_than_func": "exp",
+                "boundary_mode": "taylor",
+                "beta_exponent": 1
+              }
+            },
+            {
+              "diffeomorphism_type": "ncp",
+              "specific_diffeomorphism_config": {
+                "greater_than_func": "softplus",
+                "boundary_mode": "taylor",
+                "beta_exponent": 1
+              }
+            },
+            {
+              "diffeomorphism_type": "ncp",
+              "specific_diffeomorphism_config": {
+                "greater_than_func": "exp",
+                "boundary_mode": "taylor",
+                "beta_exponent": 1
+              }
+            },
+            {
+              "diffeomorphism_type": "ncp",
+              "specific_diffeomorphism_config": {
+                "greater_than_func": "exp",
+                "boundary_mode": "taylor",
+                "beta_exponent": 3
+              }
+            },
+            {
+              "diffeomorphism_type": "ncp",
+              "specific_diffeomorphism_config": {
+                "greater_than_func": "exp",
+                "boundary_mode": "taylor",
+                "beta_exponent": 5
+              }
+            },
+            {
+              "diffeomorphism_type": "ncp",
+              "specific_diffeomorphism_config": {
+                "greater_than_func": "exp",
+                "boundary_mode": "taylor",
+                "beta_exponent": 7
+              }
+            },
+            {
+              "diffeomorphism_type": "ncp",
+              "specific_diffeomorphism_config": {
+                "greater_than_func": "exp",
+                "boundary_mode": "taylor",
+                "beta_exponent": 9
+              }
+            },
+            {
+              "diffeomorphism_type": "ncp",
+              "specific_diffeomorphism_config": {
+                "greater_than_func": "exp",
+                "boundary_mode": "taylor",
+                "beta_exponent": 1
+              }
+            }
           ],
           "initial_rho_id": 0.1
         },
@@ -23,6 +91,11 @@
           "expressivity": [
             2,
             2,
+            3,
+            3,
+            3,
+            3,
+            3,
             3,
             3
           ],
@@ -99,6 +172,6 @@
   },
   "task_parameters": [
     "expressivity",
-    "diffeomorphism"
+    "diffeomorphism_config"
   ]
 }

@@ -10,11 +10,11 @@
         "layer_type": "coupling_layer",
         "specific_layer_config": {
           "domain": "u1",
-          "specific_layer_type": "global_non_trainable_residual",
+          "specific_layer_type": "bare",
           "diffeomorphism_config": {
             "diffeomorphism_type": "ncp",
             "specific_diffeomorphism_config": {
-              "greater_than_func": "softplus",
+              "greater_than_func": "exp",
               "boundary_mode": "taylor",
               "beta_exponent": 1
             }
@@ -23,65 +23,36 @@
         },
         "conditioner_chain_config": {
           "expressivity": 2,
-          "encoder_config": {
-            "net_type": "cnn_encoder",
-            "block_configs": [
-              {
-                "n_channels": [
-                  8,
-                  16,
-                  16,
-                  16,
-                  32,
-                  32
-                ],
-                "norm_configs": [
-                  {
-                    "norm_type": "batch"
-                  },
-                  {
-                    "norm_type": "batch"
-                  },
-                  {
-                    "norm_type": "batch"
-                  },
-                  {
-                    "norm_type": "batch"
-                  },
-                  {
-                    "norm_type": "batch"
-                  },
-                  null
-                ],
-                "kernel_sizes": [
-                  5,
-                  5,
-                  5,
-                  5,
-                  5,
-                  5
-                ],
-                "concat_input": [
-                  true,
-                  false
-                ]
-              }
-            ],
-            "coord_layer_specifier": "rel_position+abs_position"
-          },
+          "encoder_config": null,
           "decoder_config": {
             "net_type": "mlp_decoder",
-            "net_hidden": []
+            "net_hidden": [
+              75,
+              100,
+              150
+            ]
           },
           "num_decoders": 1,
-          "share_encoder": false,
+          "share_encoder": true,
           "share_decoder": false
         },
-        "num_layers": 25,
+        "num_layers": [
+          25,
+          13,
+          9,
+          7,
+          5
+        ],
         "layer_split_config": {
           "split_type": "n_transforms",
           "specific_split_type_config": {
-            "n_transformed": 1
+            "n_transformed": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ]
           }
         }
       }
@@ -121,21 +92,12 @@
     "lr_scheduler": {
       "type": "reduce_on_plateau",
       "patience": 5,
-      "factor": 0.95,
+      "factor": 0.8,
       "min_lr": 1e-5
-    },
-    "scheduler_configs": [
-      {
-        "scheduler_type": "rho_residual",
-        "specific_scheduler_config": {
-          "n_steps_initial": 10000,
-          "patience": 100,
-          "reduction_factor": 0.999
-        }
-      }
-    ]
+    }
   },
   "task_parameters": [
-    "concat_input"
+    "num_layers",
+    "n_transformed"
   ]
 }

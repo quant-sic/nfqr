@@ -289,8 +289,7 @@ class LitFlow(pl.LightningModule):
                 "monitor": "loss",
             }
         elif lr_scheduler_dict["type"] == "max_fluctuations":
-            configuration_dict["lr_scheduler"] = {
-                "scheduler": MaxFluctuationLRScheduler(
+            lr_scheduler = MaxFluctuationLRScheduler(
                     optimizer=configuration_dict["optimizer"],
                     max_fluctuation_base=lr_scheduler_dict.get(
                         "max_fluctuation_base", 0.05
@@ -308,7 +307,10 @@ class LitFlow(pl.LightningModule):
                     ),
                     change_rate=lr_scheduler_dict.get("factor", 0.9),
                     min_lr=lr_scheduler_dict.get("min_lr", 5e-5),
-                ),
+                )
+            lr_scheduler.metrics = self.metrics
+            configuration_dict["lr_scheduler"] = {
+                "scheduler": lr_scheduler,
                 "interval": "epoch",
             }
         else:
