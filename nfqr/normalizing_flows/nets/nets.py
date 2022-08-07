@@ -265,7 +265,7 @@ class AtrousConvolution(nn.Module):
                         groups) -> None:
         super().__init__()
 
-        self.convs = []
+        self.convs = nn.ModuleList()
 
         for d in dilations:
             self.convs.append(
