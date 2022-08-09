@@ -27,6 +27,9 @@
             "net_type": "cnn_encoder",
             "block_configs": [
               {
+                "n_channels": 8
+              },
+              {
                 "n_channels": [
                   8,
                   8,
