@@ -7,11 +7,14 @@ import torch
 from pydantic import BaseModel, Field
 from torch.nn import Module, parameter
 
-from nfqr.normalizing_flows.diffeomorphisms import DIFFEOMORPHISMS_REGISTRY,DiffeomorphismConfig
+from nfqr.normalizing_flows.diffeomorphisms import (
+    DIFFEOMORPHISMS_REGISTRY,
+    DiffeomorphismConfig,
+)
 from nfqr.normalizing_flows.diffeomorphisms.inversion import NumericalInverse
 from nfqr.normalizing_flows.layers.conditioners import ConditionerChain
 from nfqr.normalizing_flows.misc.constraints import nf_constraints_standard, simplex
-from nfqr.normalizing_flows.nets import NetConfig
+from nfqr.normalizing_flows.nets.decoder import DecoderConfig, MLPDecoderConfig
 from nfqr.registry import StrRegistry
 from nfqr.utils import create_logger
 
@@ -25,7 +28,7 @@ class CouplingLayer(Module):
         self,
         conditioner_mask,
         transformed_mask,
-        diffeomorphism_config:DiffeomorphismConfig,
+        diffeomorphism_config: DiffeomorphismConfig,
         domain: Literal["u1"] = "u1",
         conditioner=None,
         **kwargs,
@@ -35,7 +38,17 @@ class CouplingLayer(Module):
         self.conditioner_mask = conditioner_mask
         self.transformed_mask = transformed_mask
 
-        self.diffeomorphism = DIFFEOMORPHISMS_REGISTRY[domain][diffeomorphism_config.diffeomorphism_type](**(dict(diffeomorphism_config.specific_diffeomorphism_config if diffeomorphism_config.specific_diffeomorphism_config is not None else {})))
+        self.diffeomorphism = DIFFEOMORPHISMS_REGISTRY[domain][
+            diffeomorphism_config.diffeomorphism_type
+        ](
+            **(
+                dict(
+                    diffeomorphism_config.specific_diffeomorphism_config
+                    if diffeomorphism_config.specific_diffeomorphism_config is not None
+                    else {}
+                )
+            )
+        )
 
         if conditioner is not None:
             self.conditioner = conditioner
@@ -155,12 +168,14 @@ class ResidualCoupling(CouplingLayer, Module):
                 self.rho_net = (
                     ConditionerChain(
                         encoder_config=None,
-                        decoder_config=NetConfig(
-                            net_type="mlp",
-                            net_hidden=[
-                                conditioner_mask.sum().item(),
-                                int(conditioner_mask.sum().item() + 1 / 2),
-                            ],
+                        decoder_config=DecoderConfig(
+                            decoder_type="mlp",
+                            specific_decoder_config=MLPDecoderConfig(
+                                net_hidden=[
+                                    conditioner_mask.sum().item(),
+                                    int(conditioner_mask.sum().item() + 1 / 2),
+                                ]
+                            ),
                         ),
                         domain=domain,
                         layer_splits=((conditioner_mask, transformed_mask),),

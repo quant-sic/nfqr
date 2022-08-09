@@ -11,7 +11,6 @@ from nfqr.normalizing_flows.layers.conditioners import (
     ConditionerChain,
     ConditionerChainConfig,
 )
-from nfqr.normalizing_flows.nets import NetConfig
 from nfqr.registry import StrRegistry
 from nfqr.utils import create_logger
 
@@ -140,7 +139,7 @@ class ARLayerConfig(BaseModel):
     specific_layer_type: AR_LAYER_REGISTRY.enum = Field(...)
     diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum
     expressivity: int
-    net_config: NetConfig
+    # net_config: NetConfig
 
     # validators ..
 
@@ -244,6 +243,6 @@ class NTransformsLayerConfig(BaseModel):
     specific_layer_type: N_TRANSFORMS_LAYER_REGISTRY.enum = Field(...)
     diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum
     expressivity: int
-    net_config: NetConfig
+    # net_config:
 
     # validators ..
