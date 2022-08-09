@@ -6,6 +6,9 @@ from pydantic import BaseModel, validator
 from torch import Tensor, nn
 
 from nfqr.registry import StrRegistry
+from nfqr.utils import create_logger
+
+logger = create_logger(__name__)
 
 NET_REGISTRY = StrRegistry("nets")
 
@@ -260,7 +263,6 @@ class AtrousConvolution(nn.Module):
     def __init__(self,dilations,in_channels,out_channels,
                         kernel_size,
                         stride,
-                        padding,
                         padding_mode,
                         groups) -> None:
         super().__init__()
@@ -274,14 +276,14 @@ class AtrousConvolution(nn.Module):
                         out_channels=out_channels,
                         kernel_size=kernel_size,
                         stride=stride,
-                        padding=padding,
+                        padding=((kernel_size-1)*d)//2,
                         padding_mode=padding_mode,
                         groups=groups,
                         dilation=d
                     ))
 
     def forward(self,x):
-        return torch.cat([conv(x) for conv in self.convs],dim=1)
+        return torch.stack([conv(x).unsqueeze(2) for conv in self.convs],dim=2).view(x.shape[0],-1,x.shape[-1])
 
 
 class EncoderBlock(nn.Module):
@@ -308,18 +310,23 @@ class EncoderBlock(nn.Module):
         )
         kernel_sizes = [3] * len(n_channels) if kernel_sizes is None else kernel_sizes
             
-        for in_, out_, norm_config, kernel_size_ in zip(
+        for idx,(in_, out_, norm_config, kernel_size_) in enumerate(zip(
             n_channels_list[:-1], n_channels_list[1:], norm_configs, kernel_sizes
-        ):  
-            self.layers.append(AtrousConvolution(dilations=dilations,in_channels=in_,
+        )):  
+            if idx>0:
+                in_*=len(dilations)
+
+            self.layers.append(
+                AtrousConvolution(
+                    dilations=dilations,
+                    in_channels=in_,
                     out_channels=out_,
                     kernel_size=kernel_size_,
                     stride=1,
-                    padding=kernel_size_ // 2,
                     padding_mode="circular",
                     groups=n_groups)
-
             )
+            out_*=len(dilations)
 
             self.layers.append(Activation(activation_specifier=activation_specifier))
 
@@ -338,7 +345,7 @@ class EncoderBlock(nn.Module):
                 )
 
         self.concat_input = concat_input
-        self._out_channels = n_channels[-1]
+        self._out_channels = n_channels[-1]*len(dilations)
         if self.concat_input:
             self._out_channels += in_channels
 

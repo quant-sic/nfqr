@@ -1,0 +1,143 @@
+{
+  "flow_config": {
+    "flow_type": "bare",
+    "domain": "u1",
+    "base_dist_config": {
+      "dist_type": "uniform"
+    },
+    "layer_chain_config": {
+      "layer_configs": {
+        "layer_type": "coupling_layer",
+        "specific_layer_config": {
+          "domain": "u1",
+          "specific_layer_type": "global_non_trainable_residual",
+          "diffeomorphism_config": {
+            "diffeomorphism_type": "ncp",
+            "specific_diffeomorphism_config": {
+              "greater_than_func": "exp",
+              "boundary_mode": "taylor",
+              "beta_exponent": 1
+            }
+          },
+          "initial_rho_id": 0.1
+        },
+        "conditioner_chain_config": {
+          "expressivity": 2,
+          "encoder_config": {
+            "net_type": "cnn_encoder",
+            "block_configs": [
+              {
+                "n_channels": [
+                  8,
+                  8,
+                  8,
+                  8
+                ],
+                "norm_configs": [
+                  {
+                    "norm_type": "batch"
+                  },
+                  {
+                    "norm_type": "batch"
+                  },
+                  {
+                    "norm_type": "batch"
+                  },
+                  null
+                ],
+                "kernel_sizes": [
+                  3,
+                  3,
+                  3,
+                  3
+                ],
+                "concat_input": false,
+                "n_groups": [
+                  1,
+                  2,
+                  2
+                ],
+                "dilations": [
+                  1,
+                  2,
+                  3
+                ]
+              }
+            ],
+            "coord_layer_specifier": "abs_position"
+          },
+          "decoder_config": {
+            "net_type": "mlp_decoder",
+            "net_hidden": [],
+            "n_groups": [
+              1,
+              1,
+              2
+            ]
+          },
+          "num_decoders": 1,
+          "share_encoder": false,
+          "share_decoder": false
+        },
+        "num_layers": 25,
+        "layer_split_config": {
+          "split_type": "n_transforms",
+          "specific_split_type_config": {
+            "n_transformed": 2
+          }
+        }
+      }
+    }
+  },
+  "observables": [
+    "Q",
+    "Chi_t"
+  ],
+  "action_config": {
+    "target_system": "qr",
+    "action_type": "qr",
+    "specific_action_config": {
+      "beta": 4.0
+    }
+  },
+  "dim": [
+    25
+  ],
+  "trainer_configs": {
+    "learning_rate": 0.001,
+    "auto_lr_find": false,
+    "batch_size": 10000,
+    "train_num_batches": 100,
+    "val_num_batches": 5,
+    "max_epochs": 250,
+    "log_every_n_steps": 25,
+    "accumulate_grad_batches": 2,
+    "loss_configs": [
+      {
+        "loss_type": "reverse",
+        "specific_loss_config": {}
+      }
+    ],
+    "gradient_clip_val": 5.0,
+    "gradient_clip_algorithm": "norm",
+    "lr_scheduler": {
+      "type": "reduce_on_plateau",
+      "patience": 5,
+      "factor": 0.95,
+      "min_lr": 1e-5
+    },
+    "scheduler_configs": [
+      {
+        "scheduler_type": "rho_residual",
+        "specific_scheduler_config": {
+          "n_steps_initial": 10000,
+          "patience": 100,
+          "reduction_factor": 0.999
+        }
+      }
+    ]
+  },
+  "task_parameters": [
+    "n_groups"
+  ]
+}

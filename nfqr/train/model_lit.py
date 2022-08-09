@@ -323,10 +323,13 @@ class LitFlow(pl.LightningModule):
 
         return configuration_dict
 
-    def lr_scheduler_step(self, scheduler, *args,**kwargs):
+    def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
         
-        if self.current_epoch > self.trainer_config.lr_scheduler["initial_waiting_epochs"]:
-            scheduler.step()
+        if self.current_epoch > self.trainer_config.lr_scheduler.get("initial_waiting_epochs",0):
+            if isinstance(scheduler,torch.optim.lr_scheduler.ReduceLROnPlateau):
+                scheduler.step(metrics=metric)
+            else:
+                scheduler.step()
 
     def log_all_values_in_stats_dict(
         self, node: Union[Dict, int, float], str_path_to_node: str
