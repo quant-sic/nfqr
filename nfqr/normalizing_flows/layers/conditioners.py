@@ -5,29 +5,34 @@ from pydantic import BaseModel
 from torch import nn
 from torch.nn import Module
 
-from nfqr.normalizing_flows.nets.nets import NET_REGISTRY, NetConfig
+from nfqr.normalizing_flows.nets import (
+    DECODER_REGISTRY,
+    ENCODER_REGISTRY,
+    DecoderConfig,
+    EncoderConfig,
+)
 from nfqr.registry import StrRegistry
 
-ENCODER_REGISTRY = StrRegistry("encoders")
-DECODER_REGISTRY = StrRegistry("decoders")
+ENCODER_CONDITIONER_REGISTRY = StrRegistry("encoders")
+DECODER_CONDITIONER_REGISTRY = StrRegistry("decoders")
 
 
-@ENCODER_REGISTRY.register("u1")
+@ENCODER_CONDITIONER_REGISTRY.register("u1")
 class U1Encoder(Module):
-    def __init__(self, in_channels, net_config, conditioner_mask, transformed_mask):
+    def __init__(self, in_channels, encoder_config, conditioner_mask, transformed_mask):
         super(U1Encoder, self).__init__()
 
         dim_in = conditioner_mask.sum().item()
 
-        if net_config is None:
+        if encoder_config is None:
             self.net = lambda x: x
             self._dim_out = dim_in
             self._out_channels = 2 * in_channels
         else:
-            self.net = NET_REGISTRY[net_config.net_type](
+            self.net = ENCODER_REGISTRY[encoder_config.encoder_type](
                 in_size=dim_in,
                 in_channels=2 * in_channels,
-                **dict(net_config),
+                **dict(encoder_config.specific_encoder_config),
                 conditioner_mask=conditioner_mask,
                 transformed_mask=transformed_mask,
             )
@@ -57,7 +62,7 @@ class U1Encoder(Module):
         return out
 
 
-@DECODER_REGISTRY.register("u1")
+@DECODER_CONDITIONER_REGISTRY.register("u1")
 class U1Decoder(Module):
     def __init__(
         self,
@@ -65,7 +70,7 @@ class U1Decoder(Module):
         in_channels,
         expressivity,
         num_splits,
-        net_config,
+        decoder_config,
         transformed_mask,
         num_nets: int = 1,
     ):
@@ -83,12 +88,12 @@ class U1Decoder(Module):
 
         for _ in range(num_nets):
             self.nets.append(
-                NET_REGISTRY[net_config.net_type](
+                DECODER_REGISTRY[decoder_config.decoder_type](
                     in_size=dim_in,
                     in_channels=in_channels,
                     out_size=dim_out_per_net,
                     out_channels=expressivity * num_splits,
-                    **dict(net_config),
+                    **dict(decoder_config.specific_decoder_config),
                 )
             )
         self.expressivity = expressivity
@@ -97,15 +102,15 @@ class U1Decoder(Module):
 
         out = torch.cat([net(z) for net in self.nets], dim=1)
         h_pars = torch.split(out, self.expressivity, dim=-1)
-        
+
         return h_pars
 
 
 class ConditionerChain(Module):
     def __init__(
         self,
-        encoder_config: NetConfig,
-        decoder_config: NetConfig,
+        encoder_config: EncoderConfig,
+        decoder_config: DecoderConfig,
         share_encoder: bool,
         share_decoder: bool,
         num_pars: int,
@@ -143,20 +148,20 @@ class ConditionerChain(Module):
                 )
 
     def make_encoder(self, conditioner_mask, transformed_mask):
-        return ENCODER_REGISTRY[self.domain](
+        return ENCODER_CONDITIONER_REGISTRY[self.domain](
             in_channels=1,
-            net_config=self.encoder_config,
+            encoder_config=self.encoder_config,
             conditioner_mask=conditioner_mask,
             transformed_mask=transformed_mask,
         )
 
     def make_decoder(self, dim_in, in_channels, transformed_mask):
-        return DECODER_REGISTRY[self.domain](
+        return DECODER_CONDITIONER_REGISTRY[self.domain](
             dim_in=dim_in,
             in_channels=in_channels,
             expressivity=self.expressivity,
             num_splits=self.num_pars,
-            net_config=self.decoder_config,
+            decoder_config=self.decoder_config,
             transformed_mask=transformed_mask,
             num_nets=self.num_decoders,
         )
@@ -203,8 +208,8 @@ class ConditionerChain(Module):
 class ConditionerChainConfig(BaseModel):
 
     domain: Literal["u1"] = "u1"
-    encoder_config: Union[NetConfig, None]
-    decoder_config: NetConfig
+    encoder_config: Union[EncoderConfig, None]
+    decoder_config: DecoderConfig
     share_encoder: bool
     share_decoder: bool
     expressivity: int
