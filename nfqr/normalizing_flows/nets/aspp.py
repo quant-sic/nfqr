@@ -22,18 +22,21 @@ class AtrousConvolution(nn.Module):
         self.convs = nn.ModuleList()
 
         for d in dilations:
-            self.convs.append(
-                nn.Conv1d(
-                    in_channels=in_channels,
-                    out_channels=out_channels,
-                    kernel_size=kernel_size,
-                    stride=stride,
-                    padding=((kernel_size - 1) * d) // 2,
-                    padding_mode=padding_mode,
-                    groups=groups,
-                    dilation=d,
-                )
-            )
+            try:
+                cnn = nn.Conv1d(
+                            in_channels=in_channels,
+                            out_channels=out_channels,
+                            kernel_size=kernel_size,
+                            stride=stride,
+                            padding=((kernel_size-1)*d)//2,
+                            padding_mode=padding_mode,
+                            groups=groups,
+                            dilation=d
+                        )
+            except ValueError as e:
+                raise ValueError(f"Conv1 failed for in_channels={in_channels}, out_channels={out_channels},kernel_size={kernel_size},stride={stride},padding={((kernel_size-1)*d)//2},padding_mode={padding_mode},groups={groups},dilation={d} \n with error: {e}")
+            else:
+                self.convs.append(cnn)
 
     def forward(self, x):
         return torch.stack([conv(x).unsqueeze(2) for conv in self.convs], dim=2).view(
