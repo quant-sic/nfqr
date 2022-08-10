@@ -1,3 +1,5 @@
+from decimal import ROUND_HALF_DOWN
+from tkinter import N
 from typing import Literal, Optional
 
 import numpy as np
@@ -46,7 +48,7 @@ def bring_back_to_u1(phi, **kwargs):
 
 
 def ncp(phi, alpha, beta, rho, ret_logabsdet=True):
-    
+
     left_bound_mask = phi < 1e-3
     right_bound_mask = phi > (2 * pi - 1e-3)
 
@@ -99,14 +101,12 @@ def ncp_mod(phi, alpha, beta, rho, ret_logabsdet=True):
 
 @U1_DIFFEOMORPHISM_REGISTRY.register("ncp")
 class NCP(Diffeomorphism):
-
-    num_pars = 3
-
     def __init__(
         self,
         alpha_min=1e-3,
         boundary_mode="taylor",
         greater_than_func="softplus",
+        include_beta: bool = True,
         beta_exponent=1,
     ) -> None:
         super(NCP).__init__()
@@ -117,6 +117,12 @@ class NCP(Diffeomorphism):
             self.fn = ncp_mod
         else:
             raise ValueError(f"Unknown Boundary mode {boundary_mode}")
+
+        if include_beta:
+            self._num_pars = 3
+
+        else:
+            self._num_pars = 2
 
         self.inverse_fn_params = {
             "function": self.fn,
@@ -140,6 +146,10 @@ class NCP(Diffeomorphism):
         assert beta_exponent % 2 == 1, "beta exponent should be uneven"
 
     @property
+    def num_pars(self):
+        return self._num_pars
+
+    @property
     def map_to_range(self):
         return bring_back_to_u1
 
@@ -147,12 +157,16 @@ class NCP(Diffeomorphism):
 
         alpha = self.alpha_transform(alpha_unconstrained)
         rho = self.rho_transform(rho_unconstrained)
-        beta = beta**self.beta_exponent
+
+        if beta is not None:
+            beta = beta**self.beta_exponent
+        else:
+            beta = torch.zeros_like(alpha)
 
         return alpha, beta, rho
 
     def __call__(
-        self, phi, alpha_unconstrained, beta, rho_unconstrained, ret_logabsdet=True
+        self, phi, alpha_unconstrained, rho_unconstrained, beta=None, ret_logabsdet=True
     ):
 
         alpha, beta, rho = self.constrain_params(
@@ -180,7 +194,7 @@ class NCP(Diffeomorphism):
             return phi_out
 
     def inverse(
-        self, phi, alpha_unconstrained, beta, rho_unconstrained, ret_logabsdet=True
+        self, phi, alpha_unconstrained, rho_unconstrained, beta=None, ret_logabsdet=True
     ):
         alpha, beta, rho = self.constrain_params(
             alpha_unconstrained, beta, rho_unconstrained
@@ -837,3 +851,4 @@ class NCPConfig(BaseModel):
     boundary_mode: Literal["taylor", "modulo"]
     alpha_min: Optional[float] = 1e-3
     beta_exponent: int = 1
+    include_beta: bool = True
