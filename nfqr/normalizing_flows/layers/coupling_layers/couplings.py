@@ -89,7 +89,7 @@ class BareCoupling(CouplingLayer):
         unconstrained_params = self.conditioner(conditioner_input)
 
         z[..., self.transformed_mask], ld = self.diffeomorphism(
-            transformed_input, *unconstrained_params, ret_logabsdet=True
+            transformed_input, unconstrained_params, ret_logabsdet=True
         )
 
         log_det = ld.sum(dim=-1)
@@ -103,7 +103,7 @@ class BareCoupling(CouplingLayer):
         unconstrained_params = self.conditioner(conditioner_input)
 
         x[..., self.transformed_mask], ld = self.diffeomorphism.inverse(
-            transformed_input, *unconstrained_params, ret_logabsdet=True
+            transformed_input, unconstrained_params, ret_logabsdet=True
         )
 
         log_det = ld.sum(dim=-1)
@@ -262,11 +262,11 @@ class ResidualCoupling(CouplingLayer, Module):
 
         if ret_logabsdet:
             z_coupling, log_det_coupling = self.diffeomorphism(
-                z.clone(), *unconstrained_params, ret_logabsdet=ret_logabsdet
+                z.clone(), unconstrained_params, ret_logabsdet=ret_logabsdet
             )
         else:
             z_coupling = self.diffeomorphism(
-                z.clone(), *unconstrained_params, ret_logabsdet=ret_logabsdet
+                z.clone(), unconstrained_params, ret_logabsdet=ret_logabsdet
             )
 
         z = self.diffeomorphism.map_to_range(

@@ -70,6 +70,7 @@ class U1Decoder(Module):
         in_channels,
         expressivity,
         num_splits,
+        num_extra_single_pars,
         decoder_config,
         transformed_mask,
         num_nets: int = 1,
@@ -92,16 +93,18 @@ class U1Decoder(Module):
                     in_size=dim_in,
                     in_channels=in_channels,
                     out_size=dim_out_per_net,
-                    out_channels=expressivity * num_splits,
+                    out_channels=expressivity * num_splits + num_extra_single_pars,
                     **dict(decoder_config.specific_decoder_config),
                 )
             )
         self.expressivity = expressivity
+        self.num_splits = num_splits
+        self.num_extra_single_pars = num_extra_single_pars
 
     def forward(self, z):
 
         out = torch.cat([net(z) for net in self.nets], dim=1)
-        h_pars = torch.split(out, self.expressivity, dim=-1)
+        h_pars = torch.split(out, [self.expressivity]*self.num_splits + [1]*self.num_extra_single_pars, dim=-1)
 
         return h_pars
 
@@ -116,6 +119,7 @@ class ConditionerChain(Module):
         num_pars: int,
         expressivity: int,
         layer_splits,
+        num_extra_single_pars:int=0,
         num_enocders: int = 1,
         num_decoders: int = 1,
         domain="u1",
@@ -131,6 +135,7 @@ class ConditionerChain(Module):
         self.num_decoders = num_decoders
 
         self.num_pars = num_pars
+        self.num_extra_single_pars=num_extra_single_pars
         self.expressivity = expressivity
 
         self.share_encoder = share_encoder
@@ -161,6 +166,7 @@ class ConditionerChain(Module):
             in_channels=in_channels,
             expressivity=self.expressivity,
             num_splits=self.num_pars,
+            num_extra_single_pars=self.num_extra_single_pars,
             decoder_config=self.decoder_config,
             transformed_mask=transformed_mask,
             num_nets=self.num_decoders,

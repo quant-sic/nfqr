@@ -58,7 +58,10 @@ def ncp(phi, alpha, beta, rho, ret_logabsdet=True):
         2 * pi + (phi[right_bound_mask][..., None] - 2 * pi) / alpha[right_bound_mask]
     )
 
-    conv_comb = (rho * out).sum(-1)
+    if rho is not None:
+        conv_comb = (rho * out).sum(-1)
+    else:
+        conv_comb = out.mean(-1)
 
     if ret_logabsdet:
         _grad = (
@@ -71,7 +74,10 @@ def ncp(phi, alpha, beta, rho, ret_logabsdet=True):
             1 / alpha[left_bound_mask | right_bound_mask]
         )
 
-        logabsdet = torch.log((rho * _grad).sum(-1))
+        if rho is not None:
+            logabsdet = torch.log((rho * _grad).sum(-1))
+        else:
+            logabsdet = torch.log(_grad.mean(-1))
 
         return conv_comb, logabsdet
     else:
@@ -82,7 +88,11 @@ def ncp_mod(phi, alpha, beta, rho, ret_logabsdet=True):
 
     out = 2 * torch.atan(alpha * torch.tan(0.5 * (phi - pi))[..., None] + beta) + pi
 
-    conv_comb = (rho * out).sum(-1)
+    if rho is not None:
+        conv_comb = (rho * out).sum(-1)
+    else:
+        conv_comb = out.mean(-1)
+
     conv_comb = conv_comb % (2 * pi)
 
     if ret_logabsdet:
@@ -92,7 +102,10 @@ def ncp_mod(phi, alpha, beta, rho, ret_logabsdet=True):
             - beta * torch.sin(phi)[..., None]
         ).pow(-1)
 
-        logabsdet = torch.log((rho * grad).sum(-1))
+        if rho is not None:
+            logabsdet = torch.log((rho * grad).sum(-1))
+        else:
+            logabsdet = torch.log(grad.mean(-1))
 
         return conv_comb, logabsdet
     else:
@@ -107,26 +120,39 @@ class NCP(Diffeomorphism):
         boundary_mode="taylor",
         greater_than_func="softplus",
         include_beta: bool = True,
+        add_offset: bool = False,
+        use_mean: bool = False,
         beta_exponent=1,
     ) -> None:
         super(NCP).__init__()
 
         if boundary_mode == "taylor":
-            self.fn = ncp
+            self.ncp_fn = ncp
         elif boundary_mode == "modulo":
-            self.fn = ncp_mod
+            self.ncp_fn = ncp_mod
         else:
             raise ValueError(f"Unknown Boundary mode {boundary_mode}")
 
+        # IMPORTANT first expressiveness pas then single par offset
+        self.used_params = ["alpha"]
+        self._num_pars = 1
+        self._extra_pars = 0
         if include_beta:
-            self._num_pars = 3
+            self._num_pars += 1
+            self.used_params += ["beta"]
+        if not use_mean:
+            self._num_pars += 1
+            self.used_params += ["rho"]
+        if add_offset:
+            self.used_params += ["offset"]
+            self._extra_pars += 1
 
-        else:
-            self._num_pars = 2
+        self.all_params = ["alpha", "beta", "rho", "offset"]
+        self.unused_params = set(self.all_params) - set(self.used_params)
 
         self.inverse_fn_params = {
             "function": self.fn,
-            "args": ["alpha", "beta", "rho"],
+            "args": self.all_params,
             "left": 0.0,
             "right": 2 * pi,
             "kwargs": {"ret_logabsdet": False},
@@ -143,42 +169,81 @@ class NCP(Diffeomorphism):
 
         self.rho_transform = torch_transform_to(simplex)
         self.beta_exponent = beta_exponent
+
         assert beta_exponent % 2 == 1, "beta exponent should be uneven"
+
+    def fn(self, phi, alpha, beta, rho, offset, ret_logabsdet=True):
+
+        if ret_logabsdet:
+            phi_out, ld = self.ncp_fn(
+                phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
+            )
+        else:
+            phi_out = self.ncp_fn(
+                phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
+            )
+
+        phi_out = (phi_out + offset) % (2 * pi)
+
+        if ret_logabsdet:
+            return phi_out, ld
+        else:
+            return phi_out
 
     @property
     def num_pars(self):
         return self._num_pars
 
     @property
+    def num_extra_single_pars(self):
+        return self._extra_pars
+
+    @property
     def map_to_range(self):
         return bring_back_to_u1
 
-    def constrain_params(self, alpha_unconstrained, beta, rho_unconstrained):
+    def constrain_params(self, alpha, beta, rho, offset):
 
-        alpha = self.alpha_transform(alpha_unconstrained)
-        rho = self.rho_transform(rho_unconstrained)
+        alpha = self.alpha_transform(alpha)
+
+        if rho is not None:
+            rho = self.rho_transform(rho)
 
         if beta is not None:
             beta = beta**self.beta_exponent
         else:
             beta = torch.zeros_like(alpha)
 
-        return alpha, beta, rho
+        if offset is None:
+            offset = torch.tensor([0], requires_grad=False, device=alpha.device)
+        else:
+            offset = torch.sigmoid(offset.squeeze(dim=-1)) * 2 * pi
+
+        return alpha, beta, rho, offset
 
     def __call__(
-        self, phi, alpha_unconstrained, rho_unconstrained, beta=None, ret_logabsdet=True
+        self,
+        phi,
+        params,
+        ret_logabsdet=True,
     ):
 
-        alpha, beta, rho = self.constrain_params(
-            alpha_unconstrained, beta, rho_unconstrained
-        )
+        params_dict = {name: p for name, p in zip(self.used_params, params)}
+        params_dict.update({name: None for name in self.unused_params})
+
+        alpha, beta, rho, offset = self.constrain_params(**params_dict)
 
         phi = bring_back_to_u1(phi)
 
         if ret_logabsdet:
 
             phi_out, ld = self.fn(
-                phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
+                phi=phi,
+                alpha=alpha,
+                beta=beta,
+                rho=rho,
+                offset=offset,
+                ret_logabsdet=ret_logabsdet,
             )
             phi_out = bring_back_to_u1(phi_out)
 
@@ -187,22 +252,29 @@ class NCP(Diffeomorphism):
         else:
 
             phi_out = self.fn(
-                phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
+                phi=phi,
+                alpha=alpha,
+                beta=beta,
+                rho=rho,
+                offset=offset,
+                ret_logabsdet=ret_logabsdet,
             )
             phi_out = bring_back_to_u1(phi_out)
 
             return phi_out
 
-    def inverse(
-        self, phi, alpha_unconstrained, rho_unconstrained, beta=None, ret_logabsdet=True
-    ):
-        alpha, beta, rho = self.constrain_params(
-            alpha_unconstrained, beta, rho_unconstrained
-        )
+    def inverse(self, phi, params, ret_logabsdet=True):
+
+        params_dict = {name: p for name, p in zip(self.used_params, params)}
+        params_dict.update({name: None for name in self.unused_params})
+
+        alpha, beta, rho, offset = self.constrain_params(**params_dict)
 
         phi = bring_back_to_u1(phi)
 
-        phi_out = NumericalInverse.apply(phi, self.inverse_fn_params, alpha, beta, rho)
+        phi_out = NumericalInverse.apply(
+            phi, self.inverse_fn_params, alpha, beta, rho, offset
+        )
         phi_out = bring_back_to_u1(phi_out)
 
         if ret_logabsdet:
@@ -211,6 +283,7 @@ class NCP(Diffeomorphism):
                 alpha=alpha,
                 beta=beta,
                 rho=rho,
+                offset=offset,
                 ret_logabsdet=True,
             )
 
@@ -302,6 +375,10 @@ class Moebius(Diffeomorphism):
         self.rho_transform = torch_transform_to(simplex)
 
     @property
+    def num_extra_single_pars(self):
+        return 0
+
+    @property
     def map_to_range(self):
         return bring_back_to_u1
 
@@ -331,15 +408,11 @@ class Moebius(Diffeomorphism):
     def __call__(
         self,
         phi,
-        w_x_unconstrained,
-        w_y_unconstrained,
-        rho_unconstrained,
+        params,
         ret_logabsdet=True,
     ):
 
-        w, rho = self.constrain_params(
-            w_x_unconstrained, w_y_unconstrained, rho_unconstrained
-        )
+        w, rho = self.constrain_params(*params)
 
         phi = bring_back_to_u1(phi)
 
@@ -370,14 +443,10 @@ class Moebius(Diffeomorphism):
     def inverse(
         self,
         phi,
-        w_x_unconstrained,
-        w_y_unconstrained,
-        rho_unconstrained,
+        params,
         ret_logabsdet=True,
     ):
-        w, rho = self.constrain_params(
-            w_x_unconstrained, w_y_unconstrained, rho_unconstrained
-        )
+        w, rho = self.constrain_params(*params)
 
         phi = bring_back_to_u1(phi)
         phi_out = NumericalInverse.apply(phi, self.inverse_fn_params, w, rho)
@@ -539,22 +608,31 @@ class RQS(Diffeomorphism):
         super(RQS).__init__()
 
     @property
+    def num_extra_single_pars(self):
+        return self._extra_pars
+
+    @property
     def map_to_range(self):
         return bring_back_to_u1
 
     def constrain_params(
         self, unnormalized_widths, unnormalized_heights, unnormalized_derivatives
     ):
-        pass
+        return unnormalized_widths, unnormalized_heights, unnormalized_derivatives
 
     def __call__(
         self,
         phi,
-        unnormalized_widths,
-        unnormalized_heights,
-        unnormalized_derivatives,
+        params,
         ret_logabsdet=True,
     ):
+
+        (
+            unnormalized_widths,
+            unnormalized_heights,
+            unnormalized_derivatives,
+        ) = self.constrain_params(*params)
+
         phi = bring_back_to_u1(phi)
         return rational_quadratic_spline(
             inputs=phi,
@@ -852,3 +930,5 @@ class NCPConfig(BaseModel):
     alpha_min: Optional[float] = 1e-3
     beta_exponent: int = 1
     include_beta: bool = True
+    use_mean: bool = False
+    add_offset: bool = False

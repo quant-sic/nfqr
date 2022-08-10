@@ -67,9 +67,10 @@ class LayerChain(Module):
             conditioners = ConditionerChain(
                 **dict(layer_config.conditioner_chain_config),
                 layer_splits=layer_splits,
-                num_pars=DIFFEOMORPHISMS_REGISTRY[
-                    layer_config.specific_layer_config.domain
-                ][layer_config.specific_layer_config.diffeomorphism_config.diffeomorphism_type](**(dict(layer_config.specific_layer_config.diffeomorphism_config.specific_diffeomorphism_config) if layer_config.specific_layer_config.diffeomorphism_config.specific_diffeomorphism_config is not None else {})).num_pars,
+                num_pars=get_representative_diff(layer_config=layer_config).num_pars,
+                num_extra_single_pars=get_representative_diff(
+                    layer_config=layer_config
+                ).num_extra_single_pars,
             )
 
             for (conditioner_mask, transformed_mask), conditioner in zip(
@@ -121,3 +122,19 @@ class LayerChain(Module):
 
     def load(self, checkpoint, device):
         self.load_state_dict(torch.load(checkpoint, map_location=device)["net"])
+
+
+def get_representative_diff(layer_config):
+    representative_diff = DIFFEOMORPHISMS_REGISTRY[
+        layer_config.specific_layer_config.domain
+    ][layer_config.specific_layer_config.diffeomorphism_config.diffeomorphism_type](
+        **(
+            dict(
+                layer_config.specific_layer_config.diffeomorphism_config.specific_diffeomorphism_config
+            )
+            if layer_config.specific_layer_config.diffeomorphism_config.specific_diffeomorphism_config
+            is not None
+            else {}
+        )
+    )
+    return representative_diff
