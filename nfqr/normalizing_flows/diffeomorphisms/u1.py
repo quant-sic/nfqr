@@ -55,6 +55,10 @@ def bring_back_to_u1(phi, raise_error=False, mode="cut", error_margin=1e-3, **kw
     return phi
 
 
+def diff_to_u1(x):
+    return (x + pi) % (2 * pi)
+
+
 class U1Diffeomorphism(Diffeomorphism):
     @property
     def num_pars(self):
@@ -71,6 +75,10 @@ class U1Diffeomorphism(Diffeomorphism):
     @property
     def range_check_correction(self):
         return bring_back_to_u1
+
+    @property
+    def diff_to_range(self):
+        return diff_to_u1
 
 
 def ncp(phi, alpha, beta, rho, ret_logabsdet=True):
