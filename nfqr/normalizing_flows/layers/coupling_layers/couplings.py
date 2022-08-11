@@ -113,7 +113,7 @@ class TranslationEquivariantCoupling(CouplingLayer):
         conditioner_input, _ = self._split(z)
         diffs_to_be_transformed = self.diffeomorphism.diff_to_range(
             z - torch.roll(z, shifts=1, dims=-1)
-        )[self.transformed_mask]
+        )[...,self.transformed_mask]
 
         return conditioner_input, diffs_to_be_transformed
 

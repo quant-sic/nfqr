@@ -27,19 +27,22 @@ logger = create_logger(__name__)
 U1_DIFFEOMORPHISM_REGISTRY = StrRegistry("u1")
 
 
+def map_to_u1(phi, mode):
+
+    if mode == "modulo":
+        phi = phi % (2 * pi)
+
+    elif mode == "cut":
+        phi[phi <= 0.0] = 0.0
+        phi[phi >= (2 * pi)] = 2 * pi
+
+    return phi
+
 def bring_back_to_u1(phi, raise_error=False, mode="cut", error_margin=1e-3, **kwargs):
-    def map_to_u1(phi, mode):
-
-        if mode == "modulo":
-            phi = phi % (2 * pi)
-
-        elif mode == "cut":
-            phi[phi <= 0.0] = 0.0
-            phi[phi >= (2 * pi)] = 2 * pi
-
+    
     if (torch.min(phi) <= 0.0) or (torch.max(phi) >= (2 * pi)):
 
-        if torch.min(phi) > -error_margin and torch.max(phi) < (2 * pi + error_margin):
+        if torch.min(phi) > -error_margin and torch.max(phi) < (2 * pi + error_margin) or not raise_error:
             phi = map_to_u1(phi, mode=mode)
         else:
             kwargs_str = ";".join(
@@ -217,7 +220,7 @@ class NCP(U1Diffeomorphism):
                 phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
             )
 
-        phi_out = self.map_to_range_modulo(phi_out + offset)
+        phi_out = self.map_to_range(phi_out + offset)
 
         if ret_logabsdet:
             return phi_out, ld
