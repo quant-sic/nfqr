@@ -36,11 +36,21 @@ class LayerSplit(object):
             self.split_fn = self.checkerboard_mask
         elif split_type == "kernel":
             self.split_fn = self.kernel_mask
+
         if safe_guard:
             self.check_all_transformed()
 
     @classmethod
-    def n_transforms(cls, dim, num_layers, n_transformed, num_offset, safe_guard=True,**kwargs):
+    def n_transforms(
+        cls,
+        dim,
+        num_layers,
+        n_transformed,
+        num_offset,
+        exclude_left_of_transformed=False,
+        safe_guard=True,
+        **kwargs
+    ):
         if n_transformed is None:
             raise ValueError("Need n for n_transforms split")
 
@@ -51,11 +61,23 @@ class LayerSplit(object):
             split_type="n_transforms",
             n_transformed=n_transformed,
             num_offset=num_offset,
+            exclude_left_of_transformed=exclude_left_of_transformed,
         )
 
     @classmethod
-    def kernel(cls, dim, num_layers, kernel_size,dilation,stride,departmentalization, num_offset, safe_guard=True,**kwargs):
-        if any(v is None for v in (kernel_size,dilation,stride)):
+    def kernel(
+        cls,
+        dim,
+        num_layers,
+        kernel_size,
+        dilation,
+        stride,
+        departmentalization,
+        num_offset,
+        safe_guard=True,
+        **kwargs
+    ):
+        if any(v is None for v in (kernel_size, dilation, stride)):
             raise ValueError("Need kernel_size,dilation,stride for kernel split")
 
         return cls(
@@ -71,8 +93,17 @@ class LayerSplit(object):
         )
 
     @classmethod
-    def n_transforms_close(cls, dim, num_layers, n_transformed, stride, num_offset, safe_guard=True,**kwargs):
-        if any(v is None for v in (n_transformed,stride)):
+    def n_transforms_close(
+        cls,
+        dim,
+        num_layers,
+        n_transformed,
+        stride,
+        num_offset,
+        safe_guard=True,
+        **kwargs
+    ):
+        if any(v is None for v in (n_transformed, stride)):
             raise ValueError("Need n and stride for n_transforms_close split")
 
         return cls(
@@ -86,7 +117,7 @@ class LayerSplit(object):
         )
 
     @classmethod
-    def checkerboard(cls, dim, num_layers, num_offset, safe_guard=True,**kwargs):
+    def checkerboard(cls, dim, num_layers, num_offset, safe_guard=True, **kwargs):
         return cls(
             dim=dim,
             num_layers=num_layers,
@@ -109,7 +140,9 @@ class LayerSplit(object):
         return mask, ~mask
 
     @staticmethod
-    def n_transforms_mask(size, mask_num, n_transformed, **kwargs):
+    def n_transforms_mask(
+        size, mask_num, n_transformed, exclude_left_of_transformed, **kwargs
+    ):
 
         mask = torch.zeros(size).bool()
         step_size = int(np.ceil(size / n_transformed))
@@ -117,31 +150,46 @@ class LayerSplit(object):
         transformed_idx = (torch.arange(n_transformed) * step_size + mask_num) % size
         mask[transformed_idx] = True
 
-        return ~mask, mask
+        if exclude_left_of_transformed:
+            exclude_mask = torch.roll(mask, shifts=-1, dims=0)
+        else:
+            exclude_mask = torch.zeros(size).bool()
+
+        assert not (
+            mask & exclude_mask
+        ).any(), "Exclude mask and transformed mask overlap"
+
+        return ~(mask | exclude_mask), mask
 
     @staticmethod
-    def n_transforms_close_mask(size, mask_num, n_transformed,stride, **kwargs):
+    def n_transforms_close_mask(size, mask_num, n_transformed, stride, **kwargs):
 
         mask = torch.zeros(size).bool()
 
-        transformed_idx = (torch.arange(n_transformed) + mask_num*stride) % size
+        transformed_idx = (torch.arange(n_transformed) + mask_num * stride) % size
         mask[transformed_idx] = True
 
         return ~mask, mask
 
     @staticmethod
-    def kernel_mask(size, mask_num, kernel_size, stride, dilation,departmentalization, **kwargs):
+    def kernel_mask(
+        size, mask_num, kernel_size, stride, dilation, departmentalization, **kwargs
+    ):
 
-        if stride>1 and departmentalization:
+        if stride > 1 and departmentalization:
             raise ValueError("For departmentalization stride cannot be greater than 1")
 
         mask = torch.zeros(size).bool()
 
-        department = int(mask_num/dilation)
-        department_step = kernel_size*dilation
-        extra_step = mask_num*stride if not departmentalization else department*department_step + mask_num%dilation
-        
-        transformed_idx = (torch.arange(kernel_size)*dilation +  extra_step) % size
+        department = int(mask_num / dilation)
+        department_step = kernel_size * dilation
+        extra_step = (
+            mask_num * stride
+            if not departmentalization
+            else department * department_step + mask_num % dilation
+        )
+
+        transformed_idx = (torch.arange(kernel_size) * dilation + extra_step) % size
         mask[transformed_idx] = True
 
         return ~mask, mask
@@ -193,7 +241,8 @@ class SplitTypeConfig(BaseModel):
     kernel_size: Optional[int]
     dilation: Optional[int]
     stride: Optional[int]
-    departmentalization:Optional[bool]
+    departmentalization: Optional[bool]
+    exclude_left_of_transformed: Optional[bool] = False
 
 
 class LayerSplitConfig(BaseModel):

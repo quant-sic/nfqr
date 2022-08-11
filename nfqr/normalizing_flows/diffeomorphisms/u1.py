@@ -1,5 +1,4 @@
-from decimal import ROUND_HALF_DOWN
-from tkinter import N
+from functools import partial
 from typing import Literal, Optional
 
 import numpy as np
@@ -28,11 +27,20 @@ logger = create_logger(__name__)
 U1_DIFFEOMORPHISM_REGISTRY = StrRegistry("u1")
 
 
-def bring_back_to_u1(phi, **kwargs):
-    if (torch.min(phi) <= 0.0) or (torch.max(phi) >= (2 * pi)):
-        if torch.min(phi) > -(1e-3) and torch.max(phi) < (2 * pi + 1e-3):
+def bring_back_to_u1(phi, raise_error=False, mode="cut", error_margin=1e-3, **kwargs):
+    def map_to_u1(phi, mode):
+
+        if mode == "modulo":
+            phi = phi % (2 * pi)
+
+        elif mode == "cut":
             phi[phi <= 0.0] = 0.0
             phi[phi >= (2 * pi)] = 2 * pi
+
+    if (torch.min(phi) <= 0.0) or (torch.max(phi) >= (2 * pi)):
+
+        if torch.min(phi) > -error_margin and torch.max(phi) < (2 * pi + error_margin):
+            phi = map_to_u1(phi, mode=mode)
         else:
             kwargs_str = ";".join(
                 [
@@ -45,6 +53,24 @@ def bring_back_to_u1(phi, **kwargs):
             )
 
     return phi
+
+
+class U1Diffeomorphism(Diffeomorphism):
+    @property
+    def num_pars(self):
+        return self._num_pars
+
+    @property
+    def num_extra_single_pars(self):
+        return self._extra_pars
+
+    @property
+    def map_to_range(self):
+        return partial(bring_back_to_u1, mode="modulo", raise_error=False)
+
+    @property
+    def range_check_correction(self):
+        return bring_back_to_u1
 
 
 def ncp(phi, alpha, beta, rho, ret_logabsdet=True):
@@ -113,7 +139,7 @@ def ncp_mod(phi, alpha, beta, rho, ret_logabsdet=True):
 
 
 @U1_DIFFEOMORPHISM_REGISTRY.register("ncp")
-class NCP(Diffeomorphism):
+class NCP(U1Diffeomorphism):
     def __init__(
         self,
         alpha_min=1e-3,
@@ -183,24 +209,12 @@ class NCP(Diffeomorphism):
                 phi=phi, alpha=alpha, beta=beta, rho=rho, ret_logabsdet=ret_logabsdet
             )
 
-        phi_out = (phi_out + offset) % (2 * pi)
+        phi_out = self.map_to_range_modulo(phi_out + offset)
 
         if ret_logabsdet:
             return phi_out, ld
         else:
             return phi_out
-
-    @property
-    def num_pars(self):
-        return self._num_pars
-
-    @property
-    def num_extra_single_pars(self):
-        return self._extra_pars
-
-    @property
-    def map_to_range(self):
-        return bring_back_to_u1
 
     def constrain_params(self, alpha, beta, rho, offset):
 
@@ -357,9 +371,9 @@ def moebius(phi, w, rho, ret_logabsdet=True):
 
 
 @U1_DIFFEOMORPHISM_REGISTRY.register("moebius")
-class Moebius(Diffeomorphism):
+class Moebius(U1Diffeomorphism):
 
-    num_pars = 3
+    _num_pars = 3
 
     def __init__(self) -> None:
         super(Moebius).__init__()
@@ -373,14 +387,7 @@ class Moebius(Diffeomorphism):
         }
 
         self.rho_transform = torch_transform_to(simplex)
-
-    @property
-    def num_extra_single_pars(self):
-        return 0
-
-    @property
-    def map_to_range(self):
-        return bring_back_to_u1
+        self._extra_pars = 0
 
     def constrain_params(self, w_x_unconstrained, w_y_unconstrained, rho_unconstrained):
 
@@ -600,20 +607,13 @@ def rational_quadratic_spline(
 
 
 @U1_DIFFEOMORPHISM_REGISTRY.register("rqs")
-class RQS(Diffeomorphism):
+class RQS(U1Diffeomorphism):
 
-    num_pars = 3
+    _num_pars = 3
+    _extra_pars = 0
 
     def __init__(self) -> None:
         super(RQS).__init__()
-
-    @property
-    def num_extra_single_pars(self):
-        return self._extra_pars
-
-    @property
-    def map_to_range(self):
-        return bring_back_to_u1
 
     def constrain_params(
         self, unnormalized_widths, unnormalized_heights, unnormalized_derivatives
@@ -786,7 +786,8 @@ def circular_bump(
 @U1_DIFFEOMORPHISM_REGISTRY.register("bump")
 class Bump(Diffeomorphism):
 
-    num_pars = 5
+    _num_pars = 5
+    _extra_pars = 0
 
     def __init__(self, _beta: int = 2) -> None:
         super(Bump).__init__()
@@ -802,10 +803,6 @@ class Bump(Diffeomorphism):
         self.alpha_max = 10
         self._beta = _beta
         self.rho_transform = torch_transform_to(simplex)
-
-    @property
-    def map_to_range(self):
-        return bring_back_to_u1
 
     def constrain_params(
         self,
