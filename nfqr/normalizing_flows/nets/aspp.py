@@ -16,6 +16,7 @@ class AtrousConvolution(nn.Module):
         stride,
         padding_mode,
         groups,
+        bias
     ) -> None:
         super().__init__()
 
@@ -31,7 +32,8 @@ class AtrousConvolution(nn.Module):
                             padding=((kernel_size-1)*d)//2,
                             padding_mode=padding_mode,
                             groups=groups,
-                            dilation=d
+                            dilation=d,
+                            bias=bias
                         )
             except ValueError as e:
                 raise ValueError(f"Conv1 failed for in_channels={in_channels}, out_channels={out_channels},kernel_size={kernel_size},stride={stride},padding={((kernel_size-1)*d)//2},padding_mode={padding_mode},groups={groups},dilation={d} \n with error: {e}")

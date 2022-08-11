@@ -922,8 +922,8 @@ class Bump(Diffeomorphism):
 
 class NCPConfig(BaseModel):
 
-    greater_than_func: Literal["exp", "softplus"]
-    boundary_mode: Literal["taylor", "modulo"]
+    greater_than_func: Literal["exp", "softplus"] = "exp"
+    boundary_mode: Literal["taylor", "modulo"] = "taylor"
     alpha_min: Optional[float] = 1e-3
     beta_exponent: int = 1
     include_beta: bool = True

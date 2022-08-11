@@ -54,6 +54,8 @@ class EncoderBlock(nn.Module):
             if idx > 0:
                 in_ *= len(dilations)
 
+
+
             self.layers.append(
                 AtrousConvolution(
                     dilations=dilations,
@@ -63,11 +65,10 @@ class EncoderBlock(nn.Module):
                     stride=1,
                     padding_mode="circular",
                     groups=n_groups,
+                    bias = False if norm_config is not None else True
                 )
             )
             out_ *= len(dilations)
-
-            self.layers.append(Activation(activation_specifier=activation_specifier))
 
             if norm_config is not None:
                 self.layers.append(
@@ -75,6 +76,9 @@ class EncoderBlock(nn.Module):
                         **dict(norm_config), out_channel=out_, out_size=dim
                     )
                 )
+            self.layers.append(Activation(activation_specifier=activation_specifier))
+
+
 
         self.residual = residual
         if residual:

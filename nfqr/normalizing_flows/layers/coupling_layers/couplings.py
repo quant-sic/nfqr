@@ -93,11 +93,11 @@ class TranslationEquivariantCoupling(CouplingLayer):
     ) -> None:
 
         super().__init__(
-            conditioner_mask,
-            transformed_mask,
-            diffeomorphism_config,
-            domain,
-            conditioner,
+            conditioner_mask=conditioner_mask,
+            transformed_mask=transformed_mask,
+            diffeomorphism_config=diffeomorphism_config,
+            domain=domain,
+            conditioner=conditioner,
             **kwargs,
         )
 
@@ -111,7 +111,7 @@ class TranslationEquivariantCoupling(CouplingLayer):
     def _split_diffs_equivariant(self, z):
 
         conditioner_input, _ = self._split(z)
-        diffs_to_be_transformed = (z - torch.roll(z, shifts=1, dims=0))[
+        diffs_to_be_transformed = (z - torch.roll(z, shifts=1, dims=-1))[...,
             self.transformed_mask
         ]
 
