@@ -41,9 +41,13 @@ class QuantumRotor(ClusterAction):
     def use_diffs(cls, beta):
         return cls(beta, diffs=True)
 
+    @staticmethod
+    def _get_diffs(config: torch.Tensor) -> torch.Tensor:
+        return torch.roll(config, shifts=1, dims=-1) - config
+
     def evaluate(self, config: torch.Tensor) -> torch.Tensor:
         if not self.diffs:
-            _config = torch.roll(config, shifts=1, dims=-1) - config
+            _config = self._get_diffs(config=config)
         else:
             _config = config
 
