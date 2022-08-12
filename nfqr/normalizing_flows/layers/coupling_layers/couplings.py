@@ -110,36 +110,41 @@ class TranslationEquivariantCoupling(CouplingLayer):
 
     def _split_diffs_equivariant(self, z):
 
-        conditioner_input, _ = self._split(z)
-        diffs_to_be_transformed = self.diffeomorphism.diff_to_range(
-            z - torch.roll(z, shifts=1, dims=-1)
-        )[...,self.transformed_mask]
+        diffs = self.diffeomorphism.diff_to_range(z - torch.roll(z, shifts=1, dims=-1))
+        diffs_for_conditioner, diffs_to_be_transformed = (
+            diffs[..., self.conditioner_mask],
+            diffs[..., self.transformed_mask],
+        )
 
-        return conditioner_input, diffs_to_be_transformed
+        return diffs_for_conditioner, diffs_to_be_transformed
 
     def _decode(self, z):
 
-        conditioner_input, diffs_to_be_transformed = self._split_diffs_equivariant(z)
+        diffs_for_conditioner, diffs_to_be_transformed = self._split_diffs_equivariant(
+            z
+        )
 
-        unconstrained_params = self.conditioner(conditioner_input)
+        unconstrained_params = self.conditioner(diffs_for_conditioner)
 
         transformed_input, ld = self.diffeomorphism(
             diffs_to_be_transformed, unconstrained_params, ret_logabsdet=True
         )
 
         delta = transformed_input - diffs_to_be_transformed
+
         z[..., self.transformed_mask] = self.diffeomorphism.map_to_range(
             z[..., self.transformed_mask] + delta
         )
         log_det = ld.sum(dim=-1)
 
-        return z, log_det
+        return z, log_det, diffs_to_be_transformed, transformed_input
 
     def _encode(self, x):
 
-        conditioner_input, diffs_to_be_transformed = self._split_diffs_equivariant(x)
-
-        unconstrained_params = self.conditioner(conditioner_input)
+        diffs_for_conditioner, diffs_to_be_transformed = self._split_diffs_equivariant(
+            x
+        )
+        unconstrained_params = self.conditioner(diffs_for_conditioner)
 
         transformed_input, ld = self.diffeomorphism.inverse(
             diffs_to_be_transformed, unconstrained_params, ret_logabsdet=True
