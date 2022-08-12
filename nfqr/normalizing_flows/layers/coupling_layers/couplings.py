@@ -109,9 +109,15 @@ class TranslationEquivariantCoupling(CouplingLayer):
             torch.roll(self.transformed_mask, shifts=-1, dims=0) & self.conditioner_mask
         ).any(), "Masks are not suitable for equivariant coupling"
 
-    def _split_diffs_equivariant(self, z):
+    def _split_diffs_equivariant(self, z, diff_symmetry="shortest"):
 
-        diffs = self.diffeomorphism.diff_to_range(QuantumRotor._get_diffs(z))
+        if diff_symmetry == "shortest":
+            diffs = self.diffeomorphism.diff_to_range(QuantumRotor._get_diffs(z))
+        elif diff_symmetry == "abs":
+            diffs = torch.abs(QuantumRotor._get_diffs(z))
+        else:
+            raise ValueError("Diff Symmetry not recognized")
+
         diffs_for_conditioner, diffs_to_be_transformed = (
             diffs[..., self.conditioner_mask],
             diffs[..., self.transformed_mask],
