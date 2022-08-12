@@ -1,5 +1,5 @@
 import math
-from typing import List,Optional
+from typing import List, Optional
 
 import jax.numpy as jnp
 import torch
@@ -13,12 +13,19 @@ ROTOR_ACTION_REGISTRY = StrRegistry("qr")
 
 @ROTOR_ACTION_REGISTRY.register("qr")
 class QuantumRotor(ClusterAction):
-    def __init__(self, beta: float,dim:List[int], mom_inertia:float = None,T:float=None,diffs=False) -> None:
+    def __init__(
+        self,
+        beta: float,
+        dim: List[int],
+        mom_inertia: float = None,
+        T: float = None,
+        diffs=False,
+    ) -> None:
         super().__init__()
         self._beta = beta
         self._T = T
         self._mom_inertia = mom_inertia
-        self._dim=dim
+        self._dim = dim
 
         if beta is None and (mom_inertia is None or T is None or dim is None):
             raise ValueError("Either beta of mom_inertia and T and dim must be given")
@@ -30,11 +37,11 @@ class QuantumRotor(ClusterAction):
         if self._beta is not None:
             return self._beta
         else:
-            self._beta = self._mom_inertia/(self._T/self._dim[0])
+            self._beta = self._mom_inertia / (self._T / self._dim[0])
             return self._beta
 
     @beta.setter
-    def beta(self,v):
+    def beta(self, v):
         self._beta = v
 
     @classmethod
@@ -43,7 +50,7 @@ class QuantumRotor(ClusterAction):
 
     @staticmethod
     def _get_diffs(config: torch.Tensor) -> torch.Tensor:
-        return torch.roll(config, shifts=1, dims=-1) - config
+        return config - torch.roll(config, shifts=1, dims=-1)
 
     def evaluate(self, config: torch.Tensor) -> torch.Tensor:
         if not self.diffs:
@@ -98,6 +105,6 @@ ROTOR_ACTION_REGISTRY.register("qr_diffs", QuantumRotor.use_diffs)
 class QuantumRotorConfig(BaseModel):
 
     beta: Optional[float]
-    dim:Optional[List[int]]
-    T:Optional[float]
-    mom_inertia:Optional[float]
+    dim: Optional[List[int]]
+    T: Optional[float]
+    mom_inertia: Optional[float]

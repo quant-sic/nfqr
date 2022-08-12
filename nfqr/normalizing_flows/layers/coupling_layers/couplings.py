@@ -16,6 +16,7 @@ from nfqr.normalizing_flows.layers.conditioners import ConditionerChain
 from nfqr.normalizing_flows.misc.constraints import nf_constraints_standard, simplex
 from nfqr.normalizing_flows.nets.decoder import DecoderConfig, MLPDecoderConfig
 from nfqr.registry import StrRegistry
+from nfqr.target_systems.rotor import QuantumRotor
 from nfqr.utils import create_logger
 
 logger = create_logger(__name__)
@@ -110,7 +111,7 @@ class TranslationEquivariantCoupling(CouplingLayer):
 
     def _split_diffs_equivariant(self, z):
 
-        diffs = self.diffeomorphism.diff_to_range(z - torch.roll(z, shifts=1, dims=-1))
+        diffs = self.diffeomorphism.diff_to_range(QuantumRotor._get_diffs(z))
         diffs_for_conditioner, diffs_to_be_transformed = (
             diffs[..., self.conditioner_mask],
             diffs[..., self.transformed_mask],

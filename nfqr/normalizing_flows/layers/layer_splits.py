@@ -47,7 +47,7 @@ class LayerSplit(object):
         num_layers,
         n_transformed,
         num_offset,
-        exclude_left_of_transformed=False,
+        exclude_nn_of_transformed=False,
         safe_guard=True,
         **kwargs
     ):
@@ -61,7 +61,7 @@ class LayerSplit(object):
             split_type="n_transforms",
             n_transformed=n_transformed,
             num_offset=num_offset,
-            exclude_left_of_transformed=exclude_left_of_transformed,
+            exclude_nn_of_transformed=exclude_nn_of_transformed,
         )
 
     @classmethod
@@ -141,7 +141,7 @@ class LayerSplit(object):
 
     @staticmethod
     def n_transforms_mask(
-        size, mask_num, n_transformed, exclude_left_of_transformed, **kwargs
+        size, mask_num, n_transformed, exclude_nn_of_transformed, **kwargs
     ):
 
         mask = torch.zeros(size).bool()
@@ -150,8 +150,10 @@ class LayerSplit(object):
         transformed_idx = (torch.arange(n_transformed) * step_size + mask_num) % size
         mask[transformed_idx] = True
 
-        if exclude_left_of_transformed:
-            exclude_mask = torch.roll(mask, shifts=-1, dims=0)
+        if exclude_nn_of_transformed:
+            exclude_mask = torch.roll(mask, shifts=-1, dims=0) | torch.roll(
+                mask, shifts=1, dims=0
+            )
         else:
             exclude_mask = torch.zeros(size).bool()
 
@@ -242,7 +244,7 @@ class SplitTypeConfig(BaseModel):
     dilation: Optional[int]
     stride: Optional[int]
     departmentalization: Optional[bool]
-    exclude_left_of_transformed: Optional[bool] = False
+    exclude_nn_of_transformed: Optional[bool] = False
 
 
 class LayerSplitConfig(BaseModel):
