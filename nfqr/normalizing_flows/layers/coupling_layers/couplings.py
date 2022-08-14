@@ -106,7 +106,7 @@ class TranslationEquivariantCoupling(CouplingLayer):
 
     def check_correct_splitting(self):
         assert not (
-            torch.roll(self.transformed_mask, shifts=-1, dims=0) & self.conditioner_mask
+            torch.roll(self.transformed_mask, shifts=-1, dims=0) & self.conditioner_mask  & torch.roll(self.transformed_mask, shifts=1, dims=0)
         ).any(), "Masks are not suitable for equivariant coupling"
 
     def _split_diffs_equivariant(self, z):
@@ -138,7 +138,7 @@ class TranslationEquivariantCoupling(CouplingLayer):
         )
         log_det = ld.sum(dim=-1)
 
-        return z, log_det, diffs_to_be_transformed, transformed_input
+        return z, log_det
 
     def _encode(self, x):
 
