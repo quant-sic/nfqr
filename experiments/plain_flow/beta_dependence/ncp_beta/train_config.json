@@ -11,27 +11,32 @@
     },
     "layer_chain_config": {
       "layer_configs": {
-        "layer_type":"coupling_layer",
-        "specific_layer_config":{
+        "layer_type": "coupling_layer",
+        "specific_layer_config": {
           "domain": "u1",
           "specific_layer_type": "bare",
-          "diffeomorphism": "ncp"
+          "diffeomorphism_config": {
+            "diffeomorphism_type": "ncp",
+            "specific_diffeomorphism_config": {}
+          }
         },
-        "conditioner_chain_config":{
+        "conditioner_chain_config": {
           "expressivity": 8,
-          "encoder_config":null,
+          "encoder_config": null,
           "decoder_config": {
-            "net_type": "mlp",
-            "net_hidden": [
-              50,
-              50,
-              50
-            ]
+            "decoder_type": "mlp",
+            "specific_decoder_config": {
+              "net_hidden": [
+                50,
+                50,
+                50
+              ]
+            }
           },
-          "share_encoder":true,
-          "share_decoder":false
-      },
-        "num_layers":5
+          "share_encoder": true,
+          "share_decoder": false
+        },
+        "num_layers": 5
       },
       "split_type": "checkerboard"
     }
