@@ -28,7 +28,8 @@ class QuantumRotor(ClusterAction):
         self._dim = dim
 
         if beta is None and (mom_inertia is None or T is None or dim is None):
-            raise ValueError("Either beta of mom_inertia and T and dim must be given")
+            raise ValueError(
+                "Either beta of mom_inertia and T and dim must be given")
 
         self.diffs = diffs
 
@@ -51,6 +52,10 @@ class QuantumRotor(ClusterAction):
     @staticmethod
     def _get_diffs(config: torch.Tensor) -> torch.Tensor:
         return config - torch.roll(config, shifts=1, dims=-1)
+
+    @staticmethod
+    def _shift_diff_connection(t: torch.Tensor) -> torch.Tensor:
+        return torch.roll(t, shifts=1, dims=-1)
 
     def evaluate(self, config: torch.Tensor) -> torch.Tensor:
         if not self.diffs:

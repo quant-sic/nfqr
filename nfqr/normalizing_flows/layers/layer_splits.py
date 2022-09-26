@@ -5,6 +5,7 @@ import torch
 from pydantic import BaseModel
 
 from nfqr.registry import StrRegistry
+from nfqr.target_systems.rotor.action import QuantumRotor
 
 SPLIT_TYPES_REGISTRY = StrRegistry("split_types")
 
@@ -78,7 +79,8 @@ class LayerSplit(object):
         **kwargs
     ):
         if any(v is None for v in (kernel_size, dilation, stride)):
-            raise ValueError("Need kernel_size,dilation,stride for kernel split")
+            raise ValueError(
+                "Need kernel_size,dilation,stride for kernel split")
 
         return cls(
             dim=dim,
@@ -137,7 +139,8 @@ class LayerSplit(object):
     def checkerboard_mask(size, mask_num, **kwargs):
         # rewrite, this just works in 1d
         mask = (((torch.ones(size)).cumsum(dim=-1) + mask_num) % 2).bool()
-        return mask, ~mask
+
+        return ~mask, mask
 
     @staticmethod
     def n_transforms_mask(
@@ -147,13 +150,15 @@ class LayerSplit(object):
         mask = torch.zeros(size).bool()
         step_size = int(np.ceil(size / n_transformed))
 
-        transformed_idx = (torch.arange(n_transformed) * step_size + mask_num) % size
+        transformed_idx = (torch.arange(n_transformed)
+                           * step_size + mask_num) % size
         mask[transformed_idx] = True
 
         if exclude_nn_of_transformed:
-            exclude_mask = torch.roll(mask, shifts=-1, dims=0) | torch.roll(
-                mask, shifts=1, dims=0
-            )
+            # exclude_mask = torch.roll(mask, shifts=-1, dims=0) | torch.roll(
+            #     mask, shifts=1, dims=0
+            # )
+            exclude_mask = QuantumRotor._shift_diff_connection(mask)
         else:
             exclude_mask = torch.zeros(size).bool()
 
@@ -168,7 +173,8 @@ class LayerSplit(object):
 
         mask = torch.zeros(size).bool()
 
-        transformed_idx = (torch.arange(n_transformed) + mask_num * stride) % size
+        transformed_idx = (torch.arange(n_transformed) +
+                           mask_num * stride) % size
         mask[transformed_idx] = True
 
         return ~mask, mask
@@ -179,7 +185,8 @@ class LayerSplit(object):
     ):
 
         if stride > 1 and departmentalization:
-            raise ValueError("For departmentalization stride cannot be greater than 1")
+            raise ValueError(
+                "For departmentalization stride cannot be greater than 1")
 
         mask = torch.zeros(size).bool()
 
@@ -191,7 +198,8 @@ class LayerSplit(object):
             else department * department_step + mask_num % dilation
         )
 
-        transformed_idx = (torch.arange(kernel_size) * dilation + extra_step) % size
+        transformed_idx = (torch.arange(kernel_size) *
+                           dilation + extra_step) % size
         mask[transformed_idx] = True
 
         return ~mask, mask
@@ -234,7 +242,8 @@ class LayerSplit(object):
 
 SPLIT_TYPES_REGISTRY.register("checkerboard", LayerSplit.checkerboard)
 SPLIT_TYPES_REGISTRY.register("n_transforms", LayerSplit.n_transforms)
-SPLIT_TYPES_REGISTRY.register("n_transforms_close", LayerSplit.n_transforms_close)
+SPLIT_TYPES_REGISTRY.register(
+    "n_transforms_close", LayerSplit.n_transforms_close)
 SPLIT_TYPES_REGISTRY.register("kernel", LayerSplit.kernel)
 
 

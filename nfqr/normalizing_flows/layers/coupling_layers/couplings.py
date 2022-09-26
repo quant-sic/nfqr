@@ -90,7 +90,8 @@ class TranslationEquivariantCoupling(CouplingLayer):
         diffeomorphism_config: DiffeomorphismConfig,
         domain: Literal["u1"] = "u1",
         conditioner=None,
-        equivariant_mode:Literal["shortest","abs","cos","squeeze_and_shift"]="cos",
+        equivariant_mode: Literal["shortest", "abs",
+                                  "cos", "squeeze_and_shift"] = "cos",
         **kwargs,
     ) -> None:
 
@@ -102,20 +103,21 @@ class TranslationEquivariantCoupling(CouplingLayer):
             conditioner=conditioner,
             **kwargs,
         )
-        self.equivariant_mode=equivariant_mode
-        self.check_correct_splitting()
+        self.equivariant_mode = equivariant_mode
+        # self.check_correct_splitting()
 
     def check_correct_splitting(self):
         assert not (
-            torch.roll(self.transformed_mask, shifts=-1, dims=0) & self.conditioner_mask  & torch.roll(self.transformed_mask, shifts=1, dims=0)
+            QuantumRotor._shift_diff_connection(
+                self.transformed_mask) & self.conditioner_mask
         ).any(), "Masks are not suitable for equivariant coupling"
 
-    def diff_transform(self,diffs):
+    def diff_transform(self, diffs):
 
         if self.equivariant_mode == "shortest":
             return self.diffeomorphism.diff_to_range(diffs)
         elif self.equivariant_mode == "abs":
-            self.diffs_mask = diffs<0
+            self.diffs_mask = diffs < 0
             return torch.abs(diffs)
         elif self.equivariant_mode == "cos":
             return torch.cos(diffs + 1)*pi
@@ -123,15 +125,17 @@ class TranslationEquivariantCoupling(CouplingLayer):
             return diffs/2 + pi
         elif self.equivariant_mode == "tan_equiv":
             # should presumably only be used for ncp
-            return ((diffs+np.pi/2)%np.pi) * 2
+            return ((diffs+np.pi/2) % np.pi) * 2
         else:
             raise ValueError("Diff Symmetry not recognized")
 
-    def diff_transform_inverse(self,diffs):
+    def diff_transform_inverse(self, diffs):
 
-        if self.equivariant_mode=="abs": 
-            diffs[self.diffs_mask[...,self.transformed_mask]]*=-1
-        
+        if self.equivariant_mode == "abs":
+            diffs[self.diffs_mask[..., self.transformed_mask]] *= -1
+        elif self.equivariant_mode == "tan_equiv":
+            diffs = (diffs - pi) * 2
+
         return diffs
 
     def _split_diffs_equivariant(self, z):
@@ -148,24 +152,23 @@ class TranslationEquivariantCoupling(CouplingLayer):
             symmetric_diffs[..., self.transformed_mask],
         )
 
-        return diffs_for_conditioner, diffs_to_be_transformed,symmetric_diffs_for_conditioner, symmetric_diffs_to_be_transformed
-
-
-
+        return diffs_for_conditioner, diffs_to_be_transformed, symmetric_diffs_for_conditioner, symmetric_diffs_to_be_transformed
 
     def _decode(self, z):
 
-        _, diffs_to_be_transformed,symmetric_diffs_for_conditioner, symmetric_diffs_to_be_transformed = self._split_diffs_equivariant(
+        _, diffs_to_be_transformed, symmetric_diffs_for_conditioner, symmetric_diffs_to_be_transformed = self._split_diffs_equivariant(
             z
         )
 
-        unconstrained_params = self.conditioner(symmetric_diffs_for_conditioner)
+        unconstrained_params = self.conditioner(
+            symmetric_diffs_for_conditioner)
 
         transformed_input, ld = self.diffeomorphism(
             symmetric_diffs_to_be_transformed, unconstrained_params, ret_logabsdet=True
         )
 
-        delta = self.diff_transform_inverse(transformed_input) - diffs_to_be_transformed
+        delta = self.diff_transform_inverse(
+            transformed_input) - diffs_to_be_transformed
 
         z[..., self.transformed_mask] = self.diffeomorphism.map_to_range(
             z[..., self.transformed_mask] + delta
@@ -176,16 +179,18 @@ class TranslationEquivariantCoupling(CouplingLayer):
 
     def _encode(self, x):
 
-        _, diffs_to_be_transformed,symmetric_diffs_for_conditioner, symmetric_diffs_to_be_transformed = self._split_diffs_equivariant(
+        _, diffs_to_be_transformed, symmetric_diffs_for_conditioner, symmetric_diffs_to_be_transformed = self._split_diffs_equivariant(
             x
         )
-        unconstrained_params = self.conditioner(symmetric_diffs_for_conditioner)
+        unconstrained_params = self.conditioner(
+            symmetric_diffs_for_conditioner)
 
         transformed_input, ld = self.diffeomorphism.inverse(
             symmetric_diffs_to_be_transformed, unconstrained_params, ret_logabsdet=True
         )
 
-        delta = self.diff_transform_inverse(transformed_input) - diffs_to_be_transformed
+        delta = self.diff_transform_inverse(
+            transformed_input) - diffs_to_be_transformed
 
         x[..., self.transformed_mask] = self.diffeomorphism.map_to_range(
             x[..., self.transformed_mask] - delta
@@ -393,7 +398,8 @@ class ResidualCoupling(CouplingLayer, Module):
             ld = torch.logsumexp(
                 torch.stack(
                     [
-                        log_rho[..., self.rho_assignment["diff"]] + log_det_coupling,
+                        log_rho[..., self.rho_assignment["diff"]] +
+                        log_det_coupling,
                         log_rho[..., self.rho_assignment["id"]]
                         + torch.zeros_like(
                             log_det_coupling, device=log_det_coupling.device
@@ -429,7 +435,8 @@ class ResidualCoupling(CouplingLayer, Module):
     @property
     def logging_parameters(self):
         if hasattr(self, "rho_unnormalized"):
-            rho = self.rho_transform(self.rho_unnormalized).exp().clone().detach()
+            rho = self.rho_transform(
+                self.rho_unnormalized).exp().clone().detach()
             return {
                 "rho": {
                     "id": rho[self.rho_assignment["id"]],
@@ -459,7 +466,8 @@ class ResidualCoupling(CouplingLayer, Module):
     def _encode(self, x):
 
         conditioner_input, transformed_input = self._split(x)
-        unconstrained_params = torch.stack(self.conditioner(conditioner_input), dim=0)
+        unconstrained_params = torch.stack(
+            self.conditioner(conditioner_input), dim=0)
         log_rho = self.get_log_rho(conditioner_input=conditioner_input)
 
         x[..., self.transformed_mask] = NumericalInverse.apply(
@@ -482,7 +490,8 @@ class ResidualCoupling(CouplingLayer, Module):
         return z_out, -log_det
 
 
-COUPLING_LAYER_REGISTRY.register("global_residual", ResidualCoupling.as_global_residual)
+COUPLING_LAYER_REGISTRY.register(
+    "global_residual", ResidualCoupling.as_global_residual)
 COUPLING_LAYER_REGISTRY.register(
     "global_non_trainable_residual", ResidualCoupling.as_global_non_trainable_residual
 )
@@ -497,5 +506,6 @@ class CouplingConfig(BaseModel):
     specific_layer_type: str = Field(...)
     diffeomorphism_config: DiffeomorphismConfig
     initial_rho_id: Optional[float]
-    equivariant_mode:Optional[Literal["shortest","abs","cos","squeeze_and_shift"]]="cos"
+    equivariant_mode: Optional[Literal["shortest", "abs",
+                                       "cos", "squeeze_and_shift", "tan_equiv"]] = "cos"
     # validators ..
