@@ -16,14 +16,15 @@ from .cluster import CLUSTER_REGISTRY
 ConfigType = TypeVar("ConfigType", bound="MCMCConfig")
 
 
+
 class MCMCConfig(BaseConfig):
 
     _name: str = "mcmc_config"
 
-    mcmc_type: Union[CLUSTER_REGISTRY.enum, HMC_REGISTRY.enum]
+    mcmc_type: str
     mcmc_alg: Literal["cluster", "hmc"]
 
-    observables: List[OBSERVABLE_REGISTRY.enum]
+    observables: List[str]
     n_steps: int
     dim: List[int]
     action_config: ActionConfig
@@ -181,6 +182,6 @@ class MCMCResult(BaseConfig):
 
     mcmc_config: Optional[MCMCConfig]
     acceptance_rate: float
-    obs_stats: Dict[OBSERVABLE_REGISTRY.enum, Dict[str, float]]
+    obs_stats: Dict[str, Dict[str, float]]
     step_size:Optional[float]
     sus_exact: Optional[float]

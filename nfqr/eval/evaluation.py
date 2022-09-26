@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
 import torch
-from pydantic import root_validator, validator
+from pydantic import root_validator, validator,create_model
 from ray import tune
 
 from nfqr.config import BaseConfig
@@ -20,8 +20,10 @@ from nfqr.nip import (
 from nfqr.target_systems import OBSERVABLE_REGISTRY
 from nfqr.target_systems.rotor import RotorTrajectorySamplerConfig
 from nfqr.utils import create_logger
+from itertools import chain
 
 logger = create_logger(__name__)
+
 
 
 class EvalConfig(BaseConfig):
@@ -32,7 +34,7 @@ class EvalConfig(BaseConfig):
     batch_size: List[int] = 10000
 
     methods: List[Literal["nip", "nmcmc"]] = ["nip", "nmcmc"]
-    observables: List[OBSERVABLE_REGISTRY.enum] = ["Chi_t"]
+    observables: List[str] = ["Chi_t"]
 
     @validator("observables", "methods", pre=True)
     @classmethod
@@ -66,7 +68,7 @@ class EvalConfig(BaseConfig):
         return values
 
 
-ObsStats = Dict[Union[str, OBSERVABLE_REGISTRY.enum], Dict[str, float]]
+ObsStats = Dict[str, Dict[str, float]]
 EvalStats = Union[
     List[Dict[str, Union[ObsStats, float, int]]], Dict[str, Union[ObsStats, float, int]]
 ]
@@ -76,7 +78,7 @@ class EvalResult(BaseConfig):
 
     _name: str = "eval_result"
 
-    observables: List[OBSERVABLE_REGISTRY.enum]
+    observables: List[str]
 
     n_samples: Union[int, List[int]]
 
@@ -270,7 +272,7 @@ def get_ess_p_sampler(dim, action_config, batch_size):
         batch_size=batch_size,
         elements_per_dataset=250000,
         subset_distribution=[1.0],
-        num_workers=1,
+        num_workers=0,
         shuffle=True,
     )
 

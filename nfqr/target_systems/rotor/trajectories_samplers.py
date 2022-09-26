@@ -92,7 +92,7 @@ class HotRotorTrajectoriesSampler(object):
 
 class RotorTrajectorySamplerConfig(BaseModel):
 
-    traj_type: ROTOR_TRAJECTORIES_REGISTRY.enum
+    traj_type: str
     dim: List[int]
     k: Optional[int]
     n_replicas: Optional[int] = 1

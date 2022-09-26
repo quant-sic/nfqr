@@ -418,7 +418,7 @@ class BetaSchedulerConfig(BaseModel):
 
 class SchedulerConfig(BaseModel):
 
-    scheduler_type: SCHEDULER_REGISTRY.enum
+    scheduler_type: str
     specific_scheduler_config: Union[
         BetaSchedulerConfig, LossSchedulerConfig, ResidualCouplingSchedulerConfig
     ]

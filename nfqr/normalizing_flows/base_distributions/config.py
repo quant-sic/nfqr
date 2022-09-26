@@ -11,7 +11,7 @@ BASE_DIST_REGISTRY = JointStrRegistry("base_dist", (U1_BASE_DIST_REGISTRY,))
 
 class BaseDistConfig(BaseModel):
 
-    dist_type: BASE_DIST_REGISTRY.enum
+    dist_type: str
     dim: List[int]
 
     loc_requires_grad: bool = False

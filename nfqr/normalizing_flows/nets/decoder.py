@@ -130,5 +130,5 @@ class MLPDecoderConfig(BaseModel):
 
 class DecoderConfig(BaseModel):
 
-    decoder_type: DECODER_REGISTRY.enum
+    decoder_type: str
     specific_decoder_config: MLPDecoderConfig

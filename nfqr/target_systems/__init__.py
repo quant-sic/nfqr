@@ -1,3 +1,5 @@
+from itertools import chain
+
 from nfqr.registry import JointStrRegistry
 
 from .config import ActionConfig

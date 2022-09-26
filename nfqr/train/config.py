@@ -56,7 +56,7 @@ class LitModelConfig(BaseConfig):
     action_config: ActionConfig
     dim: List[int]
 
-    observables: List[OBSERVABLE_REGISTRY.enum]
+    observables: List[str]
     trainer_configs: List[TrainerConfig]
 
     task_parameters: Union[List[str], None] = None
