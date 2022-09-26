@@ -24,7 +24,7 @@ class LayerBase(Module):
     def __init__(
         self,
         dim,
-        diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
+        diffeomorphism: str,
         conditioner_chain_config: ConditionerChainConfig,
         domain: Literal["u1"] = "u1",
         **kwargs,
@@ -48,7 +48,7 @@ class IterativeARLayer(LayerBase, Module):
     def __init__(
         self,
         dim,
-        diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
+        diffeomorphism: str,
         conditioner_chain_config: ConditionerChainConfig,
         domain: Literal["u1"] = "u1",
         **kwargs,
@@ -136,8 +136,8 @@ class IterativeARLayer(LayerBase, Module):
 class ARLayerConfig(BaseModel):
 
     domain: Literal["u1"] = "u1"
-    specific_layer_type: AR_LAYER_REGISTRY.enum = Field(...)
-    diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum
+    specific_layer_type: str = Field(...)
+    diffeomorphism: str
     expressivity: int
     # net_config: NetConfig
 
@@ -149,7 +149,7 @@ class SingleTransformLayer(LayerBase, Module):
     def __init__(
         self,
         dim,
-        diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum,
+        diffeomorphism: str,
         conditioner_chain_config: ConditionerChainConfig,
         domain: Literal["u1"] = "u1",
         **kwargs,
@@ -240,8 +240,8 @@ class SingleTransformLayer(LayerBase, Module):
 class NTransformsLayerConfig(BaseModel):
 
     domain: Literal["u1"] = "u1"
-    specific_layer_type: N_TRANSFORMS_LAYER_REGISTRY.enum = Field(...)
-    diffeomorphism: DIFFEOMORPHISMS_REGISTRY.enum
+    specific_layer_type: str = Field(...)
+    diffeomorphism: str
     expressivity: int
     # net_config:
 

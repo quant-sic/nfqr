@@ -91,5 +91,5 @@ class ForwardKLConfig(BaseModel):
 
 class LossConfig(BaseModel):
 
-    loss_type: LOSS_REGISTRY.enum
+    loss_type: str
     specific_loss_config: Union[ForwardKLConfig, ReverseKLConfig]

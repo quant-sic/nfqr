@@ -1,6 +1,16 @@
 .PHONY: help env env-update env-remove init install format lint test \
 	docs-sphinx requirements
 
+
+ifeq ($(shell uname -s),Darwin)
+PLATFORM = osx
+else ifneq ($(shell (command -v nvidia-smi && nvidia-smi --list-gpus)),)
+PLATFORM = gpu
+else
+PLATFORM = cpu
+endif
+
+
 PROJECTNAME=nfqr
 
 help:
@@ -12,10 +22,9 @@ help:
 	@echo "requirements	    compiles requirements from .in files"
 
 env:
-	python -m venv nfqr-env && \
-		nfqr-env/bin/pip install --upgrade pip
-conda-env:
-	conda create -n nfqr-env python=3.9
+	conda create -n nfqr-env python=3.10 && \
+	conda activate nfqr-env && \
+	pip install --upgrade pip wheel pip-tools
 
 env-update:
 	pip install --upgrade -r requirements/requirements.txt
@@ -23,12 +32,20 @@ env-update:
 env-remove:
 	rm -rf nfqr-env
 
+# This is not unsafe, and will become the default in a future version
+# of pip-compile.
+PIP_COMPILE := pip-compile -q --allow-unsafe
+
 requirements:
-	pip install --upgrade pip wheel pip-tools
-	pip-compile --output-file requirements/requirements.txt \
-	requirements/*.in
+	pip install -q pip-tools
+	CONSTRAINTS=/dev/null $(PIP_COMPILE) \
+	  requirements/*.in -o requirements/constraints.txt
+	CONSTRAINTS=constraints.txt $(PIP_COMPILE) requirements/base-$(PLATFORM).in
+
 	
 install:
-	pip install --upgrade pip wheel pip-tools &&\
-	pip-sync requirements/requirements.txt
+	pip-sync requirements/base-$(PLATFORM).txt
 	pip install -e .
+
+
+# pip-sync requirements/base-$(PLATFORM).txt

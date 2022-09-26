@@ -40,7 +40,7 @@ class LitFlow(pl.LightningModule):
         self,
         dim: List[int],
         flow_config: FlowConfig,
-        observables: List[OBSERVABLE_REGISTRY.enum],
+        observables: List[str],
         action_config: ActionConfig,
         trainer_config: TrainerConfig,
         mode="train",

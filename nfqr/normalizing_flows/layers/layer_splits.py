@@ -249,5 +249,5 @@ class SplitTypeConfig(BaseModel):
 
 class LayerSplitConfig(BaseModel):
 
-    split_type: SPLIT_TYPES_REGISTRY.enum
+    split_type: str
     specific_split_type_config: Optional[SplitTypeConfig]

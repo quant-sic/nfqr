@@ -11,11 +11,13 @@ from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.train.config import LitModelConfig
 from nfqr.train.model_lit import LitFlow
 from nfqr.utils.misc import create_logger
+import numpy as np
+from nfqr.utils import setup_env
 
 logger = create_logger(__name__)
 
 
-def train_flow_model(exp_dir, skip_done):
+def train_flow_model(exp_dir, skip_done=True):
 
     exp_dir = EXPERIMENTS_DIR / exp_dir
 
@@ -59,6 +61,10 @@ def train_flow_model(exp_dir, skip_done):
 
             callbacks = [LearningRateMonitor()]
 
+
+            #accelerator = ("mps","gpu","cpu")[np.argwhere((torch.backends.mps.is_available(),torch.cuda.is_available(),True)).min()]
+            accelerator = ("gpu","cpu")[np.argwhere((torch.cuda.is_available(),True)).min()]
+
             trainer = Trainer(
                 **trainer_config.dict(
                     include={
@@ -71,7 +77,7 @@ def train_flow_model(exp_dir, skip_done):
                     }
                 ),
                 logger=tb_logger,
-                accelerator="gpu" if torch.cuda.is_available() else "cpu",
+                accelerator=accelerator,
                 devices=1,
                 auto_lr_find=trainer_config.auto_lr_find,
                 default_root_dir=(exp_dir / "trainer") / log_dir,
@@ -94,10 +100,12 @@ def train_flow_model(exp_dir, skip_done):
                     flow_model.learning_rate = trainer_config.learning_rate
 
             trainer.fit(model=flow_model)
-            trainer.save_checkpoint(model_ckpt_path)
+            #trainer.save_checkpoint(model_ckpt_path)
 
 
 if __name__ == "__main__":
+
+    setup_env()
 
     parser = ArgumentParser()
 

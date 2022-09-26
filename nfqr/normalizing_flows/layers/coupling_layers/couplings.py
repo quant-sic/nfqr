@@ -465,7 +465,7 @@ COUPLING_LAYER_REGISTRY.register(
 class CouplingConfig(BaseModel):
 
     domain: Literal["u1"] = "u1"
-    specific_layer_type: COUPLING_LAYER_REGISTRY.enum = Field(...)
+    specific_layer_type: str = Field(...)
     diffeomorphism_config: DiffeomorphismConfig
     initial_rho_id: Optional[float]
     # validators ..

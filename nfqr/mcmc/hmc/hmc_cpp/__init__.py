@@ -8,6 +8,7 @@ hmc_cpp = cpp_extension.load(
     extra_include_paths=[
         *((REPO_ROOT / "nfqr/mcmc/hmc/hmc_cpp").glob(".h")),
         "/usr/include/eigen-3.4.0",
+        "/opt/homebrew/Cellar/eigen/3.4.0_1/include/eigen3",
         "/home/dechentf/eigen-3.4.0",
     ],
     verbose=False,

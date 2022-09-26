@@ -237,7 +237,7 @@ class Encoder(nn.Sequential):
 
 class EncoderConfig(BaseModel):
 
-    encoder_type: ENCODER_REGISTRY.enum
+    encoder_type: str
     coord_layer_specifier: Optional[
         Literal["rel_position", "abs_position", "rel_position+abs_position"]
     ]

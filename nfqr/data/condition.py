@@ -1,5 +1,6 @@
 import json
 from multiprocessing.sharedctypes import Value
+from tkinter.tix import Tree
 from typing import Dict, Union
 
 import torch
@@ -17,7 +18,7 @@ class SampleCondition(object):
         self.save_keys = ("type", "target_system", "observable", "value")
 
         if self.params is None:
-            self.evaluate = lambda sample: True
+            self.evaluate = self.evaluate_true_pickleable
             self.repr = json.dumps(None)
 
         elif isinstance(self.params, dict) and self.params["type"] == "observable":
@@ -52,6 +53,9 @@ class SampleCondition(object):
 
     def evaluate_observable(self, sample):
         return torch.round(self.observable_fn(sample)).item() in self.params["value"]
+
+    def evaluate_true_pickleable(self,sample):
+        return True
 
     def __repr__(self) -> str:
         return self.repr
