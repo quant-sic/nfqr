@@ -121,6 +121,9 @@ class TranslationEquivariantCoupling(CouplingLayer):
             return torch.cos(diffs + 1)*pi
         elif self.equivariant_mode == "squeeze_and_shift":
             return diffs/2 + pi
+        elif self.equivariant_mode == "tan_equiv":
+            # should presumably only be used for ncp
+            return ((diffs+np.pi/2)%np.pi) * 2
         else:
             raise ValueError("Diff Symmetry not recognized")
 
