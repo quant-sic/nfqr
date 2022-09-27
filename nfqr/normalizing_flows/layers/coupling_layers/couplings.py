@@ -104,7 +104,7 @@ class TranslationEquivariantCoupling(CouplingLayer):
             **kwargs,
         )
         self.equivariant_mode = equivariant_mode
-        # self.check_correct_splitting()
+        self.check_correct_splitting()
 
     def check_correct_splitting(self):
         assert not (
@@ -115,6 +115,8 @@ class TranslationEquivariantCoupling(CouplingLayer):
     def diff_transform(self, diffs):
 
         if self.equivariant_mode == "shortest":
+            self.diffs_mask_left = diffs < -pi
+            self.diffs_mask_right = diffs > pi
             return self.diffeomorphism.diff_to_range(diffs)
         elif self.equivariant_mode == "abs":
             self.diffs_mask = diffs < 0
@@ -125,7 +127,7 @@ class TranslationEquivariantCoupling(CouplingLayer):
             return diffs/2 + pi
         elif self.equivariant_mode == "tan_equiv":
             # should presumably only be used for ncp
-            return ((diffs+np.pi/2) % np.pi) * 2
+            return ((diffs+pi/2) % pi) * 2
         else:
             raise ValueError("Diff Symmetry not recognized")
 
@@ -135,6 +137,11 @@ class TranslationEquivariantCoupling(CouplingLayer):
             diffs[self.diffs_mask[..., self.transformed_mask]] *= -1
         elif self.equivariant_mode == "tan_equiv":
             diffs = (diffs - pi) * 2
+        elif self.equivariant_mode == "shortest":
+            diffs[self.diffs_mask_left[..., self.transformed_mask]] -= 3*np.pi
+            diffs[self.diffs_mask_right[..., self.transformed_mask]] += np.pi
+            diffs[~(self.diffs_mask_left[..., self.transformed_mask] |
+                    self.diffs_mask_right[..., self.transformed_mask])] -= np.pi
 
         return diffs
 
@@ -146,7 +153,7 @@ class TranslationEquivariantCoupling(CouplingLayer):
             diffs[..., self.transformed_mask],
         )
 
-        symmetric_diffs = self.diff_transform(diffs=diffs)
+        symmetric_diffs = self.diff_transform(diffs=diffs).clone()
         symmetric_diffs_for_conditioner, symmetric_diffs_to_be_transformed = (
             symmetric_diffs[..., self.conditioner_mask],
             symmetric_diffs[..., self.transformed_mask],

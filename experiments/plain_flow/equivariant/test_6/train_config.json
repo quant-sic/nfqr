@@ -10,10 +10,7 @@
         "layer_type": "coupling_layer",
         "specific_layer_config": {
           "domain": "u1",
-          "specific_layer_type": [
-            "translation_equivariant",
-            "bare"
-          ],
+          "specific_layer_type": "translation_equivariant",
           "diffeomorphism_config": {
             "diffeomorphism_type": "ncp",
             "specific_diffeomorphism_config": {
@@ -23,8 +20,8 @@
           },
           "equivariant_mode": [
             "abs",
-            "abs",
-            "tan_equiv"
+            "tan_equiv",
+            "shortest"
           ]
         },
         "conditioner_chain_config": {
@@ -96,7 +93,6 @@
     }
   },
   "task_parameters": [
-    "specific_layer_type",
     "equivariant_mode"
   ]
 }
