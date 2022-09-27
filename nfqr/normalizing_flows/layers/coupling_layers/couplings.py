@@ -176,7 +176,7 @@ class TranslationEquivariantCoupling(CouplingLayer):
 
         delta = self.diff_transform_inverse(
             transformed_input) - diffs_to_be_transformed
-
+        
         z[..., self.transformed_mask] = self.diffeomorphism.map_to_range(
             z[..., self.transformed_mask] + delta
         )
@@ -189,6 +189,7 @@ class TranslationEquivariantCoupling(CouplingLayer):
         _, diffs_to_be_transformed, symmetric_diffs_for_conditioner, symmetric_diffs_to_be_transformed = self._split_diffs_equivariant(
             x
         )
+
         unconstrained_params = self.conditioner(
             symmetric_diffs_for_conditioner)
 
@@ -200,7 +201,7 @@ class TranslationEquivariantCoupling(CouplingLayer):
             transformed_input) - diffs_to_be_transformed
 
         x[..., self.transformed_mask] = self.diffeomorphism.map_to_range(
-            x[..., self.transformed_mask] - delta
+            x[..., self.transformed_mask] + delta
         )
         log_det = ld.sum(dim=-1)
 

@@ -18,7 +18,8 @@
                             "boundary_mode": "taylor"
                         }
                     },
-                    "initial_rho_id": 0.1
+                    "initial_rho_id": 0.1,
+                    "equivariant_mode": "shortest"
                 },
                 "conditioner_chain_config": {
                     "expressivity": 3,
@@ -41,7 +42,8 @@
                 "layer_split_config": {
                     "split_type": "n_transforms",
                     "specific_split_type_config": {
-                        "n_transformed": 1
+                        "n_transformed": 1,
+                        "exclude_nn_of_transformed": true
                     }
                 }
             }

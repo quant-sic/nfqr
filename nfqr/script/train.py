@@ -16,16 +16,33 @@ from nfqr.utils import setup_env
 
 logger = create_logger(__name__)
 
-
-def train_flow_model(exp_dir, skip_done=True):
-
-    exp_dir = EXPERIMENTS_DIR / exp_dir
+def iterate_config_models(exp_dir,model_ckpt_path):
 
     train_config = LitModelConfig.from_directory_for_task(
         exp_dir,
         task_id=int(os.environ["task_id"]),
         num_tasks=int(os.environ["num_tasks"]),
     )
+
+    for idx,trainer_config in enumerate(train_config.trainer_configs):
+        
+        lit_model_config = dict(train_config)
+        lit_model_config.update({"trainer_config": trainer_config})
+
+
+        if idx == 0:
+            flow_model = LitFlow(**lit_model_config)
+        else:
+            flow_model = LitFlow.load_from_checkpoint(
+                model_ckpt_path, **lit_model_config
+            )
+
+        yield lit_model_config,trainer_config,flow_model
+
+
+def train_flow_model(exp_dir, skip_done=True):
+
+    exp_dir = EXPERIMENTS_DIR / exp_dir
 
     log_dir = "task_{}".format(os.environ["task_id"])
 
@@ -37,10 +54,7 @@ def train_flow_model(exp_dir, skip_done=True):
         seed_everything(42, workers=True)
         model_ckpt_path = ((exp_dir / "logs") / log_dir) / "model.ckpt"
 
-        for idx, trainer_config in enumerate(train_config.trainer_configs):
-
-            lit_model_config = dict(train_config)
-            lit_model_config.update({"trainer_config": trainer_config})
+        for idx, (lit_model_config,trainer_config,flow_model) in enumerate(iterate_config_models(exp_dir,model_ckpt_path)):
 
             logger.info(
                 "Task {}: Interval {} with: \n\n {} \n\n".format(
@@ -52,15 +66,7 @@ def train_flow_model(exp_dir, skip_done=True):
                 exp_dir / "logs", name=log_dir, sub_dir=f"interval_{idx}",version=0
             )
 
-            if idx == 0:
-                flow_model = LitFlow(**lit_model_config)
-            else:
-                flow_model = LitFlow.load_from_checkpoint(
-                    model_ckpt_path, **lit_model_config
-                )
-
             callbacks = [LearningRateMonitor()]
-
 
             #accelerator = ("mps","gpu","cpu")[np.argwhere((torch.backends.mps.is_available(),torch.cuda.is_available(),True)).min()]
             accelerator = ("gpu","cpu")[np.argwhere((torch.cuda.is_available(),True)).min()]
