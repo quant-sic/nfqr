@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Type, TypeVar, Union
 from pydantic import BaseModel, root_validator, validator
 
 from nfqr.config import BaseConfig
+from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.normalizing_flows.flow import FlowConfig
 from nfqr.normalizing_flows.loss.loss import LossConfig
 from nfqr.target_systems import OBSERVABLE_REGISTRY, ActionConfig
@@ -60,6 +61,7 @@ class LitModelConfig(BaseConfig):
     trainer_configs: List[TrainerConfig]
 
     task_parameters: Union[List[str], None] = None
+    initial_weights: Optional[Path] = None
 
     @classmethod
     def get_num_tasks(cls: Type[ConfigType], directory: Union[str, Path]) -> int:
@@ -201,5 +203,16 @@ class LitModelConfig(BaseConfig):
             v = [_v]
         else:
             v = _v
+
+        return v
+
+    @validator("initial_weights",pre=True)
+    @classmethod
+    def initial_weights_add_exp_dir(cls, _v):
+
+        if not isinstance(_v,Path):
+            _v = Path(_v)
+
+        v = EXPERIMENTS_DIR / _v
 
         return v

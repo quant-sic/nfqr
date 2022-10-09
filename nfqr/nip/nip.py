@@ -34,7 +34,7 @@ class NeuralImportanceSampler(Sampler):
         )
 
         self.batch_size = batch_size
-        self.model = model
+        self.model = model.double()
         self.target = target
         self.n_iter = n_iter
 
@@ -67,6 +67,8 @@ class NeuralImportanceSampler(Sampler):
     def step_p(self):
 
         x_samples = self.sampler.sample(next(self.model.parameters()).device).detach()
+        x_samples = x_samples.to(self.model.parameters().__next__().dtype)
+        
         log_p = self.target.log_prob(x_samples)
         log_weights = log_p - self.model.log_prob(x_samples)
 

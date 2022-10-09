@@ -142,7 +142,7 @@ class CNNEncoder(nn.Module):
         in_channels,
         block_configs: List[EncoderBlockConfig],
         pooling_configs: List[Union[PoolingConfig, None]],
-        coord_layer_specifier: Union[bool, str, None] = "rel_position",
+        coord_layer_specifier: Union[bool, str, None] = None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -240,6 +240,6 @@ class EncoderConfig(BaseModel):
     encoder_type: str
     coord_layer_specifier: Optional[
         Literal["rel_position", "abs_position", "rel_position+abs_position"]
-    ]
+    ]=None
 
     specific_encoder_config: Union[CNNEncoderConfig, DeepLabHeadConfig]

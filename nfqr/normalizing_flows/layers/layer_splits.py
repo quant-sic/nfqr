@@ -254,6 +254,7 @@ class SplitTypeConfig(BaseModel):
     stride: Optional[int]
     departmentalization: Optional[bool]
     exclude_nn_of_transformed: Optional[bool] = False
+    safe_guard: bool = True
 
 
 class LayerSplitConfig(BaseModel):

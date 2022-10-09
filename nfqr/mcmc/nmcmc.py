@@ -28,7 +28,7 @@ class NeuralMCMC(MCMC):
             n_replicas=1,
         )
 
-        self.model = model
+        self.model = model.double()
         self.target = target
 
         # set model to evaluation mode

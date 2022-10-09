@@ -176,7 +176,7 @@ class TranslationEquivariantCoupling(CouplingLayer):
 
         delta = self.diff_transform_inverse(
             transformed_input) - diffs_to_be_transformed
-        
+
         z[..., self.transformed_mask] = self.diffeomorphism.map_to_range(
             z[..., self.transformed_mask] + delta
         )
@@ -230,9 +230,9 @@ class BareCoupling(CouplingLayer):
 
         unconstrained_params = self.conditioner(conditioner_input)
 
-        x[..., self.transformed_mask], ld = self.diffeomorphism.inverse(
+        x[..., self.transformed_mask], ld = map(lambda t: t.to(x.dtype), self.diffeomorphism.inverse(
             transformed_input, unconstrained_params, ret_logabsdet=True
-        )
+        ))
 
         log_det = ld.sum(dim=-1)
 
@@ -321,7 +321,7 @@ class ResidualCoupling(CouplingLayer, Module):
         else:
             raise ValueError(f"Unknown Residual type {residual_type}")
 
-    @classmethod
+    @ classmethod
     def as_global_residual(
         cls,
         conditioner_mask,
@@ -342,7 +342,7 @@ class ResidualCoupling(CouplingLayer, Module):
             conditioner=conditioner,
         )
 
-    @classmethod
+    @ classmethod
     def as_global_non_trainable_residual(
         cls,
         conditioner_mask,
@@ -363,7 +363,7 @@ class ResidualCoupling(CouplingLayer, Module):
             conditioner=conditioner,
         )
 
-    @classmethod
+    @ classmethod
     def as_conditioned_residual(
         cls,
         conditioner_mask,
@@ -382,7 +382,7 @@ class ResidualCoupling(CouplingLayer, Module):
             conditioner=conditioner,
         )
 
-    @cached_property
+    @ cached_property
     def rho_assignment(self):
         return {"diff": 0, "id": 1}
 
@@ -421,7 +421,7 @@ class ResidualCoupling(CouplingLayer, Module):
         else:
             return z
 
-    @cached_property
+    @ cached_property
     def rho_transform(self):
         return nf_constraints_standard(simplex)
 
@@ -430,7 +430,8 @@ class ResidualCoupling(CouplingLayer, Module):
         log_rho = self.rho_transform(log_rho_unconstrained)
 
         if not torch.allclose(
-            log_rho.exp().sum(dim=-1), torch.ones(log_rho.shape[:-1])
+            log_rho.exp().sum(
+                dim=-1), torch.ones(log_rho.shape[:-1], device=log_rho.device, dtype=log_rho.dtype)
         ):
             logger.info(log_rho.exp().sum(dim=-1).max())
             logger.info(log_rho.exp().sum(dim=-1).min())
@@ -440,7 +441,7 @@ class ResidualCoupling(CouplingLayer, Module):
     def get_log_rho_global(self, *args, **kwargs):
         return self.rho_transform(self.rho_unnormalized)
 
-    @property
+    @ property
     def logging_parameters(self):
         if hasattr(self, "rho_unnormalized"):
             rho = self.rho_transform(

@@ -13,7 +13,9 @@ from nfqr.normalizing_flows.nets.utils import (
 from nfqr.registry import StrRegistry
 from nfqr.utils import create_logger
 
-from .utils import View
+from .utils import View, Pooling, PoolingConfig
+from .encoder import CNNEncoderConfig, EncoderBlockConfig, EncoderBlock
+from einops.layers.torch import Rearrange
 
 logger = create_logger(__name__)
 
@@ -82,9 +84,11 @@ class MLPDecoder(nn.Module):
         layers.append(View([-1, in_size * in_channels]))
 
         if n_groups > 1 and len(net_hidden) > 0:
-            raise ValueError("for hidden layers n_groups>1 undefined and ignored")
+            raise ValueError(
+                "for hidden layers n_groups>1 undefined and ignored")
 
-        sizes = [in_size * in_channels] + net_hidden + [out_size * out_channels]
+        sizes = [in_size * in_channels] + \
+            net_hidden + [out_size * out_channels]
         norm_configs = (
             [None] * len(net_hidden) if norm_configs is None else norm_configs
         )
@@ -100,12 +104,14 @@ class MLPDecoder(nn.Module):
                     MaskedLinear(
                         in_,
                         out_,
-                        mask=grouped_conv_mask_for_linear(in_, out_, in_channels),
+                        mask=grouped_conv_mask_for_linear(
+                            in_, out_, in_channels),
                     )
                 )
 
             if idx != len(sizes) - 2:
-                layers.append(Activation(activation_specifier=activation_specifier))
+                layers.append(Activation(
+                    activation_specifier=activation_specifier))
 
             if norm_config is not None:
                 layers.append(
@@ -121,6 +127,51 @@ class MLPDecoder(nn.Module):
         return self.net(x)
 
 
+@DECODER_REGISTRY.register("cnn")
+class CNNDecoder(nn.Module):
+    def __init__(
+        self,
+        in_size: int,
+        in_channels: int,
+        out_size: int,
+        out_channels: int,
+        block_configs: List[EncoderBlockConfig],
+        pooling_configs: List[Union[PoolingConfig, None]],
+        **kwargs,
+    ) -> None:
+        super().__init__()
+
+        blocks = []
+        pooling_configs = (
+            [None] *
+            len(block_configs) if pooling_configs is None else pooling_configs
+        )
+
+        for block_config, pooling_config in zip(block_configs, pooling_configs):
+
+            encoder_block = EncoderBlock(
+                **dict(block_config),
+                in_channels=in_channels,
+                dim=in_size,
+            )
+
+            blocks.append(encoder_block)
+            in_channels = encoder_block.out_channels
+
+            if pooling_config is not None:
+                pooling = Pooling(**dict(pooling_config))
+                blocks.append(pooling)
+                in_size = pooling.out_size
+
+        blocks.append(nn.Sequential(nn.Conv1d(in_channels=in_channels,
+                      out_channels=out_channels, padding=1, padding_mode="circular", kernel_size=3), Rearrange("a b c -> a c b")))
+
+        self.net = nn.Sequential(*blocks)
+
+    def forward(self, x):
+        return self.net(x)
+
+
 class MLPDecoderConfig(BaseModel):
 
     net_hidden: Optional[List[int]]
@@ -128,7 +179,13 @@ class MLPDecoderConfig(BaseModel):
     n_groups: Optional[int] = 1
 
 
+class CNNDecoderConfig(BaseModel):
+
+    block_configs: List[EncoderBlockConfig]
+    pooling_configs: List[Union[PoolingConfig, None]] = None
+
+
 class DecoderConfig(BaseModel):
 
     decoder_type: str
-    specific_decoder_config: MLPDecoderConfig
+    specific_decoder_config: Union[CNNDecoderConfig, MLPDecoderConfig]

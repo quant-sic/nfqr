@@ -11,7 +11,9 @@ from nfqr.normalizing_flows.nets import (
     DecoderConfig,
     EncoderConfig,
 )
+from nfqr.normalizing_flows.nets.decoder import CNNDecoder
 from nfqr.registry import StrRegistry
+from einops.layers.torch import Rearrange
 
 ENCODER_CONDITIONER_REGISTRY = StrRegistry("encoders")
 DECODER_CONDITIONER_REGISTRY = StrRegistry("decoders")
@@ -79,32 +81,47 @@ class U1Decoder(Module):
 
         dim_out = transformed_mask.sum().item()
 
-        if not dim_out % num_nets == 0:
+        if num_nets==0 or (not dim_out % num_nets == 0):
             raise ValueError(
                 f"dim_out({dim_out}) must be divisible by num_nets ({num_nets}) supported"
             )
-        dim_out_per_net = int(dim_out / num_nets)
+        dim_out_per_net = int(dim_out / num_nets) if num_nets!=0 else dim_out
 
         self.nets = nn.ModuleList()
 
-        for _ in range(num_nets):
-            self.nets.append(
-                DECODER_REGISTRY[decoder_config.decoder_type](
-                    in_size=dim_in,
-                    in_channels=in_channels,
-                    out_size=dim_out_per_net,
-                    out_channels=expressivity * num_splits + num_extra_single_pars,
-                    **dict(decoder_config.specific_decoder_config),
+        self.out_channels = expressivity * num_splits + num_extra_single_pars
+
+        if not decoder_config is None:
+            for _ in range(num_nets):
+
+                if isinstance(DECODER_REGISTRY[decoder_config.decoder_type],CNNDecoder):
+                    if not dim_in==dim_out_per_net:
+                        raise ValueError("For CNN decoder insize must be equal to out size")
+                        
+                self.nets.append(
+                    DECODER_REGISTRY[decoder_config.decoder_type](
+                        in_size=dim_in,
+                        in_channels=in_channels,
+                        out_size=dim_out_per_net,
+                        out_channels=self.out_channels,
+                        **dict(decoder_config.specific_decoder_config),
+                    )
                 )
-            )
+
+        else:
+            if not in_channels == self.out_channels or not dim_in==dim_out_per_net:
+                raise ValueError(f"There needs to be a net if in_channels ({in_channels}) != out_channels ({self.out_channels}), dim_in ({dim_in}) != dim_out ({dim_out_per_net})") 
+            else:
+                self.nets.append(nn.Sequential(Rearrange("a b c -> a c b")))
+
         self.expressivity = expressivity
         self.num_splits = num_splits
         self.num_extra_single_pars = num_extra_single_pars
 
     def forward(self, z):
 
-        out = torch.cat([net(z) for net in self.nets], dim=1)
-        h_pars = torch.split(out, [self.expressivity]*self.num_splits + [1]*self.num_extra_single_pars, dim=-1)
+        z = torch.cat([net(z) for net in self.nets], dim=1)
+        h_pars = torch.split(z, [self.expressivity]*self.num_splits + [1]*self.num_extra_single_pars, dim=-1)
 
         return h_pars
 
@@ -215,7 +232,7 @@ class ConditionerChainConfig(BaseModel):
 
     domain: Literal["u1"] = "u1"
     encoder_config: Union[EncoderConfig, None]
-    decoder_config: DecoderConfig
+    decoder_config: Union[DecoderConfig,None]
     share_encoder: bool
     share_decoder: bool
     expressivity: int

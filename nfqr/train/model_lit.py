@@ -31,6 +31,7 @@ from nfqr.train.scheduler import (
     MaxFluctuationLRScheduler,
 )
 from nfqr.utils import create_logger
+from pathlib import Path
 
 logger = create_logger(__name__)
 
@@ -44,6 +45,7 @@ class LitFlow(pl.LightningModule):
         action_config: ActionConfig,
         trainer_config: TrainerConfig,
         mode="train",
+        initial_weights: Optional[Path] = None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -59,9 +61,29 @@ class LitFlow(pl.LightningModule):
             self.set_final_beta()
         elif mode == "train":
             if self.trainer_config is None:
-                raise ValueError("Trainer Config None not allowed for mode == train!")
+                raise ValueError(
+                    "Trainer Config None not allowed for mode == train!")
 
             self.learning_rate = trainer_config.learning_rate
+
+        if initial_weights is not None:
+            initial_weights_state_dict = LitFlow.load_from_checkpoint(initial_weights, dim=dim,
+                                                                      flow_config=flow_config,
+                                                                      observables=observables,
+                                                                      action_config=action_config,
+                                                                      trainer_config=trainer_config,
+                                                                      mode=mode,
+                                                                      initial_weights=None,
+                                                                      **kwargs).model.state_dict()
+            self.set_model_weights(state_dict=initial_weights_state_dict)
+
+    def set_model_weights(self, state_dict):
+
+        if not all(k in state_dict for k in self.model.state_dict()):
+            raise ValueError(
+                f"State dict {state_dict} does not match self.model state_dict: Keys {set(self.model.state_dict().keys())-set(state_dict.keys())} are missing")
+
+        self.model.load_state_dict(state_dict)
 
     @cached_property
     def target(self):
@@ -143,7 +165,8 @@ class LitFlow(pl.LightningModule):
                 set(
                     list(
                         filter(
-                            lambda _scheduler: isinstance(_scheduler, _scheduler_class),
+                            lambda _scheduler: isinstance(
+                                _scheduler, _scheduler_class),
                             _schedulers,
                         )
                     )
@@ -152,7 +175,8 @@ class LitFlow(pl.LightningModule):
             <= 1
             for _scheduler_class in (BetaScheduler, LossScheduler)
         ):
-            raise RuntimeError("Only one scheduler instance per type is allowed")
+            raise RuntimeError(
+                "Only one scheduler instance per type is allowed")
 
         return _schedulers
 
@@ -225,7 +249,6 @@ class LitFlow(pl.LightningModule):
     def configure_gradient_clipping(
         self, optimizer, optimizer_idx, gradient_clip_val, gradient_clip_algorithm
     ):
-        # Lightning will handle the gradient clipping
         self.clip_gradients(
             optimizer,
             gradient_clip_val=gradient_clip_val,
@@ -250,12 +273,11 @@ class LitFlow(pl.LightningModule):
         metrics_dict.update({"loss": losses.mean(), "loss_std": losses.std()})
         self.metrics.add_batch_wise(metrics_dict)
 
-        for key, value in metrics_dict.items():
-            self.log(key, value)
+        self.log_dict(metrics_dict)
 
         for scheduler in self.schedulers:
             scheduler.step()
-            if hasattr(scheduler,"log_stats"):
+            if hasattr(scheduler, "log_stats"):
                 for key, value in scheduler.log_stats.items():
                     self.log(key, value)
 
@@ -272,7 +294,8 @@ class LitFlow(pl.LightningModule):
             )
         else:
             raise ValueError(
-                "Unknown optimizer type {}".format(self.trainer_config.optimizer)
+                "Unknown optimizer type {}".format(
+                    self.trainer_config.optimizer)
             )
 
         lr_scheduler_dict = self.trainer_config.lr_scheduler
@@ -291,24 +314,24 @@ class LitFlow(pl.LightningModule):
             }
         elif lr_scheduler_dict["type"] == "max_fluctuations":
             lr_scheduler = MaxFluctuationLRScheduler(
-                    optimizer=configuration_dict["optimizer"],
-                    max_fluctuation_base=lr_scheduler_dict.get(
-                        "max_fluctuation_base", 0.05
-                    ),
-                    final_max_fluctuations=lr_scheduler_dict.get(
-                        "final_max_fluctuations", None
-                    ),
-                    n_steps=lr_scheduler_dict.get("n_steps", None),
-                    max_fluctuation_step=lr_scheduler_dict.get(
-                        "max_fluctuation_step", 0.001
-                    ),
-                    cooldown_steps=lr_scheduler_dict.get("patience", 75),
-                    metric_window_length=lr_scheduler_dict.get(
-                        "metric_window_length", 100
-                    ),
-                    change_rate=lr_scheduler_dict.get("factor", 0.9),
-                    min_lr=lr_scheduler_dict.get("min_lr", 5e-5),
-                )
+                optimizer=configuration_dict["optimizer"],
+                max_fluctuation_base=lr_scheduler_dict.get(
+                    "max_fluctuation_base", 0.05
+                ),
+                final_max_fluctuations=lr_scheduler_dict.get(
+                    "final_max_fluctuations", None
+                ),
+                n_steps=lr_scheduler_dict.get("n_steps", None),
+                max_fluctuation_step=lr_scheduler_dict.get(
+                    "max_fluctuation_step", 0.001
+                ),
+                cooldown_steps=lr_scheduler_dict.get("patience", 75),
+                metric_window_length=lr_scheduler_dict.get(
+                    "metric_window_length", 100
+                ),
+                change_rate=lr_scheduler_dict.get("factor", 0.9),
+                min_lr=lr_scheduler_dict.get("min_lr", 5e-5),
+            )
             lr_scheduler.metrics = self.metrics
             configuration_dict["lr_scheduler"] = {
                 "scheduler": lr_scheduler,
@@ -324,9 +347,9 @@ class LitFlow(pl.LightningModule):
         return configuration_dict
 
     def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
-        
-        if self.current_epoch > self.trainer_config.lr_scheduler.get("initial_waiting_epochs",0):
-            if isinstance(scheduler,torch.optim.lr_scheduler.ReduceLROnPlateau):
+
+        if self.current_epoch > self.trainer_config.lr_scheduler.get("initial_waiting_epochs", 0):
+            if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
                 scheduler.step(metrics=metric)
             else:
                 scheduler.step()
@@ -339,7 +362,8 @@ class LitFlow(pl.LightningModule):
         """
         if isinstance(node, dict):
             for key, _node in node.items():
-                self.log_all_values_in_stats_dict(_node, f"{str_path_to_node}/{key}")
+                self.log_all_values_in_stats_dict(
+                    _node, f"{str_path_to_node}/{key}")
 
         elif isinstance(node, (int, float, torch.Tensor)):
 
@@ -355,7 +379,8 @@ class LitFlow(pl.LightningModule):
                 and "mean" in str_path_to_node.split("/")[-1]
             ):
                 self.log(
-                    f"{str_path_to_node}/abs_diff_to_exact", abs(node - self.sus_exact)
+                    f"{str_path_to_node}/abs_diff_to_exact", abs(
+                        node - self.sus_exact)
                 )
                 self.log(f"{str_path_to_node}/sus_exact", self.sus_exact)
 
@@ -369,7 +394,8 @@ class LitFlow(pl.LightningModule):
             if hasattr(module, "logging_parameters"):
                 self.log_all_values_in_stats_dict(
                     node=module.logging_parameters,
-                    str_path_to_node="flow/" + name + "_" + type(module).__name__,
+                    str_path_to_node="flow/" + name +
+                    "_" + type(module).__name__,
                 )
 
     def validation_step(
@@ -384,13 +410,17 @@ class LitFlow(pl.LightningModule):
 
         for obs_name, obs_fn in self.observables_fn.items():
             with torch.no_grad():
-                val_step_output[obs_name] = obs_fn.evaluate(batch_dict["x_samples"])
+                val_step_output[obs_name] = obs_fn.evaluate(
+                    batch_dict["x_samples"])
 
         return val_step_output
 
     def validation_epoch_end(
         self, outputs: Union[EPOCH_OUTPUT, List[EPOCH_OUTPUT]]
     ) -> None:
+
+        # if self.current_epoch%5 != 0:
+        #     return
 
         stats_nmcmc = self.estimate_obs_nmcmc(
             batch_size=self.trainer_config.batch_size_eval,
@@ -439,16 +469,18 @@ class LitFlow(pl.LightningModule):
 
         self.log(
             "loss_epoch",
-            self.metrics.last_mean("loss", self.trainer_config.train_num_batches),
+            self.metrics.last_mean(
+                "loss", self.trainer_config.train_num_batches),
         )
 
         self.log(
             "loss_std_epoch",
-            self.metrics.last_mean("loss_std", self.trainer_config.train_num_batches),
+            self.metrics.last_mean(
+                "loss_std", self.trainer_config.train_num_batches),
         )
 
         for scheduler in [self.lr_schedulers()]:
-            if hasattr(scheduler,"log_stats"):
+            if hasattr(scheduler, "log_stats"):
                 for key, value in scheduler.log_stats.items():
                     self.log(key, value)
 
@@ -487,7 +519,9 @@ class LitFlow(pl.LightningModule):
             data_sampler=self.ess_p_sampler,
             target=self.target,
             batch_size=self.ess_p_sampler.batch_size,
-            n_iter=int(len(self.ess_p_sampler.dataset) / self.ess_p_sampler.batch_size),
+            n_iter=int(len(self.ess_p_sampler.dataset) /
+                       self.ess_p_sampler.batch_size),
         )
+
 
         return ess_p

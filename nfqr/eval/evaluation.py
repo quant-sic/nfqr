@@ -118,6 +118,7 @@ def estimate_ess_p_nip(
 ):
 
     model.eval()
+    model.double()
 
     rec_tmp = get_tmp_path_from_name_and_environ("estimate_nip_ess_p")
 
@@ -145,6 +146,7 @@ def estimate_ess_p_nip(
             )
 
     shutil.rmtree(rec_tmp)
+    model.float()
 
     return ess_p_dict
 
@@ -152,6 +154,7 @@ def estimate_ess_p_nip(
 def estimate_ess_q_nip(model, target, batch_size, n_iter):
 
     model.eval()
+    model.double()
 
     rec_tmp = get_tmp_path_from_name_and_environ("estimate_nip_ess_q")
 
@@ -172,6 +175,7 @@ def estimate_ess_q_nip(model, target, batch_size, n_iter):
         )
 
     shutil.rmtree(rec_tmp)
+    model.float()
 
     return ess_q
 
@@ -179,6 +183,7 @@ def estimate_ess_q_nip(model, target, batch_size, n_iter):
 def estimate_obs_nip(model, target, observables, batch_size, n_iter):
 
     model.eval()
+    model.double()
 
     rec_tmp = get_tmp_path_from_name_and_environ("estimate_obs_nip")
 
@@ -198,10 +203,15 @@ def estimate_obs_nip(model, target, observables, batch_size, n_iter):
 
     shutil.rmtree(rec_tmp)
 
+    model.float()
+
     return stats
 
 
 def estimate_nmcmc_acc_rate(model, target, trove_size, n_steps):
+
+    model.eval()
+    model.double()
 
     rec_tmp = get_tmp_path_from_name_and_environ("estimate_nmcmc_acc_rate")
 
@@ -217,10 +227,15 @@ def estimate_nmcmc_acc_rate(model, target, trove_size, n_steps):
 
     shutil.rmtree(rec_tmp)
 
+    model.float()
+    
     return nmcmc.acceptance_rate
 
 
 def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps):
+
+    model.eval()
+    model.double()
 
     rec_tmp = get_tmp_path_from_name_and_environ("estimate_obs_nmcmc")
 
@@ -239,6 +254,7 @@ def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps):
         stats = nmcmc.get_stats()
 
     shutil.rmtree(rec_tmp)
+    model.float()
 
     return stats
 

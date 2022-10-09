@@ -71,7 +71,7 @@ class LmdbDataset(Dataset):
         with self.env.begin(write=False) as txn:
             _meta = txn.get("meta".encode("ascii"))
             if _meta is None:
-                logger.error("Meta has not been set yet")
+                logger.error(f"Meta has not been set yet for dataset {self.dataset_file_path}")
                 # shutil.rmtree(dset)
             else:
                 _meta = _meta.decode("ascii")
@@ -208,7 +208,7 @@ def get_lmdb_dataset(values_dict, n_elements):
 
     dset_paths = list(sorted(DATASETS_DIR.glob("*")))
     max_size = n_elements * np.array(values_dict["dim"]).prod()
-    for dset_path in tqdm(dset_paths, desc="Checking datasets"):
+    for dset_path in tqdm(dset_paths, desc=f"Checking datasets for {values_dict} with {n_elements} elements"):
 
         try:
             lmdb_dataset = LmdbDataset(dset_path, max_size=max_size)

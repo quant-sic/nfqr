@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#$ -l cuda=1 
+# $ -l cuda=1 
 #$ -l h="!"node30"&!"node37"
 #$ -binding linear:4  # request 4 cpus (8 with Hyperthreading) (some recommend 4 per GPU)
 #$ -N running       # set consistent base name for output and error file (allows for easy deletion alias)
@@ -8,7 +8,7 @@
 #$ -V          # provide environment variables
 #$ -o /home/dechentf/MA/nfqr/pipe_out/$JOB_ID/
 #$ -e /home/dechentf/MA/nfqr/pipe_out/$JOB_ID/
-#$ -t 1-3
+#$ -t 1-1
 
 export num_tasks=$SGE_TASK_LAST
 export task_id=$((SGE_TASK_ID - 1))

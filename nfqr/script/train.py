@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint,EarlyStopping
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from nfqr.globals import EXPERIMENTS_DIR
@@ -16,7 +16,8 @@ from nfqr.utils import setup_env
 
 logger = create_logger(__name__)
 
-def iterate_config_models(exp_dir,model_ckpt_path):
+
+def iterate_config_models(exp_dir, model_ckpt_path):
 
     train_config = LitModelConfig.from_directory_for_task(
         exp_dir,
@@ -24,11 +25,10 @@ def iterate_config_models(exp_dir,model_ckpt_path):
         num_tasks=int(os.environ["num_tasks"]),
     )
 
-    for idx,trainer_config in enumerate(train_config.trainer_configs):
-        
+    for idx, trainer_config in enumerate(train_config.trainer_configs):
+
         lit_model_config = dict(train_config)
         lit_model_config.update({"trainer_config": trainer_config})
-
 
         if idx == 0:
             flow_model = LitFlow(**lit_model_config)
@@ -37,7 +37,7 @@ def iterate_config_models(exp_dir,model_ckpt_path):
                 model_ckpt_path, **lit_model_config
             )
 
-        yield lit_model_config,trainer_config,flow_model
+        yield lit_model_config, trainer_config, flow_model
 
 
 def train_flow_model(exp_dir, skip_done=True):
@@ -54,7 +54,7 @@ def train_flow_model(exp_dir, skip_done=True):
         seed_everything(42, workers=True)
         model_ckpt_path = ((exp_dir / "logs") / log_dir) / "model.ckpt"
 
-        for idx, (lit_model_config,trainer_config,flow_model) in enumerate(iterate_config_models(exp_dir,model_ckpt_path)):
+        for idx, (lit_model_config, trainer_config, flow_model) in enumerate(iterate_config_models(exp_dir, model_ckpt_path)):
 
             logger.info(
                 "Task {}: Interval {} with: \n\n {} \n\n".format(
@@ -63,13 +63,18 @@ def train_flow_model(exp_dir, skip_done=True):
             )
 
             tb_logger = TensorBoardLogger(
-                exp_dir / "logs", name=log_dir, sub_dir=f"interval_{idx}",version=0
+                exp_dir / "logs", name=log_dir, sub_dir=f"interval_{idx}", version=0
             )
 
-            callbacks = [LearningRateMonitor()]
+            callbacks = [
+                ModelCheckpoint(dirpath=tb_logger.log_dir + "/checkpoints/max_ess_p",auto_insert_metric_name=True, save_top_k=3, monitor="nip/ess_p/0-1/ess_p", mode="max"),
+                ModelCheckpoint(dirpath=tb_logger.log_dir + "/checkpoints/regular",filename="latest-{epoch}-{step}", save_top_k=-1, monitor="step", mode="max", every_n_epochs=10),
+                LearningRateMonitor(logging_interval='step')
+            ]
 
             #accelerator = ("mps","gpu","cpu")[np.argwhere((torch.backends.mps.is_available(),torch.cuda.is_available(),True)).min()]
-            accelerator = ("gpu","cpu")[np.argwhere((torch.cuda.is_available(),True)).min()]
+            accelerator = ("gpu", "cpu")[np.argwhere(
+                (torch.cuda.is_available(), True)).min()]
 
             trainer = Trainer(
                 **trainer_config.dict(
@@ -82,6 +87,7 @@ def train_flow_model(exp_dir, skip_done=True):
                         "track_grad_norm",
                     }
                 ),
+                num_sanity_val_steps=1,
                 logger=tb_logger,
                 accelerator=accelerator,
                 devices=1,
@@ -106,7 +112,7 @@ def train_flow_model(exp_dir, skip_done=True):
                     flow_model.learning_rate = trainer_config.learning_rate
 
             trainer.fit(model=flow_model)
-            #trainer.save_checkpoint(model_ckpt_path)
+            # trainer.save_checkpoint(model_ckpt_path)
 
 
 if __name__ == "__main__":
