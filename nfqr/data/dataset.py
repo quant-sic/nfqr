@@ -206,7 +206,7 @@ class LmdbDataset(Dataset):
 
 def get_lmdb_dataset(values_dict, n_elements):
 
-    dset_paths = list(sorted(DATASETS_DIR.glob("*")))
+    dset_paths = list(filter(lambda p: p.is_dir(),sorted(DATASETS_DIR.glob("*"))))
     max_size = n_elements * np.array(values_dict["dim"]).prod()
     for dset_path in tqdm(dset_paths, desc=f"Checking datasets for {values_dict} with {n_elements} elements"):
 

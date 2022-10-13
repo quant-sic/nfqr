@@ -159,7 +159,7 @@ class TrajectorySampler(object):
             for _ in range(self.batch_size * max_batch_repetitions):
 
                 self.sampler.step(record_observables=False)
-
+                                
                 if self.condition.evaluate(self.sampler.current_config):
                     batch += [self.sampler.current_config.detach().clone()]
                     if len(batch) >= self.batch_size:
