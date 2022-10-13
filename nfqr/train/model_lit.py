@@ -118,6 +118,9 @@ class LitFlow(pl.LightningModule):
     def val_losses(self):
         _losses = []
         for loss_config in self.trainer_config.loss_configs:
+
+            logger.info(loss_config.loss_type)
+            logger.info(loss_config.specific_loss_config)
             loss = LOSS_REGISTRY[loss_config.loss_type](
                 **dict(loss_config.specific_loss_config),
                 batch_size=self.trainer_config.batch_size,

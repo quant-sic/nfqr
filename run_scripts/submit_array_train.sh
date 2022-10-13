@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # $ -l cuda=1 
-#$ -l h="!"node30"&!"node37"
+#$ -l h=node43
 #$ -binding linear:4  # request 4 cpus (8 with Hyperthreading) (some recommend 4 per GPU)
 #$ -N running       # set consistent base name for output and error file (allows for easy deletion alias)
 #$ -q all.q    # don't fill the qlogin queue (can some add why and when to use?)

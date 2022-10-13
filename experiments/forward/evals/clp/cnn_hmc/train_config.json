@@ -85,71 +85,157 @@
             "p_sampler_config": {
               "trajectory_sampler_configs": [
                 {
-
-                  mcmc_alg:"",
-                  mcmc_type:"",
-                  observables:"Chi_t",
-                  n_steps:1,
-                  dim:dim,
-                  initial_config_sampler_config:InitialConfigSamplerConfig(
-                      trajectory_sampler_config:RotorTrajectorySamplerConfig(
-                          dim=dim, traj_type="classical", k=1
-                      )
-                  ),
-          
-                }
-                
-                {
                   "trajectory_sampler_config": {
-                    "traj_type": "classical",
-                    "k": -2.0
+                    "mcmc_type": "leapfrog",
+                    "mcmc_alg": "hmc",
+                    "observables": [
+                      "Chi_t"
+                    ],
+                    "n_steps": 100000,
+                    "n_burnin_steps": 0,
+                    "out_dir": "./",
+                    "hmc_engine": "python",
+                    "initial_config_sampler_config": {
+                      "trajectory_sampler_config": {
+                        "traj_type": "classical",
+                        "k": -2
+                      },
+                      "target_system": "qr"
+                    }
                   },
                   "condition_config": {
-                    "params": null
-                  },
-                  "sampler_batch_size": 10000
+                    "params": {
+                      "type": "observable",
+                      "target_system": "qr",
+                      "value": [
+                        -2.0
+                      ],
+                      "observable": "Q"
+                    }
+                  }
                 },
                 {
                   "trajectory_sampler_config": {
-                    "traj_type": "classical",
-                    "k": -1.0
+                    "mcmc_type": "leapfrog",
+                    "mcmc_alg": "hmc",
+                    "observables": [
+                      "Chi_t"
+                    ],
+                    "n_steps": 100000,
+                    "n_burnin_steps": 0,
+                    "out_dir": "./",
+                    "hmc_engine": "python",
+                    "initial_config_sampler_config": {
+                      "trajectory_sampler_config": {
+                        "traj_type": "classical",
+                        "k": -1
+                      },
+                      "target_system": "qr"
+                    }
                   },
                   "condition_config": {
-                    "params": null
-                  },
-                  "sampler_batch_size": 10000
+                    "params": {
+                      "type": "observable",
+                      "target_system": "qr",
+                      "value": [
+                        -1.0
+                      ],
+                      "observable": "Q"
+                    }
+                  }
                 },
                 {
                   "trajectory_sampler_config": {
-                    "traj_type": "classical",
-                    "k": 0
+                    "mcmc_type": "leapfrog",
+                    "mcmc_alg": "hmc",
+                    "observables": [
+                      "Chi_t"
+                    ],
+                    "n_steps": 100000,
+                    "n_burnin_steps": 0,
+                    "out_dir": "./",
+                    "hmc_engine": "python",
+                    "initial_config_sampler_config": {
+                      "trajectory_sampler_config": {
+                        "traj_type": "classical",
+                        "k": 0
+                      },
+                      "target_system": "qr"
+                    }
                   },
                   "condition_config": {
-                    "params": null
-                  },
-                  "sampler_batch_size": 10000
+                    "params": {
+                      "type": "observable",
+                      "target_system": "qr",
+                      "value": [
+                        0.0
+                      ],
+                      "observable": "Q"
+                    }
+                  }
                 },
                 {
                   "trajectory_sampler_config": {
-                    "traj_type": "classical",
-                    "k": 1.0
+                    "mcmc_type": "leapfrog",
+                    "mcmc_alg": "hmc",
+                    "observables": [
+                      "Chi_t"
+                    ],
+                    "n_steps": 100000,
+                    "n_burnin_steps": 0,
+                    "out_dir": "./",
+                    "hmc_engine": "python",
+                    "initial_config_sampler_config": {
+                      "trajectory_sampler_config": {
+                        "traj_type": "classical",
+                        "k": 1
+                      },
+                      "target_system": "qr"
+                    }
                   },
                   "condition_config": {
-                    "params": null
-                  },
-                  "sampler_batch_size": 10000
+                    "params": {
+                      "type": "observable",
+                      "target_system": "qr",
+                      "value": [
+                        1.0
+                      ],
+                      "observable": "Q"
+                    }
+                  }
                 },
                 {
                   "trajectory_sampler_config": {
-                    "traj_type": "classical",
-                    "k": 2.0
+                    "mcmc_type": "leapfrog",
+                    "mcmc_alg": "hmc",
+                    "observables": [
+                      "Chi_t"
+                    ],
+                    "n_steps": 100000,
+                    "n_burnin_steps": 0,
+                    "out_dir": "./",
+                    "hmc_engine": "python",
+                    "initial_config_sampler_config": {
+                      "trajectory_sampler_config": {
+                        "traj_type": "classical",
+                        "k": 2
+                      },
+                      "target_system": "qr"
+                    }
                   },
                   "condition_config": {
-                    "params": null
-                  },
-                  "sampler_batch_size": 10000
+                    "params": {
+                      "type": "observable",
+                      "target_system": "qr",
+                      "value": [
+                        2.0
+                      ],
+                      "observable": "Q"
+                    }
+                  }
                 }
               ],
+              "batch_size": 1,
               "elements_per_dataset": 50000,
               "subset_distribution": [
                 0.1,
@@ -158,7 +244,10 @@
                 0.2,
                 0.1
               ],
-              "num_workers": 4
+              "num_workers": 0,
+              "num_batches": 1,
+              "shuffle": true,
+              "infinite": false
             }
           }
         },
