@@ -29,7 +29,7 @@ class MCMCConfig(BaseConfig):
     dim: List[int]
     action_config: ActionConfig
     n_burnin_steps: int
-    out_dir: Union[str, Path]
+    out_dir: Path
     n_traj_steps: Optional[int] = 20
     step_size: Optional[float] = 0.01
     autotune_step: Optional[bool] = True

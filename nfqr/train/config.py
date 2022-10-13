@@ -196,6 +196,34 @@ class LitModelConfig(BaseConfig):
 
         return values
 
+
+    @root_validator(pre=True)
+    @classmethod
+    def add_action_config(cls, values):
+
+        """
+        Adds action_config to sub configs.
+        """
+
+        action_config = values["action_config"]
+
+        def set_action_config(key, list_or_dict):
+
+            if key in (
+                "trajectory_sampler_config",
+            ):
+                if "action_config" not in list_or_dict[key]:
+
+                    list_or_dict[key]["action_config"] = action_config
+                
+
+            return list_or_dict
+
+        set_par_list_or_dict(values, set_fn=partial(set_action_config))
+
+        return values
+
+
     @validator("trainer_configs", pre=True)
     @classmethod
     def trainer_configs_to_list(cls, _v):

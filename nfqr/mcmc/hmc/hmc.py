@@ -274,7 +274,7 @@ class HMC_PYTHON(object):
             )
             self.current_config = self.post_step(self.current_config)
 
-        self.current_config = self.current_config.requires_grad_(False)
+        self.current_config = self.post_step(self.current_config.requires_grad_(False))
 
         self._configs = []
         self.n_steps_taken = 0
@@ -344,6 +344,9 @@ class HMC_PYTHON(object):
         config = config.detach()
 
         config = self.post_step(config)
+        self.current_config = config
+        
+        self.n_steps_taken+=1
 
         return config
 
