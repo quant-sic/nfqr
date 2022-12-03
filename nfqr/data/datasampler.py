@@ -43,6 +43,9 @@ class MultipleDatasetsBatchSampler(BatchSampler):
         self.batch_size = batch_size
         self.shuffle = shuffle
 
+        if not (sum(distribution)-1.0)<=1e-7:
+            raise ValueError(f"Distribution sums to {sum(distribution)} != 1")
+
     def __iter__(self):
 
         if self.shuffle:

@@ -93,3 +93,4 @@ class LossConfig(BaseModel):
 
     loss_type: str
     specific_loss_config: Union[ForwardKLConfig, ReverseKLConfig]
+

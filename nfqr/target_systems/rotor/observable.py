@@ -12,6 +12,7 @@ from nfqr.utils import create_logger
 logger = create_logger(__name__)
 
 ROTOR_OBSERVABLE_REGISTRY = StrRegistry("qr")
+ROTOR_SEC_OBSERVABLE_REGISTRY = StrRegistry("qr")
 
 
 @ROTOR_OBSERVABLE_REGISTRY.register("Q")

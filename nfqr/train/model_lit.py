@@ -18,7 +18,7 @@ from nfqr.eval.evaluation import (
     get_ess_p_sampler,
 )
 from nfqr.normalizing_flows.flow import BareFlow, FlowConfig
-from nfqr.normalizing_flows.loss.loss import LOSS_REGISTRY
+from nfqr.normalizing_flows.loss.loss import LOSS_REGISTRY, ForwardKL
 from nfqr.normalizing_flows.target_density import TargetDensity
 from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
 from nfqr.target_systems.rotor import SusceptibilityExact
@@ -123,7 +123,9 @@ class LitFlow(pl.LightningModule):
 
             logger.info(loss_config.loss_type)
             logger.info(loss_config.specific_loss_config)
-            
+            logger.info(loss_config)
+
+
             loss = LOSS_REGISTRY[loss_config.loss_type](
                 **dict(loss_config.specific_loss_config),
                 batch_size=self.trainer_config.batch_size,
@@ -354,7 +356,8 @@ class LitFlow(pl.LightningModule):
 
     def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
 
-        if self.current_epoch > self.trainer_config.lr_scheduler.get("initial_waiting_epochs", 0):
+        # if initial epochs are over and not beta scheduling in progress -> lr step
+        if self.current_epoch > self.trainer_config.lr_scheduler.get("initial_waiting_epochs", 0) and (self.final_beta==self.target.dist.action.beta):
             if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
                 scheduler.step(metrics=metric)
             else:

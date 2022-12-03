@@ -63,6 +63,10 @@ class LitModelConfig(BaseConfig):
     task_parameters: Union[List[str], None] = None
     initial_weights: Optional[Path] = None
 
+    continue_model: Optional[Path]
+    continue_beta: Optional[float]
+    continuation_exp: Optional[Path]
+
     @classmethod
     def get_num_tasks(cls: Type[ConfigType], directory: Union[str, Path]) -> int:
         """Load config from json with task id."""
@@ -78,7 +82,8 @@ class LitModelConfig(BaseConfig):
                     num_pars_dict[key] = len(list_or_dict[key])
                 except TypeError:
                     raise RuntimeError(
-                        "Len could not be evaluated for {}".format(list_or_dict[key])
+                        "Len could not be evaluated for {}".format(
+                            list_or_dict[key])
                     )
             return list_or_dict
 
@@ -94,7 +99,8 @@ class LitModelConfig(BaseConfig):
             )
         else:
             num_pars = (
-                list(num_pars_dict.values())[0] if list(num_pars_dict.values()) else 1
+                list(num_pars_dict.values())[0] if list(
+                    num_pars_dict.values()) else 1
             )
 
         return num_pars
@@ -120,7 +126,8 @@ class LitModelConfig(BaseConfig):
                     num_pars_dict[key] = len(list_or_dict[key])
                 except TypeError:
                     raise RuntimeError(
-                        "Len could not be evaluated for {}".format(list_or_dict[key])
+                        "Len could not be evaluated for {}".format(
+                            list_or_dict[key])
                     )
                 list_or_dict[key] = list_or_dict[key][task_id]
 
@@ -138,7 +145,8 @@ class LitModelConfig(BaseConfig):
             )
         else:
             num_pars = (
-                list(num_pars_dict.values())[0] if list(num_pars_dict.values()) else 1
+                list(num_pars_dict.values())[0] if list(
+                    num_pars_dict.values()) else 1
             )
 
             if not num_pars == num_tasks:
@@ -162,7 +170,6 @@ class LitModelConfig(BaseConfig):
     @root_validator(pre=True)
     @classmethod
     def add_dims(cls, values):
-
         """
         Adds dims to sub configs.
         """
@@ -196,11 +203,9 @@ class LitModelConfig(BaseConfig):
 
         return values
 
-
     @root_validator(pre=True)
     @classmethod
     def add_action_config(cls, values):
-
         """
         Adds action_config to sub configs.
         """
@@ -215,14 +220,12 @@ class LitModelConfig(BaseConfig):
                 if "action_config" not in list_or_dict[key]:
 
                     list_or_dict[key]["action_config"] = action_config
-                
 
             return list_or_dict
 
         set_par_list_or_dict(values, set_fn=partial(set_action_config))
 
         return values
-
 
     @validator("trainer_configs", pre=True)
     @classmethod
@@ -234,11 +237,11 @@ class LitModelConfig(BaseConfig):
 
         return v
 
-    @validator("initial_weights",pre=True)
+    @validator("initial_weights", pre=True)
     @classmethod
     def initial_weights_add_exp_dir(cls, _v):
 
-        if not isinstance(_v,Path):
+        if not isinstance(_v, Path):
             _v = Path(_v)
 
         v = EXPERIMENTS_DIR / _v

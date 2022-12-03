@@ -12,6 +12,7 @@ from tqdm import tqdm
 from nfqr.data.condition import SampleCondition
 from nfqr.globals import DATASETS_DIR
 from nfqr.utils import NumpyEncoder, create_logger
+import os
 
 logger = create_logger(__name__)
 
@@ -23,14 +24,18 @@ class LmdbDataset(Dataset):
         self.dataset_file_path = Path(dataset_path)
         self.max_size = max_size
 
+        logger.info(f"Creating LMDB Environment for {int(self.max_size * 4 * 2)/1e9} GB")
         # 4 bytes per float, multiply by 5 for good measure
         self.env = lmdb.open(
             str(self.dataset_file_path),
             lock=False,
             readahead=False,
             meminit=True,
-            map_size=int(self.max_size * 4 * 5),
+            writemap=True,
+            map_size=int(self.max_size * 4 * 3),
         )
+        logger.info(f"LMDB Environment initialisation done")
+
 
     def reinit_env(self):
         self.env.close()
@@ -198,10 +203,14 @@ class LmdbDataset(Dataset):
             else:
                 return v_meta == v_other
 
-        return (
-            all(_item_is_equal(k, v) for k, v in values_dict.items())
-            and self.max_size >= n_elements
-        )
+        try:
+            _isequal = (all(_item_is_equal(k, v) for k, v in values_dict.items())
+                and self.max_size >= n_elements)
+        except TypeError as e:
+            logger.warning(f"For dataset {self.dataset_file_path} equal check failed with Error {e}. Dataset might not be completely built")
+            _isequal = False
+        
+        return _isequal
 
 
 def get_lmdb_dataset(values_dict, n_elements):
@@ -226,12 +235,14 @@ def get_lmdb_dataset(values_dict, n_elements):
                 str,
                 list(
                     set(range(len(dset_paths) + 1))
-                    - set(list(map(lambda path: int(path.name), dset_paths)))
+                    - set(list(map(lambda path: int(path.name.split("_")[0]), dset_paths)))
                 ),
             )
         )
         + ["0"]
     )[0]
+    dset_name = dset_name + "_" + os.environ["job_id"] + "_" + os.environ["task_id"]
+
     logger.info(f"Creating new dataset: {dset_name}")
 
     new_dataset = LmdbDataset(DATASETS_DIR / dset_name, max_size=max_size)

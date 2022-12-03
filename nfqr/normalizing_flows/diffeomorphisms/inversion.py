@@ -2,7 +2,9 @@ from functools import partial
 
 import torch
 from torch.autograd import Function, grad
+from nfqr.utils import create_logger
 
+logger = create_logger(__name__)
 
 def searchsorted(bin_locations, inputs, eps=1e-6):
     bin_locations[..., -1] += eps
@@ -69,16 +71,26 @@ class NumericalInverse(Function):
         with torch.enable_grad():
 
             z, *pars = map(
-                lambda t: t.detach().clone().requires_grad_(), ctx.saved_tensors
+                lambda t: t.clone().detach(), ctx.saved_tensors
             )
 
             grad_x = None
             grad_pars = [None] * len(pars)
 
             if any(ctx.needs_input_grad):
+
+                # get parameter indices for tensors that require grad
+                required_grad_idx = list(
+                    filter(
+                        lambda idx: ctx.needs_input_grad[-len(pars) :][idx],
+                        range(len(pars)),
+                    )
+                )
+
                 x = ctx.fn["function"](
-                    z,
-                    **{name: pars[idx] for idx, name in enumerate(ctx.fn["args"])},
+                    # if any tensor requires grad then z also needs to require it
+                    z.requires_grad_(True),
+                    **{name: pars[idx].requires_grad_(idx in required_grad_idx) for idx, name in enumerate(ctx.fn["args"])},
                     **ctx.fn["kwargs"],
                 )
 
@@ -86,15 +98,9 @@ class NumericalInverse(Function):
 
                 grad_x = grad_z * grad_x_inverse.pow(-1)
 
-            required_grad_idx = list(
-                filter(
-                    lambda idx: ctx.needs_input_grad[-len(pars) :][idx],
-                    range(len(pars)),
-                )
-            )
-            grads = grad(x, [pars[idx] for idx in required_grad_idx], -grad_x)
+                grads = grad(x, [pars[idx] for idx in required_grad_idx], -grad_x)
 
-            for enum_idx, idx in enumerate(required_grad_idx):
-                grad_pars[idx] = grads[enum_idx]
+                for enum_idx, idx in enumerate(required_grad_idx):
+                    grad_pars[idx] = grads[enum_idx]
 
         return grad_x, None, *grad_pars

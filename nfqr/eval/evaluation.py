@@ -36,6 +36,8 @@ class EvalConfig(BaseConfig):
     methods: List[Literal["nip", "nmcmc"]] = ["nip", "nmcmc"]
     observables: List[str] = ["Chi_t"]
 
+    models: Optional[List[str]]
+
     @validator("observables", "methods", pre=True)
     @classmethod
     def str_to_list(cls, v):

@@ -9,6 +9,9 @@ from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.train.config import LitModelConfig
 from nfqr.train.model_lit import LitFlow
 from nfqr.utils import create_logger
+import numpy as np
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+import re
 
 logger = create_logger(__name__)
 
@@ -33,6 +36,9 @@ if __name__ == "__main__":
     pbar = tqdm((exp_dir / f"logs/{log_dir}").glob("**/*.ckpt"))
     for model_ckpt_path in pbar:
 
+        if eval_config.models is not None and not model_ckpt_path.stem in eval_config.models:
+            continue
+
         pbar.set_description(
             "Evaluation for task {} and model {}".format(
                 os.environ["task_id"], model_ckpt_path.stem
@@ -40,6 +46,23 @@ if __name__ == "__main__":
         )
 
         task_dir = exp_dir / f"eval/{log_dir}/{model_ckpt_path.stem}"
+
+        if "beta_scheduled" in str(model_ckpt_path):
+            events_file_path = (model_ckpt_path.parent.parent.parent).glob("events*").__next__()
+
+            acc = EventAccumulator(str(events_file_path)).Reload()
+
+            _, step_nums, vals = [np.array(e) for e in zip(*acc.Scalars("beta"))]
+
+            step = int(re.search("step=([0-9]*).",model_ckpt_path.name).groups()[0])
+            
+            plot_step = np.argwhere((step_nums>=(step-1)).cumsum(axis=0)==1)[0][0]
+
+            beta = vals[plot_step]
+
+            train_config.action_config.specific_action_config.beta = beta
+            logger.info(f"Setting beta to {beta}")
+
 
         model_kwargs_dict = dict(train_config)
         model_kwargs_dict.update({"trainer_config":train_config.trainer_configs[-1]})

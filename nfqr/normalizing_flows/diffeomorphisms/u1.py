@@ -240,7 +240,7 @@ class NCP(U1Diffeomorphism):
             beta = torch.zeros_like(alpha)
 
         if offset is None:
-            offset = torch.tensor([0], requires_grad=False, device=alpha.device)
+            offset = torch.tensor([0.0], requires_grad=False, device=alpha.device,dtype=torch.float32)
         else:
             offset = torch.sigmoid(offset.squeeze(dim=-1)) * 2 * pi
 
