@@ -29,11 +29,15 @@
               "block_configs": [
                 {
                   "n_channels": [
-                    16,
                     32,
-                    32
+                    64,
+                    64,
+                    64
                   ],
                   "norm_configs": [
+                    {
+                      "norm_type": "batch"
+                    },
                     {
                       "norm_type": "batch"
                     },
@@ -46,6 +50,7 @@
                   ],
                   "kernel_sizes": [
                     5,
+                    3,
                     3,
                     3
                   ]
@@ -86,7 +91,7 @@
     "val_num_batches": 5,
     "n_iter_eval": 25,
     "batch_size_eval": 10000,
-    "max_epochs": 100,
+    "max_epochs": 250,
     "log_every_n_steps": 25,
     "accumulate_grad_batches": 1,
     "loss_configs": [
@@ -102,17 +107,24 @@
       "patience": 10,
       "factor": 0.8,
       "min_lr": 5e-5
-    }
+    },
+    "scheduler_configs": [
+      {
+        "scheduler_type": "beta",
+        "specific_scheduler_config": {
+          "target_beta": 6.25,
+          "damping_constant": {
+            "Chi_t": 50
+          },
+          "max_observed_change_rate": {
+            "Chi_t": 0.05
+          },
+          "change_rate": 0.3,
+          "cooldown_steps": 1000,
+          "metric_window_length": 1000
+        }
+      }
+    ]
   },
-  "continue_model": [
-    "latest-epoch=99-step=50000",
-    "latest-epoch=19-step=10000",
-    "latest-epoch=39-step=20000",
-    "latest-epoch=59-step=30000",
-    "latest-epoch=79-step=40000"
-  ],
-  "continuation_exp": "beta_scheduled/evals/clp/cnn_2/logs/task_0/version_0/interval_0",
-  "task_parameters": [
-    "continue_model"
-  ]
+  "task_parameters": []
 }

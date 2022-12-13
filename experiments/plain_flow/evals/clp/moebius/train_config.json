@@ -12,11 +12,7 @@
           "domain": "u1",
           "specific_layer_type": "bare",
           "diffeomorphism_config": {
-            "diffeomorphism_type": "ncp",
-            "specific_diffeomorphism_config": {
-              "greater_than_func": "exp",
-              "boundary_mode": "taylor"
-            }
+            "diffeomorphism_type": "moebius"
           },
           "equivariant_mode": "shortest"
         },
@@ -72,21 +68,51 @@
     "target_system": "qr",
     "action_type": "qr",
     "specific_action_config": {
-      "beta": 2.0
+      "T": 4.0,
+      "mom_inertia": 0.25
     }
   },
   "dim": [
-    100
+    [
+      30
+    ],
+    [
+      36
+    ],
+    [
+      40
+    ],
+    [
+      46
+    ],
+    [
+      50
+    ],
+    [
+      56
+    ],
+    [
+      60
+    ],
+    [
+      66
+    ],
+    [
+      70
+    ],
+    [
+      76
+    ]
   ],
   "trainer_configs": {
     "learning_rate": 0.001,
     "auto_lr_find": false,
-    "batch_size": 10000,
+    "batch_size": 5000,
     "train_num_batches": 500,
     "val_num_batches": 5,
     "n_iter_eval": 25,
     "batch_size_eval": 10000,
-    "max_epochs": 100,
+    "max_epochs": 250,
     "log_every_n_steps": 25,
     "accumulate_grad_batches": 1,
     "loss_configs": [
@@ -104,15 +130,7 @@
       "min_lr": 5e-5
     }
   },
-  "continue_model": [
-    "latest-epoch=99-step=50000",
-    "latest-epoch=19-step=10000",
-    "latest-epoch=39-step=20000",
-    "latest-epoch=59-step=30000",
-    "latest-epoch=79-step=40000"
-  ],
-  "continuation_exp": "beta_scheduled/evals/clp/cnn_2/logs/task_0/version_0/interval_0",
   "task_parameters": [
-    "continue_model"
+    "dim"
   ]
 }

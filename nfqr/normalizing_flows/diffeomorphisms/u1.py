@@ -38,8 +38,9 @@ def map_to_u1(phi, mode):
 
     return phi
 
+
 def bring_back_to_u1(phi, raise_error=False, mode="cut", error_margin=1e-3, **kwargs):
-    
+
     if (torch.min(phi) <= 0.0) or (torch.max(phi) >= (2 * pi)):
 
         if torch.min(phi) > -error_margin and torch.max(phi) < (2 * pi + error_margin) or not raise_error:
@@ -89,10 +90,12 @@ def ncp(phi, alpha, beta, rho, ret_logabsdet=True):
     left_bound_mask = phi < 1e-3
     right_bound_mask = phi > (2 * pi - 1e-3)
 
-    out = 2 * torch.atan(alpha * torch.tan(0.5 * (phi - pi))[..., None] + beta) + pi
+    out = 2 * torch.atan(alpha * torch.tan(0.5 * (phi - pi))
+                         [..., None] + beta) + pi
     out[left_bound_mask] = phi[left_bound_mask][..., None] / alpha[left_bound_mask]
     out[right_bound_mask] = (
-        2 * pi + (phi[right_bound_mask][..., None] - 2 * pi) / alpha[right_bound_mask]
+        2 * pi + (phi[right_bound_mask][..., None] - 2 * pi) /
+        alpha[right_bound_mask]
     )
 
     if rho is not None:
@@ -123,7 +126,8 @@ def ncp(phi, alpha, beta, rho, ret_logabsdet=True):
 
 def ncp_mod(phi, alpha, beta, rho, ret_logabsdet=True):
 
-    out = 2 * torch.atan(alpha * torch.tan(0.5 * (phi - pi))[..., None] + beta) + pi
+    out = 2 * torch.atan(alpha * torch.tan(0.5 * (phi - pi))
+                         [..., None] + beta) + pi
 
     if rho is not None:
         conv_comb = (rho * out).sum(-1)
@@ -196,13 +200,15 @@ class NCP(U1Diffeomorphism):
         }
 
         if greater_than_func == "softplus":
-            self.alpha_transform = nf_constraints_standard(greater_than_eq(alpha_min))
+            self.alpha_transform = nf_constraints_standard(
+                greater_than_eq(alpha_min))
         elif greater_than_func == "exp":
             self.alpha_transform = nf_constraints_alternative(
                 greater_than_eq(alpha_min)
             )
         else:
-            raise ValueError(f"greater_than_func {greater_than_func} not recognized")
+            raise ValueError(
+                f"greater_than_func {greater_than_func} not recognized")
 
         self.rho_transform = torch_transform_to(simplex)
         self.beta_exponent = beta_exponent
@@ -240,7 +246,8 @@ class NCP(U1Diffeomorphism):
             beta = torch.zeros_like(alpha)
 
         if offset is None:
-            offset = torch.tensor([0.0], requires_grad=False, device=alpha.device,dtype=torch.float32)
+            offset = torch.tensor(
+                [0.0], requires_grad=False, device=alpha.device, dtype=torch.float32)
         else:
             offset = torch.sigmoid(offset.squeeze(dim=-1)) * 2 * pi
 
@@ -404,7 +411,8 @@ class Moebius(U1Diffeomorphism):
 
         # normalize rho
         rho = self.rho_transform(rho_unconstrained)
-        w_unconstrained = torch.stack((w_x_unconstrained, w_y_unconstrained), dim=0)
+        w_unconstrained = torch.stack(
+            (w_x_unconstrained, w_y_unconstrained), dim=0)
         # get w into circle ? sigmoid a good option ? restrain angle 0-2pi ?
 
         # w_unconstrained = torch.norm(
@@ -523,7 +531,8 @@ def rational_quadratic_spline(
     derivatives = min_derivative + F.softplus(unnormalized_derivatives)
 
     if circular:
-        derivatives = F.pad(derivatives, pad=(0, 1), mode="constant", value=0.0)
+        derivatives = F.pad(derivatives, pad=(
+            0, 1), mode="constant", value=0.0)
         derivatives[..., -1] = derivatives[..., 0]
     else:
         if not derivatives.shape[-1] == widths.shape[-1] + 1:
@@ -555,7 +564,8 @@ def rational_quadratic_spline(
     input_delta = delta.gather(-1, bin_idx)[..., 0]
 
     input_derivatives = derivatives[..., :-1].gather(-1, bin_idx)[..., 0]
-    input_derivatives_plus_one = derivatives[..., 1:].gather(-1, bin_idx)[..., 0]
+    input_derivatives_plus_one = derivatives[...,
+                                             1:].gather(-1, bin_idx)[..., 0]
 
     input_heights = heights.gather(-1, bin_idx)[..., 0]
 
@@ -586,14 +596,16 @@ def rational_quadratic_spline(
                 + 2 * input_delta * theta_one_minus_theta
                 + input_derivatives * (1 - root).pow(2)
             )
-            logabsdet = -torch.log(derivative_numerator) + 2 * torch.log(denominator)
+            logabsdet = -torch.log(derivative_numerator) + \
+                2 * torch.log(denominator)
 
     else:
         theta = (inputs - input_cumwidths) / input_bin_widths
         theta_one_minus_theta = theta * (1 - theta)
 
         numerator = input_heights * (
-            input_delta * theta.pow(2) + input_derivatives * theta_one_minus_theta
+            input_delta * theta.pow(2) + input_derivatives *
+            theta_one_minus_theta
         )
         denominator = input_delta + (
             (input_derivatives + input_derivatives_plus_one - 2 * input_delta)
@@ -607,7 +619,8 @@ def rational_quadratic_spline(
                 + 2 * input_delta * theta_one_minus_theta
                 + input_derivatives * (1 - theta).pow(2)
             )
-            logabsdet = torch.log(derivative_numerator) - 2 * torch.log(denominator)
+            logabsdet = torch.log(derivative_numerator) - \
+                2 * torch.log(denominator)
 
     outputs = bring_back_to_u1(outputs)
 
@@ -661,11 +674,15 @@ class RQS(U1Diffeomorphism):
     def inverse(
         self,
         phi,
-        unnormalized_widths,
-        unnormalized_heights,
-        unnormalized_derivatives,
+        params,
         ret_logabsdet=True,
     ):
+        (
+            unnormalized_widths,
+            unnormalized_heights,
+            unnormalized_derivatives,
+        ) = self.constrain_params(*params)
+
         phi = bring_back_to_u1(phi)
         return rational_quadratic_spline(
             inputs=phi,
@@ -688,7 +705,8 @@ def rho_step_function(x, alpha, beta):
         out[x != 0] = torch.exp(-1 / (alpha * x**beta))[x != 0]
         dout = torch.zeros_like(x)
         dout[x != 0] = (
-            torch.exp(-1 / (alpha * x**beta)) * (beta / (alpha * x ** (beta + 1)))
+            torch.exp(-1 / (alpha * x**beta)) *
+            (beta / (alpha * x ** (beta + 1)))
         )[x != 0]
 
     elif isinstance(x, (float, int)):
@@ -761,7 +779,8 @@ def circular_bump(
     phi_shifted[(phi_left < 0) & (phi >= 1 + phi_left)] -= 1
 
     # calculate g
-    g_phi = g(phi_shifted, rho_function, a, b, phi_left, phi_right, alpha, beta)
+    g_phi = g(phi_shifted, rho_function, a, b,
+              phi_left, phi_right, alpha, beta)
 
     # cumulative bump
     left_value = torch.zeros_like(phi)
@@ -870,7 +889,8 @@ class Bump(Diffeomorphism):
                 beta=beta,
                 ret_logabsdet=ret_logabsdet,
             )
-            phi_out = bring_back_to_u1(phi, a=a, b=b, c=c, alpha=alpha, beta=beta)
+            phi_out = bring_back_to_u1(
+                phi, a=a, b=b, c=c, alpha=alpha, beta=beta)
 
             return phi_out, ld
 
@@ -886,7 +906,8 @@ class Bump(Diffeomorphism):
                 beta=beta,
                 ret_logabsdet=ret_logabsdet,
             )
-            phi_out = bring_back_to_u1(phi, a=a, b=b, c=c, alpha=alpha, beta=beta)
+            phi_out = bring_back_to_u1(
+                phi, a=a, b=b, c=c, alpha=alpha, beta=beta)
 
             return phi_out
 

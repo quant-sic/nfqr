@@ -48,6 +48,8 @@ class TrainerConfig(BaseModel):
         "type": "reduce_on_plateau"
     }
 
+    stats_limits: List[int] = [-1]
+
 
 class LitModelConfig(BaseConfig):
 

@@ -484,7 +484,8 @@ class ResidualCoupling(CouplingLayer, Module):
             self.inverse_fn_params,
             log_rho,
             unconstrained_params,
-        )
+        ).to(x.dtype)
+        
         z_out = self.diffeomorphism.range_check_correction(x)
 
         _, ld = self.convex_comb(

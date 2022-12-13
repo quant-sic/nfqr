@@ -125,7 +125,6 @@ class LitFlow(pl.LightningModule):
             logger.info(loss_config.specific_loss_config)
             logger.info(loss_config)
 
-
             loss = LOSS_REGISTRY[loss_config.loss_type](
                 **dict(loss_config.specific_loss_config),
                 batch_size=self.trainer_config.batch_size,
@@ -357,7 +356,7 @@ class LitFlow(pl.LightningModule):
     def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
 
         # if initial epochs are over and not beta scheduling in progress -> lr step
-        if self.current_epoch > self.trainer_config.lr_scheduler.get("initial_waiting_epochs", 0) and (self.final_beta==self.target.dist.action.beta):
+        if self.current_epoch > self.trainer_config.lr_scheduler.get("initial_waiting_epochs", 0) and (self.final_beta == self.target.dist.action.beta):
             if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
                 scheduler.step(metrics=metric)
             else:
@@ -503,6 +502,7 @@ class LitFlow(pl.LightningModule):
             observables=self.observables,
             batch_size=batch_size,
             n_iter=n_iter,
+            stats_limits=self.trainer_config.stats_limits
         )
 
         stats_nip["ess_p"] = self.estimate_ess_p_nip()
@@ -517,6 +517,7 @@ class LitFlow(pl.LightningModule):
             target=self.target,
             trove_size=batch_size,
             n_steps=n_iter * batch_size,
+            stats_limits=self.trainer_config.stats_limits
         )
 
         return stats_nmcmc
@@ -530,7 +531,7 @@ class LitFlow(pl.LightningModule):
             batch_size=self.ess_p_sampler.batch_size,
             n_iter=int(len(self.ess_p_sampler.dataset) /
                        self.ess_p_sampler.batch_size),
+            stats_limits=self.trainer_config.stats_limits
         )
-
 
         return ess_p

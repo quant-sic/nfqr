@@ -1,0 +1,140 @@
+{
+  "flow_config": {
+    "flow_type": "bare",
+    "domain": "u1",
+    "base_dist_config": {
+      "dist_type": "uniform"
+    },
+    "layer_chain_config": {
+      "layer_configs": {
+        "layer_type": "coupling_layer",
+        "specific_layer_config": {
+          "domain": "u1",
+          "specific_layer_type": "bare",
+          "diffeomorphism_config": {
+            "diffeomorphism_type": "ncp",
+            "specific_diffeomorphism_config": {
+              "greater_than_func": "exp",
+              "boundary_mode": "taylor"
+            }
+          },
+          "equivariant_mode": "shortest"
+        },
+        "conditioner_chain_config": {
+          "expressivity": 2,
+          "encoder_config": null,
+          "decoder_config": {
+            "decoder_type": "cnn",
+            "specific_decoder_config": {
+              "block_configs": [
+                {
+                  "n_channels": [
+                    8,
+                    12,
+                    16
+                  ],
+                  "kernel_sizes": [
+                    5,
+                    3,
+                    3
+                  ]
+                }
+              ]
+            }
+          },
+          "share_encoder": false,
+          "share_decoder": false
+        },
+        "num_layers": 16,
+        "layer_split_config": {
+          "split_type": "checkerboard",
+          "specific_split_type_config": {}
+        }
+      }
+    }
+  },
+  "observables": [
+    "Q",
+    "Chi_t"
+  ],
+  "action_config": {
+    "target_system": "qr",
+    "action_type": "qr",
+    "specific_action_config": {
+      "T": 4.0,
+      "mom_inertia": 0.25
+    }
+  },
+  "dim": [
+    [
+      50
+    ],
+    [
+      60
+    ],
+    [
+      70
+    ],
+    [
+      80
+    ],
+    [
+      90
+    ]
+  ],
+  "trainer_configs": [
+    {
+      "learning_rate": 0.001,
+      "auto_lr_find": false,
+      "batch_size": 10000,
+      "train_num_batches": 500,
+      "val_num_batches": 5,
+      "max_epochs": 250,
+      "log_every_n_steps": 25,
+      "accumulate_grad_batches": 1,
+      "loss_configs": [
+        {
+          "loss_type": "forward",
+          "specific_loss_config": {
+            "p_sampler_config": {
+              "trajectory_sampler_configs": [
+                {
+                  "trajectory_sampler_config": {
+                    "mcmc_type": "wolff",
+                    "mcmc_alg": "cluster",
+                    "observables": [
+                      "Chi_t"
+                    ],
+                    "n_steps": 100000,
+                    "n_burnin_steps": 0,
+                    "out_dir": "./",
+                    "hmc_engine": "python",
+                    "initial_config_sampler_config": {
+                      "trajectory_sampler_config": {
+                        "traj_type": "classical",
+                        "k": 0
+                      },
+                      "target_system": "qr"
+                    }
+                  },
+                  "condition_config": {}
+                }
+              ],
+              "batch_size": 1,
+              "elements_per_dataset": 500000,
+              "num_workers": 0,
+              "num_batches": 1,
+              "shuffle": true,
+              "infinite": false
+            }
+          }
+        }
+      ],
+      "gradient_clip_val": 5.0,
+      "gradient_clip_algorithm": "norm"
+    }
+  ],
+  "task_parameters": [
+    "dim"
+  ]
+}

@@ -29,6 +29,17 @@ class MCMC(Sampler):
         pass
 
     @property
+    def stats_limit(self):
+        if not hasattr(self,"_stats_limit"):
+            self._stats_limit = -1
+        
+        return self._stats_limit            
+
+    @stats_limit.setter
+    def stats_limit(self,v):
+        self._stats_limit = v
+
+    @property
     def current_config(self):
         return self._config
 
@@ -73,7 +84,7 @@ class MCMC(Sampler):
 
     def _evaluate_obs(self, obs):
 
-        observable_data = self.observables_rec[obs]
+        observable_data = self.observables_rec[obs][:self.stats_limit]
         prepared_observable_data = self.observables_rec.observables[obs].prepare(
             observable_data
         )

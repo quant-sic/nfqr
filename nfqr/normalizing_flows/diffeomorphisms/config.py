@@ -5,4 +5,4 @@ from .u1 import NCPConfig
 class DiffeomorphismConfig(BaseModel):
 
     diffeomorphism_type: str
-    specific_diffeomorphism_config: Union[NCPConfig,None]
+    specific_diffeomorphism_config: Union[None,NCPConfig] = None

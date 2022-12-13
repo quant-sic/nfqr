@@ -58,6 +58,17 @@ class NeuralImportanceSampler(Sampler):
         else:
             raise ValueError("Unknown mode")
 
+    @property
+    def stats_limit(self):
+        if not hasattr(self,"_stats_limit"):
+            self._stats_limit = -1
+        
+        return self._stats_limit            
+
+    @stats_limit.setter
+    def stats_limit(self,v):
+        self._stats_limit = v
+        
     def run(self):
 
         for _ in tqdm(range(self.n_iter), desc="Running NIP"):
@@ -90,15 +101,15 @@ class NeuralImportanceSampler(Sampler):
 
     @property
     def unnormalized_log_weights(self):
-        return self.observables_rec["log_weights"]
+        return self.observables_rec["log_weights"][:self.stats_limit]
 
     @property
     def log_p(self):
-        return self.observables_rec["log_p"]
+        return self.observables_rec["log_p"][:self.stats_limit]
 
     def _evaluate_obs(self, obs):
 
-        observable_data = self.observables_rec[obs]
+        observable_data = self.observables_rec[obs][:self.stats_limit]
         prepared_observable_data = self.observables_rec.observables[obs].prepare(
             observable_data
         )

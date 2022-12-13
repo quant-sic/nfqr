@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
 import torch
-from pydantic import root_validator, validator,create_model
+from pydantic import root_validator, validator, create_model
 from ray import tune
 
 from nfqr.config import BaseConfig
@@ -23,7 +23,6 @@ from nfqr.utils import create_logger
 from itertools import chain
 
 logger = create_logger(__name__)
-
 
 
 class EvalConfig(BaseConfig):
@@ -52,7 +51,8 @@ class EvalConfig(BaseConfig):
         if isinstance(v, int):
             return [v]
         if not isinstance(v, (list, int)):
-            raise ValueError("n_iter and batch_size must be int or list of ints")
+            raise ValueError(
+                "n_iter and batch_size must be int or list of ints")
 
         return v
 
@@ -72,7 +72,8 @@ class EvalConfig(BaseConfig):
 
 ObsStats = Dict[str, Dict[str, float]]
 EvalStats = Union[
-    List[Dict[str, Union[ObsStats, float, int]]], Dict[str, Union[ObsStats, float, int]]
+    List[Dict[str, Union[ObsStats, float, int]]
+         ], Dict[str, Union[ObsStats, float, int]]
 ]
 
 
@@ -100,7 +101,8 @@ class EvalResult(BaseConfig):
 
 def get_tmp_path_from_name_and_environ(name):
 
-    task_dir = TMP_DIR / "{}/{}".format(os.environ["job_id"], os.environ["task_id"])
+    task_dir = TMP_DIR / \
+        "{}/{}".format(os.environ["job_id"], os.environ["task_id"])
 
     if "tune" in os.environ and os.environ["tune"] == "ray":
         task_dir = task_dir / tune.get_trial_id()
@@ -116,7 +118,8 @@ def estimate_ess_p_nip(
     target,
     batch_size,
     n_iter,
-    cut_quantiles=([0, 1], [0.05, 1], [0.1, 1]),
+    cut_quantiles=([0, 1], [0.05, 1], [0.1, 1]), 
+    stats_limits=[-1]
 ):
 
     model.eval()
@@ -138,14 +141,23 @@ def estimate_ess_p_nip(
     with torch.no_grad():
 
         nip_sampler.run()
-        ess_p_dict = {}
+        
+        all_stats = {}
+        for stats_limit in stats_limits:
+            ess_p_dict = {}
+            nip_sampler.stats_limit = stats_limit
 
-        for _cut_quantiles in cut_quantiles:
-            ess_p_dict[
-                f"{_cut_quantiles[0]}-{_cut_quantiles[1]}"
-            ] = calc_ess_p_from_unnormalized_log_weights(
-                nip_sampler.unnormalized_log_weights, cut_quantiles=_cut_quantiles
-            )
+            for _cut_quantiles in cut_quantiles:
+                ess_p_dict[
+                    f"{_cut_quantiles[0]}-{_cut_quantiles[1]}"
+                ] = calc_ess_p_from_unnormalized_log_weights(
+                    nip_sampler.unnormalized_log_weights, cut_quantiles=_cut_quantiles
+                )
+
+            if stats_limit == -1:
+                all_stats.update(ess_p_dict)
+            else:
+                all_stats[f"stats_limit_{stats_limit}"] = ess_p_dict
 
     shutil.rmtree(rec_tmp)
     model.float()
@@ -182,7 +194,7 @@ def estimate_ess_q_nip(model, target, batch_size, n_iter):
     return ess_q
 
 
-def estimate_obs_nip(model, target, observables, batch_size, n_iter):
+def estimate_obs_nip(model, target, observables, batch_size, n_iter, stats_limits=[-1]):
 
     model.eval()
     model.double()
@@ -201,13 +213,23 @@ def estimate_obs_nip(model, target, observables, batch_size, n_iter):
     with torch.no_grad():
 
         nip_sampler.run()
-        stats = nip_sampler.get_stats()
+
+        all_stats = {}
+        for stats_limit in stats_limits:
+            nip_sampler.stats_limit = stats_limit
+
+            stats = nip_sampler.get_stats()
+
+            if stats_limit == -1:
+                all_stats.update(stats)
+            else:
+                all_stats[f"stats_limit_{stats_limit}"] = stats
 
     shutil.rmtree(rec_tmp)
 
     model.float()
 
-    return stats
+    return all_stats
 
 
 def estimate_nmcmc_acc_rate(model, target, trove_size, n_steps):
@@ -230,11 +252,11 @@ def estimate_nmcmc_acc_rate(model, target, trove_size, n_steps):
     shutil.rmtree(rec_tmp)
 
     model.float()
-    
+
     return nmcmc.acceptance_rate
 
 
-def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps):
+def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps, stats_limits=[-1]):
 
     model.eval()
     model.double()
@@ -253,7 +275,17 @@ def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps):
     with torch.no_grad():
 
         nmcmc.run()
-        stats = nmcmc.get_stats()
+
+        all_stats = {}
+        for stats_limit in stats_limits:
+            nmcmc.stats_limit = stats_limit
+
+            stats = nmcmc.get_stats()
+
+            if stats_limit == -1:
+                all_stats.update(stats)
+            else:
+                all_stats[f"stats_limit_{stats_limit}"] = stats
 
     shutil.rmtree(rec_tmp)
     model.float()
