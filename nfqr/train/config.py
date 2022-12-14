@@ -112,7 +112,7 @@ class LitModelConfig(BaseConfig):
         cls: Type[ConfigType],
         directory: Union[str, Path],
         task_id,
-        num_tasks,
+        num_tasks=None,
         tune_config=None,
     ) -> ConfigType:
         """Load config from json with task id."""
@@ -151,7 +151,7 @@ class LitModelConfig(BaseConfig):
                     num_pars_dict.values()) else 1
             )
 
-            if not num_pars == num_tasks:
+            if num_tasks is not None and not num_pars == num_tasks:
                 raise ValueError(
                     "Number of started tasks {} does not match number of tasks configured {}".format(
                         num_tasks, num_pars_dict

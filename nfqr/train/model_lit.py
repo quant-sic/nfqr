@@ -46,9 +46,12 @@ class LitFlow(pl.LightningModule):
         trainer_config: TrainerConfig,
         mode="train",
         initial_weights: Optional[Path] = None,
+        automatic_optimization=True,
         **kwargs,
     ) -> None:
         super().__init__()
+
+        self.automatic_optimization=automatic_optimization
 
         self.trainer_config = trainer_config
         self.action_config = action_config
