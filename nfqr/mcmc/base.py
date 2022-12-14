@@ -84,7 +84,7 @@ class MCMC(Sampler):
 
     def _evaluate_obs(self, obs):
 
-        observable_data = self.observables_rec[obs][:self.stats_limit]
+        observable_data = self.observables_rec[obs][...,:self.stats_limit]
         prepared_observable_data = self.observables_rec.observables[obs].prepare(
             observable_data
         )

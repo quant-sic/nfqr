@@ -79,6 +79,8 @@ class ResidualCouplingScheduler(object):
                     module.rho_unnormalized[module.rho_assignment["id"]] += x
                     module.rho_unnormalized[module.rho_assignment["diff"]] -= x
 
+                self.n_steps_since_action = 0
+
             else:
                 pass
 
