@@ -70,17 +70,32 @@ if __name__ == "__main__":
             model_ckpt_path, **model_kwargs_dict, mode="eval"
         )
 
-        eval_result = EvalResult(
-            observables=eval_config.observables,
-            n_samples=[
-                b * n for (b, n) in zip(eval_config.batch_size, eval_config.n_iter)
-            ],
-        )
+        if not (task_dir/"eval_result.json").is_file():
+            eval_result = EvalResult(
+                observables=eval_config.observables,
+                n_samples=[],
+            )
+            stats_nip_list = []
+            stats_nmcmc_list = []
+            n_samples = []
 
-        stats_nip_list = []
-        stats_nmcmc_list = []
+        else:
+            eval_result = EvalResult.from_directory((task_dir/"eval_result.json").parent)
+
+            assert set(eval_config.observables).issubset(set(eval_result.observables)) and set(eval_result.observables).issubset(set(eval_config.observables))
+
+            n_samples = eval_result.n_samples.copy()
+            stats_nip_list = eval_result.nip.copy()
+            stats_nmcmc_list = eval_result.nmcmc.copy()
+
 
         for n_iter, batch_size in zip(eval_config.n_iter, eval_config.batch_size):
+
+            if n_iter * batch_size in n_samples:
+                continue
+            else:
+                n_samples.append(n_iter * batch_size)
+
 
             if "nip" in eval_config.methods:
                 stats_nip = lit_model.estimate_obs_nip(
@@ -94,8 +109,10 @@ if __name__ == "__main__":
                 )
                 stats_nmcmc_list += [stats_nmcmc]
 
-            eval_result.exact_sus = lit_model.sus_exact_final
+
+            eval_result.exact_sus = lit_model.sus_exact
             eval_result.nip = stats_nip_list
             eval_result.nmcmc = stats_nmcmc_list
+            eval_result.n_samples = n_samples
 
             eval_result.save(task_dir)
