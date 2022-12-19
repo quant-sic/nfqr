@@ -36,7 +36,7 @@ if __name__ == "__main__":
     pbar = tqdm((exp_dir / f"logs/{log_dir}").glob("**/*.ckpt"))
     for model_ckpt_path in pbar:
 
-        if eval_config.models is not None and not model_ckpt_path.stem in eval_config.models:
+        if (eval_config.models is not None) and (not model_ckpt_path.stem in eval_config.models):
             continue
 
         pbar.set_description(

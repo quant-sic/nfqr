@@ -9,10 +9,8 @@ from typing import Dict, List, Literal, Optional, Union
 
 import numpy as np
 import torch
-from pydantic import create_model, root_validator, validator
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import (EarlyStopping, LearningRateMonitor,
-                                         ModelCheckpoint)
+
 from pytorch_lightning.loggers import TensorBoardLogger
 from ray import tune
 from tensorboard.backend.event_processing.event_accumulator import \
@@ -223,8 +221,8 @@ def train_flow_model(exp_dir):
             # time this
             timer = timeit.Timer(stmt='train_routine(dl_iter=dl_iter,flow_model=flow_model,optimizer=optimizer)', setup='pass',globals={**globals(),**locals()})
             time_res = timer.repeat(repeat=repeat,number=3)
-            res_dict["train"][dl_idx] = min(time_res)
-            
+            res_dict["train"][dl_idx] = (n_iter,time_res)
+        
 
         # float evaluations
         flow_model.eval()
@@ -241,13 +239,13 @@ def train_flow_model(exp_dir):
                 model=flow_model.model,
                 target=flow_model.target,
                 n_iter=n_iter,
-                batch_size=5000,
+                batch_size=10000,
                 observables=flow_model.observables,
                 out_dir=rec_tmp,
             )
             timer = timeit.Timer(stmt='run_no_grad(sampler=nip_sampler)', setup='pass',globals={**globals(),**locals()})
             time_res = timer.repeat(repeat=repeat,number=3)
-            res_dict["nip_q"][precision] = min(time_res)/n_iter
+            res_dict["nip_q"][precision] = (n_iter,time_res)
 
             shutil.rmtree(rec_tmp)
 
@@ -265,7 +263,7 @@ def train_flow_model(exp_dir):
             )
             timer = timeit.Timer(stmt='run_no_grad(sampler=nip_sampler)', setup='pass',globals={**globals(),**locals()})
             time_res = timer.repeat(repeat=repeat,number=3)
-            res_dict["nip_p"][precision] = min(time_res)/n_iter
+            res_dict["nip_p"][precision] = (n_iter,time_res)
 
             shutil.rmtree(rec_tmp)
 
@@ -275,13 +273,13 @@ def train_flow_model(exp_dir):
                 model=flow_model.model,
                 target=flow_model.target,
                 trove_size=10000,
-                n_steps=n_iter,
+                n_steps=n_iter*10000,
                 observables=flow_model.observables,
                 out_dir=rec_tmp,
             )
             timer = timeit.Timer(stmt='run_no_grad(sampler=nmcmc)', setup='pass',globals={**globals(),**locals()})
             time_res = timer.repeat(repeat=repeat,number=3)
-            res_dict["nmcmc"][precision] = min(time_res)/n_iter
+            res_dict["nmcmc"][precision] = (n_iter,time_res)
 
             shutil.rmtree(rec_tmp)
 

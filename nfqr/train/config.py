@@ -49,6 +49,7 @@ class TrainerConfig(BaseModel):
     }
 
     stats_limits: List[int] = [-1]
+    p_sampler_set_size:int = 250000
 
 
 class LitModelConfig(BaseConfig):

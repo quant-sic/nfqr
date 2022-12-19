@@ -233,6 +233,7 @@ class LitFlow(pl.LightningModule):
             dim=self.dim,
             action_config=self.action_config,
             batch_size=self.trainer_config.batch_size_eval,
+            elements_per_dataset=self.trainer_config.p_sampler_set_size
         )
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:

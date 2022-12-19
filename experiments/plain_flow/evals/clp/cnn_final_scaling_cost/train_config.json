@@ -114,9 +114,9 @@
     "batch_size": 5000,
     "train_num_batches": 10,
     "val_num_batches": 5,
-    "n_iter_eval": 25,
+    "n_iter_eval": 100,
     "batch_size_eval": 10000,
-    "max_epochs": 2000,
+    "max_epochs": 100,
     "log_every_n_steps": 10,
     "accumulate_grad_batches": 1,
     "loss_configs": [
@@ -133,7 +133,14 @@
       "factor": 0.8,
       "min_lr": 5e-5
     },
-    "stats_limits":[25000,50000,75000,100000,125000,150000,175000,200000,225000]
+    "p_sampler_set_size": 1e6,
+    "stats_limits": [
+      100000,
+      250000,
+      500000,
+      750000,
+      1000000
+    ]
   },
   "task_parameters": [
     "dim"

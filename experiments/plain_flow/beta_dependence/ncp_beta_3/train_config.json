@@ -15,7 +15,13 @@
         "specific_layer_config": {
           "domain": "u1",
           "specific_layer_type": "global_non_trainable_residual",
-          "diffeomorphism": "ncp",
+          "diffeomorphism_config": {
+            "diffeomorphism_type": "ncp",
+            "specific_diffeomorphism_config": {
+              "greater_than_func": "softplus",
+              "boundary_mode": "taylor"
+            }
+          },
           "initial_rho_id": 0.1
         },
         "num_layers": 25,
@@ -25,19 +31,21 @@
             "n_transformed": 1
           }
         },
-        "conditioner_chain_config":{
+        "conditioner_chain_config": {
           "expressivity": 3,
           "encoder_config": null,
           "decoder_config": {
-            "net_type": "mlp",
-            "net_hidden": [
-              50,
-              75,
-              100
-            ]
+            "decoder_type": "mlp",
+            "specific_decoder_config": {
+              "net_hidden": [
+                50,
+                75,
+                100
+              ]
+            }
           },
-          "share_encoder":false,
-          "share_decoder":false
+          "share_encoder": false,
+          "share_decoder": false
         }
       }
     }
@@ -105,7 +113,7 @@
         }
       }
     ]
-  },    
+  },
   "task_parameters": [
     "beta"
   ]

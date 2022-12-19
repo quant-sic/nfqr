@@ -138,8 +138,8 @@
       {
         "scheduler_type": "rho_residual",
         "specific_scheduler_config": {
-          "n_steps_initial": 1000,
-          "patience": 25,
+          "n_steps_initial": 0,
+          "patience": 100,
           "reduction_factor": 0.99
         }
       }

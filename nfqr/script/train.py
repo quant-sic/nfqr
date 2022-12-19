@@ -66,7 +66,7 @@ def iterate_config_models(exp_dir, model_ckpt_path):
             flow_model = LitFlow.load_from_checkpoint(
                 beta_ckpt_path, **lit_model_config)
 
-        elif train_config.continue_model is not None and train_config.continuation_exp is not None:
+        elif (train_config.continue_model is not None) and (train_config.continuation_exp is not None) and ("beta_scheduled" in str(train_config.continuation_exp)):
 
             continue_model_path = (EXPERIMENTS_DIR/train_config.continuation_exp).glob(f"**/{train_config.continue_model}*").__next__()
             events_file_path = (
