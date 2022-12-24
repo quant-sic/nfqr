@@ -12,10 +12,13 @@ from nfqr.utils import create_logger
 import numpy as np
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 import re
+from nfqr.utils import setup_env
 
 logger = create_logger(__name__)
 
 if __name__ == "__main__":
+
+    setup_env()
 
     parser = ArgumentParser()
 
