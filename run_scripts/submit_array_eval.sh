@@ -8,7 +8,7 @@
 #$ -V          # provide environment variables
 #$ -o /home/dechentf/MA/nfqr/pipe_out/$JOB_ID/
 #$ -e /home/dechentf/MA/nfqr/pipe_out/$JOB_ID/
-#$ -t 1-10
+#$ -t 1-1
 
 export num_tasks=$SGE_TASK_LAST
 export task_id=$((SGE_TASK_ID - 1))

@@ -27,6 +27,8 @@ if __name__ == "__main__":
 
     exp_dir = EXPERIMENTS_DIR / args.exp_dir
 
+    logger.info(f"Starting Evaluation task for exp dir {exp_dir}")
+
     train_config = LitModelConfig.from_directory_for_task(
         exp_dir,
         task_id=int(os.environ["task_id"]),
@@ -95,10 +97,12 @@ if __name__ == "__main__":
         for n_iter, batch_size in zip(eval_config.n_iter, eval_config.batch_size):
 
             if n_iter * batch_size in n_samples:
+                logger.info(f"N samples {n_iter* batch_size} already exceuted: skipping!")
                 continue
             else:
                 n_samples.append(n_iter * batch_size)
 
+            logger.info(f"Executing for N samples {n_iter* batch_size}!")
 
             if "nip" in eval_config.methods:
                 stats_nip = lit_model.estimate_obs_nip(
