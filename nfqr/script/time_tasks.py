@@ -35,6 +35,7 @@ from nfqr.utils.misc import create_logger
 from nfqr.eval.evaluation import get_tmp_path_from_name_and_environ
 from collections import defaultdict
 import json
+from nfqr.data.datasampler import ExtendedDLIterator
 
 logger = create_logger(__name__)
 
@@ -205,7 +206,9 @@ def train_flow_model(exp_dir):
 
 
         flow_model.automatic_optimization=False
-
+        
+        accelerator = ("cuda", "cpu")[np.argwhere(
+            (torch.cuda.is_available(), True)).min()]
         flow_model.to(accelerator)
         optimizer = optim.Adam(params=flow_model.parameters())
 
@@ -216,8 +219,9 @@ def train_flow_model(exp_dir):
         # time training step
         train_data_loaders = flow_model.train_dataloader()
         for dl_idx,dl in enumerate(train_data_loaders):
-            dl_iter = dl.__iter__()
             
+            dl_iter = ExtendedDLIterator(dl)            
+
             # time this
             timer = timeit.Timer(stmt='train_routine(dl_iter=dl_iter,flow_model=flow_model,optimizer=optimizer)', setup='pass',globals={**globals(),**locals()})
             time_res = timer.repeat(repeat=repeat,number=3)
