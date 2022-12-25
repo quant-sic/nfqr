@@ -110,7 +110,7 @@ class LayerChain(Module):
     def decode(self, z):
 
         if not ((z >= 0.0) & (z <= (2 * pi))).all():
-            logger.info(z)
+            logger.debug(z)
 
         log_det = torch.zeros(z.shape[0], device=z.device)
 
