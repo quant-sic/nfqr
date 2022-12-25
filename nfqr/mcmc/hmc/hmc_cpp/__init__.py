@@ -11,5 +11,6 @@ hmc_cpp = cpp_extension.load(
         "/opt/homebrew/Cellar/eigen/3.4.0_1/include/eigen3",
         "/home/dechentf/eigen-3.4.0",
     ],
-    verbose=False,
+    verbose=True,
 )
+

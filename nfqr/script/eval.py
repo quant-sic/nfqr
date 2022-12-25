@@ -18,8 +18,6 @@ logger = create_logger(__name__)
 
 if __name__ == "__main__":
 
-    setup_env()
-
     parser = ArgumentParser()
 
     parser.add_argument("--exp_dir", type=Path)
@@ -28,6 +26,8 @@ if __name__ == "__main__":
     exp_dir = EXPERIMENTS_DIR / args.exp_dir
 
     logger.info(f"Starting Evaluation task for exp dir {exp_dir}")
+
+    setup_env()
 
     train_config = LitModelConfig.from_directory_for_task(
         exp_dir,
@@ -51,6 +51,9 @@ if __name__ == "__main__":
         )
 
         task_dir = exp_dir / f"eval/{log_dir}/{model_ckpt_path.stem}"
+
+        if model_ckpt_path.stem == "model":
+            continue
 
         if "beta_scheduled" in str(model_ckpt_path):
             events_file_path = (model_ckpt_path.parent.parent.parent).glob("events*").__next__()
@@ -101,6 +104,7 @@ if __name__ == "__main__":
                 continue
             else:
                 n_samples.append(n_iter * batch_size)
+                logger.info(f"Model Sus exakt {lit_model.sus_exact}")
 
             logger.info(f"Executing for N samples {n_iter* batch_size}!")
 

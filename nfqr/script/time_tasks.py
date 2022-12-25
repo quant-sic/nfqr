@@ -303,4 +303,6 @@ if __name__ == "__main__":
     parser.add_argument("--exp_dir", type=Path)
     args = parser.parse_args()
 
+    logger.info(f"Timing {args.exp_dir}")
+
     train_flow_model(exp_dir=args.exp_dir)

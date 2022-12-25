@@ -215,10 +215,10 @@ class ExtendedDLIterator(object):
 
     def __next__(self):
         try:
-            return self.iterator.next()
+            return self.iterator.__next__()
         except StopIteration:
             self._new_iterator()
-            return self.iterator.next()
+            return self.iterator.__next__()
 
     def sample(self, device):
         sample = self.__next__()

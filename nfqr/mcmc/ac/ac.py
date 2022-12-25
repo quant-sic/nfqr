@@ -10,7 +10,7 @@ from nfqr.globals import REPO_ROOT
 from nfqr.utils.misc import create_logger
 
 err_rho_cpp = cpp_extension.load(
-    name="err_rho_cpp", sources=[REPO_ROOT / "nfqr/mcmc/ac/err_rho.cpp"], verbose=False
+    name="err_rho_cpp", sources=[REPO_ROOT / "nfqr/mcmc/ac/err_rho.cpp"], verbose=True
 )
 
 logger = create_logger(__name__)
