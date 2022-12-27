@@ -43,6 +43,8 @@ if __name__ == "__main__":
 
         if (eval_config.models is not None) and (not model_ckpt_path.stem in eval_config.models):
             continue
+        elif model_ckpt_path.stem == "model":
+            continue
 
         pbar.set_description(
             "Evaluation for task {} and model {}".format(
@@ -52,8 +54,6 @@ if __name__ == "__main__":
 
         task_dir = exp_dir / f"eval/{log_dir}/{model_ckpt_path.stem}"
 
-        if model_ckpt_path.stem == "model":
-            continue
 
         if "beta_scheduled" in str(model_ckpt_path):
             events_file_path = (model_ckpt_path.parent.parent.parent).glob("events*").__next__()
@@ -105,12 +105,13 @@ if __name__ == "__main__":
             else:
                 n_samples.append(n_iter * batch_size)
                 logger.info(f"Model Sus exakt {lit_model.sus_exact}")
+                logger.info(f"Model beta {lit_model.target.dist.action.beta}")
 
             logger.info(f"Executing for N samples {n_iter* batch_size}!")
 
             if "nip" in eval_config.methods:
                 stats_nip = lit_model.estimate_obs_nip(
-                    batch_size=batch_size, n_iter=n_iter
+                    batch_size=batch_size, n_iter=n_iter,ess_p=False
                 )
                 stats_nip_list += [stats_nip]
 

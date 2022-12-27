@@ -60,7 +60,7 @@ class LitFlow(pl.LightningModule):
 
         self.model = BareFlow(**dict(flow_config))
 
-        if mode == "eval":
+        if mode == "eval_final":
             self.set_final_beta()
         elif mode == "train":
             if self.trainer_config is None:
@@ -498,7 +498,7 @@ class LitFlow(pl.LightningModule):
 
         return super().on_train_epoch_end()
 
-    def estimate_obs_nip(self, batch_size, n_iter):
+    def estimate_obs_nip(self, batch_size, n_iter,ess_p=True):
 
         stats_nip = estimate_obs_nip(
             model=self.model,
@@ -509,7 +509,8 @@ class LitFlow(pl.LightningModule):
             stats_limits=self.trainer_config.stats_limits
         )
 
-        stats_nip["ess_p"] = self.estimate_ess_p_nip()
+        if ess_p:
+            stats_nip["ess_p"] = self.estimate_ess_p_nip()
 
         return stats_nip
 

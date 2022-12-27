@@ -126,7 +126,7 @@ def train_flow_model(exp_dir, skip_done=True):
                 ModelCheckpoint(dirpath=tb_logger.log_dir + "/checkpoints/max_ess_p",
                                 auto_insert_metric_name=True, save_top_k=3, monitor="nip/ess_p/0-1/ess_p", mode="max"),
                 ModelCheckpoint(dirpath=tb_logger.log_dir + "/checkpoints/regular",
-                                filename="latest-{epoch}-{step}", save_top_k=-1, monitor="step", mode="max", every_n_epochs=25),
+                                filename="latest-{epoch}-{step}", save_top_k=-1, monitor="step", mode="max", every_n_epochs=trainer_config.save_every_n_epochs),
                 LearningRateMonitor(logging_interval='step')
             ]
 
