@@ -75,9 +75,8 @@ class EvalConfig(BaseConfig):
 
 ObsStats = Dict[str, Dict[str, float]]
 EvalStats = Union[
-    Dict[str, Union[ObsStats, float, int]],
-    List[Dict[str, Union[ObsStats, float, int]]],
-    List[List[Dict[str, Union[ObsStats, float, int]]]]
+    List[Union[List[Dict[str, Union[ObsStats, float, int]]],Dict[str, Union[ObsStats, float, int]]]],
+    Dict[str, Union[ObsStats, float, int]]
 ]
 
 
