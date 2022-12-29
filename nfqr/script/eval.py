@@ -54,6 +54,10 @@ if __name__ == "__main__":
 
         task_dir = exp_dir / f"eval/{log_dir}/{model_ckpt_path.stem}"
 
+        step = int(re.search("step=([0-9]*).",model_ckpt_path.name).groups()[0])
+
+        if step>eval_config.max_step or step<eval_config.min_step:
+            continue
 
         if "beta_scheduled" in str(model_ckpt_path):
             events_file_path = (model_ckpt_path.parent.parent.parent).glob("events*").__next__()
@@ -61,8 +65,6 @@ if __name__ == "__main__":
             acc = EventAccumulator(str(events_file_path)).Reload()
 
             _, step_nums, vals = [np.array(e) for e in zip(*acc.Scalars("beta"))]
-
-            step = int(re.search("step=([0-9]*).",model_ckpt_path.name).groups()[0])
             
             plot_step = np.argwhere((step_nums>=(step-1)).cumsum(axis=0)==1)[0][0]
 
@@ -99,27 +101,58 @@ if __name__ == "__main__":
 
         for n_iter, batch_size in zip(eval_config.n_iter, eval_config.batch_size):
 
+            use_idx = None
             if n_iter * batch_size in n_samples:
-                logger.info(f"N samples {n_iter* batch_size} already exceuted: skipping!")
-                continue
-            else:
+                idx = n_samples.index(n_iter * batch_size)
+                try:
+                    check_list = filter(lambda l:len(l)>0,(stats_nip_list,stats_nmcmc_list)).__next__()
+                except StopIteration:
+                    raise RuntimeError("No results found but steps set!")
+
+                if not isinstance(check_list[idx],list) and eval_config.n_repeat>1:
+                    use_idx = idx
+                    
+                elif isinstance(check_list[idx],list) and len(check_list[idx])>=eval_config.n_repeat:
+                    logger.info(f"N samples {n_iter* batch_size} already exceuted: skipping!")
+                    continue
+                elif isinstance(check_list[idx],list) and len(check_list[idx])<eval_config.n_repeat:
+                    use_idx = idx
+            
+            if use_idx is None:
                 n_samples.append(n_iter * batch_size)
-                logger.info(f"Model Sus exakt {lit_model.sus_exact}")
-                logger.info(f"Model beta {lit_model.target.dist.action.beta}")
+
+            logger.info(f"Model Sus exakt {lit_model.sus_exact}")
+            logger.info(f"Model beta {lit_model.target.dist.action.beta}")
 
             logger.info(f"Executing for N samples {n_iter* batch_size}!")
-
+            
+            nip_repeat = []
+            nmcmc_repeat = []
             if "nip" in eval_config.methods:
-                stats_nip = lit_model.estimate_obs_nip(
-                    batch_size=batch_size, n_iter=n_iter,ess_p=False
-                )
-                stats_nip_list += [stats_nip]
+                for repeat_idx in range(eval_config.n_repeat):
+
+                    stats_nip = lit_model.estimate_obs_nip(
+                        batch_size=batch_size, n_iter=n_iter,ess_p=False
+                    )
+                    nip_repeat.append(stats_nip)
+
+                if use_idx is not None:
+                    stats_nip_list[use_idx] = nip_repeat
+                else:
+                    stats_nip_list.append(nip_repeat)
 
             if "nmcmc" in eval_config.methods:
-                stats_nmcmc = lit_model.estimate_obs_nmcmc(
-                    batch_size=batch_size, n_iter=n_iter
-                )
-                stats_nmcmc_list += [stats_nmcmc]
+                for repeat_idx in range(eval_config.n_repeat):
+
+                    stats_nmcmc = lit_model.estimate_obs_nmcmc(
+                        batch_size=batch_size, n_iter=n_iter
+                    )
+                    nmcmc_repeat.append(stats_nmcmc)
+                
+                if use_idx is not None:
+                    stats_nmcmc_list[use_idx] = nmcmc_repeat
+                else:
+                    stats_nmcmc_list.append(nmcmc_repeat)
 
 
             eval_result.exact_sus = lit_model.sus_exact

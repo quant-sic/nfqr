@@ -36,6 +36,9 @@ class EvalConfig(BaseConfig):
     observables: List[str] = ["Chi_t"]
 
     models: Optional[List[str]]
+    n_repeat:int=1
+    max_step:int= 1e12
+    min_step:int = 0
 
     @validator("observables", "methods", pre=True)
     @classmethod
@@ -72,8 +75,9 @@ class EvalConfig(BaseConfig):
 
 ObsStats = Dict[str, Dict[str, float]]
 EvalStats = Union[
-    List[Dict[str, Union[ObsStats, float, int]]
-         ], Dict[str, Union[ObsStats, float, int]]
+    Dict[str, Union[ObsStats, float, int]],
+    List[Dict[str, Union[ObsStats, float, int]]],
+    List[List[Dict[str, Union[ObsStats, float, int]]]]
 ]
 
 
@@ -118,7 +122,7 @@ def estimate_ess_p_nip(
     target,
     batch_size,
     n_iter,
-    cut_quantiles=([0, 1], [0.05, 1], [0.1, 1]), 
+    cut_quantiles=([0, 1], [0.05, 1], [0.1, 1]),
     stats_limits=[-1]
 ):
 
@@ -141,7 +145,7 @@ def estimate_ess_p_nip(
     with torch.no_grad():
 
         nip_sampler.run()
-        
+
         all_stats = {}
         for stats_limit in stats_limits:
             ess_p_dict = {}
@@ -293,7 +297,7 @@ def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps, stats_li
     return stats
 
 
-def get_ess_p_sampler(dim, action_config, batch_size,elements_per_dataset=250000):
+def get_ess_p_sampler(dim, action_config, batch_size, elements_per_dataset=250000):
 
     mcmc_sampler_config = TrajectorySamplerConfig(
         trajectory_sampler_config=MCMCConfig(
