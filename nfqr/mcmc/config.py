@@ -1,7 +1,7 @@
 import json
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Type, TypeVar, Union
+from typing import Dict, List, Literal, Optional, Type, TypeVar, Union,Any
 
 from pydantic import root_validator, validator
 
@@ -21,11 +21,14 @@ class MCMCConfig(BaseConfig):
 
     _name: str = "mcmc_config"
 
+    n_repeat:int = 1
+    min_error:Optional[float] = None
+
     mcmc_type: str
     mcmc_alg: Literal["cluster", "hmc"]
 
     observables: List[str]
-    n_steps: int
+    n_steps: Union[int,List[int]]
     dim: List[int]
     action_config: ActionConfig
     n_burnin_steps: int
@@ -175,13 +178,11 @@ class MCMCConfig(BaseConfig):
 
         return values
 
+Result = Dict[str,Any]
 
 class MCMCResult(BaseConfig):
 
     _name: str = "mcmc_result"
 
     mcmc_config: Optional[MCMCConfig]
-    acceptance_rate: float
-    obs_stats: Dict[str, Dict[str, float]]
-    step_size:Optional[float]
-    sus_exact: Optional[float]
+    results:List[Result]

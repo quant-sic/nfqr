@@ -9,8 +9,20 @@ from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.utils.misc import create_logger
 from nfqr.recorder import ObservableRecorder
 from nfqr.mcmc import MCMC
+from itertools import cycle
+import numpy as np
+from functools import partial
 
 logger = create_logger(__name__)
+
+def error_reached_stop_condition(stats_list,threshold):
+    
+    errors = [s["obs_stats"]["Chi_t"]["error"] for s in stats_list]
+
+    return (sum(errors)/len(errors)) < threshold
+
+def default_stop_condition(stats_list):
+    return True
 
 if __name__ == "__main__":
 
@@ -27,35 +39,69 @@ if __name__ == "__main__":
         exp_dir, task_id=int(os.environ["task_id"])
     )
 
-    if (
-        Path(mcmc_config.out_dir).is_dir()
-        and (Path(mcmc_config.out_dir) / "mcmc_result.json").is_file() and not args.redo_analysis
-    ):
-        logger.info("Experiment already run successfully. Aborting")
-    else:
+    if not (mcmc_config.out_dir/"mcmc_result.json").is_file():
+        result_config = MCMCResult(
+                        mcmc_config=mcmc_config,
+                        results=[],
+                    )
+        n_steps_done = []
 
-        if args.redo_analysis:
-            logger.info("Redoing analysis")
-            mcmc = MCMC(observables=mcmc_config.observables,n_steps=mcmc_config.n_steps,target_system=mcmc_config.action_config.target_system,out_dir=mcmc_config.out_dir,n_replicas=mcmc_config.n_replicas,delete_existing_data=False)
-            stats = mcmc.get_stats()
-        else:
+    else:
+        result_config = MCMCResult.from_directory(mcmc_config.out_dir)
+        n_steps_done = [int(r["stats"][0]["n_steps"]) for r in result_config.results]
+
+    # if (
+    #     Path(mcmc_config.out_dir).is_dir()
+    #     and (Path(mcmc_config.out_dir) / "mcmc_result.json").is_file() and not args.redo_analysis
+    # ):
+    #     logger.info("Experiment already run successfully. Aborting")
+    # else:
+
+        # if args.redo_analysis:
+        #     logger.info("Redoing analysis")
+        #     mcmc = MCMC(observables=mcmc_config.observables,n_steps=mcmc_config.n_steps,target_system=mcmc_config.action_config.target_system,out_dir=mcmc_config.out_dir,n_replicas=mcmc_config.n_replicas,delete_existing_data=False)
+        #     stats = mcmc.get_stats()
+        # else:
+
+    if mcmc_config.min_error is not None:
+        iterator = zip(map(int,mcmc_config.n_steps),cycle((partial(error_reached_stop_condition,threshold=mcmc_config.min_error),)))
+    else:
+        assert isinstance(mcmc_config.n_steps,int)
+        iterator = ((mcmc_config.n_steps,default_stop_condition),)
+    
+    logger.info(mcmc_config)
+    run_config = mcmc_config.copy()
+    for n_steps, condition in iterator:
+
+        if n_steps in n_steps_done:
+            logger.info(f"N steps {n_steps} already done. Skipping!")
+            continue
+
+        logger.info(f"Starting Run for N steps {n_steps}")
+
+        n_steps_done.append(n_steps)
+        run_config.n_steps = n_steps
+        stats_list = []
+
+        for repeat_idx in range(mcmc_config.n_repeat):
+
+            run_config.out_dir = mcmc_config.out_dir/"{:d}/{:d}".format(n_steps,repeat_idx)
             mcmc = MCMC_REGISTRY[mcmc_config.mcmc_alg][mcmc_config.mcmc_type](
-                **dict(mcmc_config)
+                **dict(run_config)
             )
             mcmc.run()
             stats = mcmc.get_stats()
+            stats["acc_rate"] = stats["acc_rate"].item()
+            stats_list.append(stats)
 
         sus_exact = SusceptibilityExact(
-            mcmc.action.beta, *mcmc_config.dim
+            mcmc.action.beta, *run_config.dim
         ).evaluate()
 
-        result_config = MCMCResult(
-            mcmc_config=mcmc_config,
-            acceptance_rate=stats["acc_rate"],
-            n_steps=stats["n_steps"],
-            obs_stats=stats["obs_stats"],
-            sus_exact=sus_exact,
-            step_size = stats["step_size"]
-        )
+        logger.info(stats_list)
+        result_config.results.append({"stats":stats_list,"sus_exact":sus_exact})
 
         result_config.save(mcmc_config.out_dir)
+
+        if condition(stats_list=stats_list):
+            break

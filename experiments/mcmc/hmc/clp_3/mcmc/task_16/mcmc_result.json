@@ -1,0 +1,301 @@
+{
+  "mcmc_config": {
+    "n_repeat": 3,
+    "min_error": 0.01,
+    "mcmc_type": "leapfrog",
+    "mcmc_alg": "hmc",
+    "observables": [
+      "Chi_t"
+    ],
+    "n_steps": [
+      10000,
+      30000,
+      50000,
+      70000,
+      100000,
+      200000,
+      300000,
+      400000,
+      500000,
+      750000,
+      1000000,
+      2000000,
+      3000000
+    ],
+    "dim": [
+      41
+    ],
+    "action_config": {
+      "target_system": "qr",
+      "action_type": "qr",
+      "specific_action_config": {
+        "beta": null,
+        "dim": [
+          41
+        ],
+        "T": 4.0,
+        "mom_inertia": 0.25
+      }
+    },
+    "n_burnin_steps": 10000,
+    "out_dir": "/home/dechentf/MA/nfqr/experiments/mcmc/hmc/clp_3/mcmc/task_16",
+    "n_traj_steps": 20,
+    "step_size": 0.05,
+    "autotune_step": true,
+    "hmc_engine": "cpp_batch",
+    "n_replicas": 10,
+    "n_samples_at_a_time": 50000,
+    "int_time": null,
+    "initial_config_sampler_config": {
+      "trajectory_sampler_config": {
+        "traj_type": "hot",
+        "dim": [
+          41
+        ],
+        "k": null,
+        "n_replicas": 10
+      },
+      "target_system": "qr"
+    },
+    "task_parameters": [
+      "dim"
+    ]
+  },
+  "results": [
+    {
+      "stats": [
+        {
+          "acc_rate": 0.8227299451828003,
+          "n_steps": 10000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.7907791137695312,
+              "error": 0.32071965724277324,
+              "tau_int": 3655.923412850565,
+              "dtau_int": 847.5786613051696
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.000887362823486328
+        },
+        {
+          "acc_rate": 0.8227759599685669,
+          "n_steps": 10000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 1.4866087436676025,
+              "error": 0.5167814152989526,
+              "tau_int": 3265.3290509769,
+              "dtau_int": 860.0518155027831
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.000900237169265747
+        },
+        {
+          "acc_rate": 0.8258540034294128,
+          "n_steps": 10000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.9269927144050598,
+              "error": 0.39890817450736116,
+              "tau_int": 3977.959492751562,
+              "dtau_int": 804.1551805520387
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.0008797335815429687
+        }
+      ],
+      "sus_exact": 0.564234936363786
+    },
+    {
+      "stats": [
+        {
+          "acc_rate": 0.8184120059013367,
+          "n_steps": 30000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.752101719379425,
+              "error": 0.23384593202641213,
+              "tau_int": 9215.883996132337,
+              "dtau_int": 2559.253651150307
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.0009102505493164061
+        },
+        {
+          "acc_rate": 0.8157560229301453,
+          "n_steps": 30000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.6854795217514038,
+              "error": 0.18491927423631885,
+              "tau_int": 5507.186940493952,
+              "dtau_int": 1959.2617136545505
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.0009255090332031249
+        },
+        {
+          "acc_rate": 0.8269160389900208,
+          "n_steps": 30000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.715013861656189,
+              "error": 0.17623909156286063,
+              "tau_int": 7160.677559769774,
+              "dtau_int": 2315.027415438038
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.0008644750976562499
+        }
+      ],
+      "sus_exact": 0.564234936363786
+    },
+    {
+      "stats": [
+        {
+          "acc_rate": 0.8160799741744995,
+          "n_steps": 50000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.7059341669082642,
+              "error": 0.12737104533058377,
+              "tau_int": 5367.823434453999,
+              "dtau_int": 1806.5870342763099
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.0009255090332031249
+        },
+        {
+          "acc_rate": 0.8174960017204285,
+          "n_steps": 50000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.8301506042480469,
+              "error": 0.3129323034283487,
+              "tau_int": 13213.970316035975,
+              "dtau_int": 4057.4877412427954
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.0009255090332031249
+        },
+        {
+          "acc_rate": 0.8182880282402039,
+          "n_steps": 50000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.6685433387756348,
+              "error": 0.14606747863568134,
+              "tau_int": 6940.073455915544,
+              "dtau_int": 2526.320793678237
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.0009255090332031249
+        }
+      ],
+      "sus_exact": 0.564234936363786
+    },
+    {
+      "stats": [
+        {
+          "acc_rate": 0.818323016166687,
+          "n_steps": 70000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.5956856608390808,
+              "error": 0.1644626447834853,
+              "tau_int": 10215.624728364317,
+              "dtau_int": 3773.600684596935
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.0009102505493164061
+        },
+        {
+          "acc_rate": 0.8024690747261047,
+          "n_steps": 70000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.5356647968292236,
+              "error": 0.10585152905762518,
+              "tau_int": 8226.396975213362,
+              "dtau_int": 2847.8344028193683
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.00098654296875
+        },
+        {
+          "acc_rate": 0.8193820118904114,
+          "n_steps": 70000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.7402520179748535,
+              "error": 0.2739734932299022,
+              "tau_int": 20571.17283871797,
+              "dtau_int": 5906.784432261651
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.0009026213073730467
+        }
+      ],
+      "sus_exact": 0.564234936363786
+    },
+    {
+      "stats": [
+        {
+          "acc_rate": 0.8152649998664856,
+          "n_steps": 100000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.8421543836593628,
+              "error": 0.21344075257680709,
+              "tau_int": 12884.13215225502,
+              "dtau_int": 4587.017749002773
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.0009255090332031249
+        },
+        {
+          "acc_rate": 0.8172329664230347,
+          "n_steps": 100000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.4575355648994446,
+              "error": 0.1152796736435665,
+              "tau_int": 15989.147097091503,
+              "dtau_int": 5897.433253378777
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.0009121578598022459
+        },
+        {
+          "acc_rate": 0.821008026599884,
+          "n_steps": 100000,
+          "obs_stats": {
+            "Chi_t": {
+              "mean": 0.9899460077285767,
+              "error": 0.30172180628874024,
+              "tau_int": 30281.756462573787,
+              "dtau_int": 8504.363920015203
+            }
+          },
+          "n_skipped": 0,
+          "step_size": 0.0008949920654296873
+        }
+      ],
+      "sus_exact": 0.564234936363786
+    }
+  ]
+}
