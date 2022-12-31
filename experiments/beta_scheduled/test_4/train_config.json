@@ -22,12 +22,14 @@
           "expressivity": 3,
           "encoder_config": null,
           "decoder_config": {
-            "net_type": "mlp",
-            "net_hidden": [
-              50,
-              75,
-              100
-            ]
+            "decoder_type": "mlp",
+            "specific_decoder_config": {
+              "net_hidden": [
+                50,
+                75,
+                100
+              ]
+            }
           },
           "share_encoder": true,
           "share_decoder": false
