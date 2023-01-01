@@ -22,4 +22,4 @@ source /home/dechentf/MA/nfqr/nfqr-env/bin/activate
 
 echo /home/dechentf/MA/nfqr/nfqr-env/bin/python3 /home/dechentf/MA/nfqr/nfqr/script/run_mcmc.py --exp_dir $1
 
-/home/dechentf/MA/nfqr/nfqr-env/bin/python3 /home/dechentf/MA/nfqr/nfqr/script/run_mcmc.py --exp_dir $1
+/home/dechentf/MA/nfqr/nfqr-env/bin/python3 /home/dechentf/MA/nfqr/nfqr/script/run_mcmc_2.py --exp_dir $1

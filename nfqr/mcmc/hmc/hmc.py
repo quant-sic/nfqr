@@ -83,6 +83,9 @@ class HMC(MCMC):
             if "Chi_t" in observables:
                 cpp_obs = hmc_cpp.TopologicalSusceptibility()
                 self.observable = "Chi_t"
+            elif "Q" in observables:
+                cpp_obs = hmc_cpp.TopologicalCharge()
+                self.observable = "Q"
             else:
                 raise ValueError("Unknown Observable")
 
@@ -99,7 +102,7 @@ class HMC(MCMC):
                 raise ValueError("Unknown cpp hmc_engine")
 
         elif "python" in hmc_engine:
-            self.hmc = HMC_PYTHON(action=self.action, dim=self.dim)
+            self.hmc = HMC_PYTHON(action=self.action, dim=self.dim,n_replicas=self.n_replicas)
             self.step = self._step_python
 
         else:

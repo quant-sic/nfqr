@@ -1,8 +1,11 @@
 {
     "mcmc_alg": "hmc",
     "mcmc_type": "leapfrog",
-    "hmc_engine": "cpp_batch",
-    "observables": "Chi_t",
+    "hmc_engine": "python",
+    "observables": [
+        "Chi_t",
+        "Q"
+    ],
     "n_steps": [
         1e4,
         3e4,
