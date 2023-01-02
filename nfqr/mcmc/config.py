@@ -185,4 +185,7 @@ class MCMCResult(BaseConfig):
     _name: str = "mcmc_result"
 
     mcmc_config: Optional[MCMCConfig]
-    results:List[Result]
+    results:Optional[List[Result]]
+    acceptance_rate:Optional[float]
+    obs_stats:Dict[str,Any]
+    sus_exact:Optional[float]
