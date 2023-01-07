@@ -49,9 +49,10 @@ class TrainerConfig(BaseModel):
     }
 
     stats_limits: List[int] = [-1]
-    p_sampler_set_size:int = 250000
+    p_sampler_set_size: int = 250000
 
     save_every_n_epochs: int = 25
+
 
 class LitModelConfig(BaseConfig):
 
@@ -86,8 +87,7 @@ class LitModelConfig(BaseConfig):
                     num_pars_dict[key] = len(list_or_dict[key])
                 except TypeError:
                     raise RuntimeError(
-                        "Len could not be evaluated for {}".format(
-                            list_or_dict[key])
+                        "Len could not be evaluated for {}".format(list_or_dict[key])
                     )
             return list_or_dict
 
@@ -103,8 +103,7 @@ class LitModelConfig(BaseConfig):
             )
         else:
             num_pars = (
-                list(num_pars_dict.values())[0] if list(
-                    num_pars_dict.values()) else 1
+                list(num_pars_dict.values())[0] if list(num_pars_dict.values()) else 1
             )
 
         return num_pars
@@ -130,8 +129,7 @@ class LitModelConfig(BaseConfig):
                     num_pars_dict[key] = len(list_or_dict[key])
                 except TypeError:
                     raise RuntimeError(
-                        "Len could not be evaluated for {}".format(
-                            list_or_dict[key])
+                        "Len could not be evaluated for {}".format(list_or_dict[key])
                     )
                 list_or_dict[key] = list_or_dict[key][task_id]
 
@@ -149,8 +147,7 @@ class LitModelConfig(BaseConfig):
             )
         else:
             num_pars = (
-                list(num_pars_dict.values())[0] if list(
-                    num_pars_dict.values()) else 1
+                list(num_pars_dict.values())[0] if list(num_pars_dict.values()) else 1
             )
 
             if num_tasks is not None and not num_pars == num_tasks:
@@ -186,7 +183,7 @@ class LitModelConfig(BaseConfig):
                 "layer_chain_config",
                 "base_dist_config",
                 "trajectory_sampler_config",
-                "specific_action_config"
+                "specific_action_config",
             ):
                 if "dim" not in list_or_dict[key]:
 
@@ -218,9 +215,7 @@ class LitModelConfig(BaseConfig):
 
         def set_action_config(key, list_or_dict):
 
-            if key in (
-                "trajectory_sampler_config",
-            ):
+            if key in ("trajectory_sampler_config",):
                 if "action_config" not in list_or_dict[key]:
 
                     list_or_dict[key]["action_config"] = action_config
