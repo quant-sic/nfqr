@@ -37,7 +37,7 @@ class HMC(MCMC):
         n_samples_at_a_time=10000,
         initial_config_sampler_config=None,
         delete_existing_data=True,
-        int_time:Union[float,None]=None,
+        int_time: Union[float, None] = None,
         **kwargs,
     ) -> None:
         super(HMC, self).__init__(
@@ -46,7 +46,7 @@ class HMC(MCMC):
             target_system=action_config.target_system,
             out_dir=out_dir,
             n_replicas=n_replicas,
-            delete_existing_data=delete_existing_data
+            delete_existing_data=delete_existing_data,
         )
 
         self.dim = dim
@@ -102,7 +102,9 @@ class HMC(MCMC):
                 raise ValueError("Unknown cpp hmc_engine")
 
         elif "python" in hmc_engine:
-            self.hmc = HMC_PYTHON(action=self.action, dim=self.dim,n_replicas=self.n_replicas)
+            self.hmc = HMC_PYTHON(
+                action=self.action, dim=self.dim, n_replicas=self.n_replicas
+            )
             self.step = self._step_python
 
         else:
@@ -130,7 +132,7 @@ class HMC(MCMC):
     def n_traj_steps(self):
 
         if self.int_time is not None:
-            return int(self.int_time/self.step_size)
+            return int(self.int_time / self.step_size)
         else:
             return self._n_traj_steps
 
@@ -147,11 +149,14 @@ class HMC(MCMC):
 
     @property
     def acceptance_rate(self):
-        return (
-            self.hmc.acceptance_rate.mean()
-            if isinstance(self.hmc.acceptance_rate, torch.Tensor)
-            else self.hmc.acceptance_rate
-        )
+        try:
+            return (
+                self.hmc.acceptance_rate.mean()
+                if isinstance(self.hmc.acceptance_rate, torch.Tensor)
+                else self.hmc.acceptance_rate
+            )
+        except RuntimeError:
+            return None
 
     def initialize(self, burn_in=True, log=True):
 
@@ -204,7 +209,7 @@ class HMC(MCMC):
         n_autotune_samples = 1000
         tolerance = 0.003  # Tolerance
         step_size_min = 1e-5
-        step_size_max = .5 if self.int_time is None else .5*self.int_time
+        step_size_max = 0.5 if self.int_time is None else 0.5 * self.int_time
         converged = False
         tune_steps = 100
 
@@ -213,9 +218,9 @@ class HMC(MCMC):
 
             self.initialize(burn_in=False, log=False)
             self._step_size = 0.5 * (step_size_min + step_size_max)
-            
+
             if self.int_time is not None:
-                n_traj_steps = int(self.int_time/self._step_size)
+                n_traj_steps = int(self.int_time / self._step_size)
             else:
                 n_traj_steps = self._n_traj_steps
 
@@ -237,8 +242,6 @@ class HMC(MCMC):
             if abs(self.acceptance_rate - desired_acceptance_percentage) < tolerance:
                 converged = True
                 break
-
-
 
         if not converged:
             self._step_size = self.initial_step_size
@@ -348,8 +351,8 @@ class HMC_PYTHON(object):
 
         config = self.post_step(config)
         self.current_config = config
-        
-        self.n_steps_taken+=1
+
+        self.n_steps_taken += 1
 
         return config
 

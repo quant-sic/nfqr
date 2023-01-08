@@ -45,6 +45,8 @@ class MCMCConfig(BaseConfig):
 
     task_parameters: Union[List[str], None] = None
 
+    stats_step_interval:int=100
+
     @validator("observables", pre=True)
     @classmethod
     def str_to_list(cls, v):

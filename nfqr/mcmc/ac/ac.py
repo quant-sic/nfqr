@@ -120,7 +120,7 @@ def err_rho(N, t_max, w_opt, rho):
         logger.info("Skipping AC error calculation, as Chain size is too large")
         return np.zeros(t_max + 1)
     else:
-        logger.info(
+        logger.debug(
             "AC error calculation with ~{} memory accesses".format(t_max * w_opt)
         )
         try:
@@ -290,7 +290,7 @@ def gamma(fbb, fbr, fb, delpro, r, n, n_rep, stau=1.5, rep_equal=False):
 
     logger.debug("t = %4d;\tGammaFbb = %.15e", t, gamma_fbb[t])
 
-    with tqdm(total=t_max, desc="Calculating gamma_fbb") as pbar:
+    with tqdm(total=t_max, desc="Calculating gamma_fbb", disable=True) as pbar:
         while t <= t_max:
             for i in range(r):
                 gamma_fbb[t + 1] += np.sum(
@@ -535,7 +535,7 @@ class PrimaryAnalysis(Analysis):
         self.results.qval = [0] * n_alpha
 
         for alpha in range(n_alpha):
-            logger.info("Computing errors for %s", self.name[alpha])
+            logger.debug("Computing errors for %s", self.name[alpha])
 
             res = gamma(
                 fbb[alpha],
