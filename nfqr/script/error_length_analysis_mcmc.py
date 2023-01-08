@@ -46,7 +46,7 @@ if __name__ == "__main__":
     results_df = pd.DataFrame(
         columns=["stats"],
         index=pd.MultiIndex.from_product(
-            (range(mcmc_config.n_replicas), range(100, mcmc_config.n_steps, mcmc_config.stats_step_interval)),
+            (range(mcmc_config.n_replicas), range(100, mcmc_config.max_stats_eval, mcmc_config.stats_step_interval)),
         ),
     )
     # logger.info((results_df.index.levels[0], results_df.index.levels[1]))
