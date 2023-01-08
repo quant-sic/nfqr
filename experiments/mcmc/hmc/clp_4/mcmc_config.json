@@ -1,0 +1,97 @@
+{
+    "mcmc_alg": "hmc",
+    "mcmc_type": "leapfrog",
+    "hmc_engine": "cpp_batch",
+    "observables": [
+        "Chi_t"
+    ],
+    "n_steps": [
+        15e6
+    ],
+    "n_repeat": 1,
+    "min_error": 0.01,
+    "dim": [
+        [
+            10
+        ],
+        [
+            12
+        ],
+        [
+            14
+        ],
+        [
+            15
+        ],
+        [
+            18
+        ],
+        [
+            19
+        ],
+        [
+            21
+        ],
+        [
+            23
+        ],
+        [
+            25
+        ],
+        [
+            28
+        ],
+        [
+            29
+        ],
+        [
+            31
+        ],
+        [
+            33
+        ],
+        [
+            36
+        ],
+        [
+            37
+        ],
+        [
+            39
+        ],
+        [
+            41
+        ],
+        [
+            43
+        ],
+        [
+            46
+        ],
+        [
+            47
+        ]
+    ],
+    "action_config": {
+        "target_system": "qr",
+        "action_type": "qr",
+        "specific_action_config": {
+            "T": 4,
+            "mom_inertia": 0.25
+        }
+    },
+    "n_burnin_steps": 1e6,
+    "n_traj_steps": 20,
+    "step_size": 0.05,
+    "autotune_step": true,
+    "n_samples_at_a_time": 5e4,
+    "n_replicas": 25,
+    "initial_config_sampler_config": {
+        "trajectory_sampler_config": {
+            "traj_type": "hot"
+        }
+    },
+    "task_parameters": [
+        "dim"
+    ]
+}

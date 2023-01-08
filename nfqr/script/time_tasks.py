@@ -146,7 +146,7 @@ def time_flow(exp_dir):
     for task_idx in range(100):
         os.environ["task_id"] = str(task_idx)
 
-        log_dir = "task_{}/timed".format(os.environ["task_id"])
+        log_dir = "timed/task_{}".format(os.environ["task_id"])
 
         if not (exp_dir / "logs/task_{}".format(os.environ["task_id"])).exists():
             logger.info("abort")
@@ -229,7 +229,7 @@ def time_flow(exp_dir):
 
             gpus = GPUtil.getGPUs()
 
-            res_dict["hardware"] = {"gpu":gpus}
+            res_dict["hardware"] = {"gpu":[gpu.name for gpu in gpus]}
             print(res_dict["hardware"])
 
 

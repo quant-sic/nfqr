@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     mcmc_config.n_burnin_steps=0
 
-    n_steps=10000
+    n_steps=100000
 
     mcmc = MCMC_REGISTRY[mcmc_config.mcmc_alg][mcmc_config.mcmc_type](
         **dict(mcmc_config)
