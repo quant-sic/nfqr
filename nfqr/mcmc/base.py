@@ -109,12 +109,9 @@ class MCMC(Sampler):
 
     def _evaluate_obs(self, obs):
 
-        if self.eval_idx is None:
-            observable_data = self.observables_rec[obs][..., : self.stats_limit]
-        else:
-            observable_data = self.observables_rec[obs][
-                self.eval_idx, : self.stats_limit
-            ]
+        observable_data = self.observables_rec.__getitem__(
+            obs, max_steps=self.stats_limit, rep_idx=self.eval_idx
+        )
 
         prepared_observable_data = self.observables_rec.observables[obs].prepare(
             observable_data
