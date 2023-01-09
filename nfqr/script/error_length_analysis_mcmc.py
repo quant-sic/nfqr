@@ -46,14 +46,18 @@ if __name__ == "__main__":
     results_df = pd.DataFrame(
         columns=["stats"],
         index=pd.MultiIndex.from_product(
-            (range(mcmc_config.n_replicas), range(100, mcmc_config.max_stats_eval, mcmc_config.stats_step_interval)),
+            (
+                range(mcmc_config.n_replicas),
+                range(100, mcmc_config.max_stats_eval, mcmc_config.stats_step_interval),
+            ),
         ),
     )
 
     for eval_idx in results_df.index.levels[0]:
         mcmc.eval_idx = eval_idx
 
-        for n_steps_stats in tqdm(results_df.index.levels[1]):
+        steps_bar = tqdm(results_df.index.levels[1])
+        for n_steps_stats in steps_bar:
 
             mcmc.stats_limit = n_steps_stats
 
@@ -61,18 +65,27 @@ if __name__ == "__main__":
             if isinstance(stats["acc_rate"], torch.Tensor):
                 stats["acc_rate"] = stats["acc_rate"].item()
 
-            if n_steps_stats>100000:
+            if n_steps_stats > 100000:
                 try:
-                    relative_error = stats["obs_stats"]["Chi_t"]["error"]/stats["obs_stats"]["Chi_t"]["mean"]
-                    if relative_error<mcmc_config.min_error:
+                    relative_error = (
+                        stats["obs_stats"]["Chi_t"]["error"]
+                        / stats["obs_stats"]["Chi_t"]["mean"]
+                    )
+
+                    steps_bar.set_description(
+                        "Relative error: {:.2e} at steps {} .".format(
+                            relative_error, n_steps_stats
+                        )
+                    )
+
+                    if relative_error < mcmc_config.min_error:
                         break
                 except ZeroDivisionError:
                     pass
 
-            results_df.loc[(eval_idx, n_steps_stats), "stats"] = (stats["obs_stats"][
-                "Chi_t"
-            ]["mean"],stats["obs_stats"][
-                "Chi_t"
-            ]["error"])
+            results_df.loc[(eval_idx, n_steps_stats), "stats"] = (
+                stats["obs_stats"]["Chi_t"]["mean"],
+                stats["obs_stats"]["Chi_t"]["error"],
+            )
 
         results_df.to_pickle(mcmc_config.out_dir / "results_df.pkl")

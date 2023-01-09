@@ -9,7 +9,6 @@ from tqdm import tqdm
 from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.mcmc import MCMC_REGISTRY
 from nfqr.mcmc.config import MCMCConfig
-from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.utils import setup_env
 from nfqr.utils.misc import create_logger
 
