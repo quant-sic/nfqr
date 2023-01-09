@@ -117,17 +117,59 @@ class ObservableRecorder(object):
         if "log_p_fstream" in self.__dict__:
             self.log_p_fstream.flush()
 
-    def _load_file(self, path):
+    # def _load_file(self, path):
+    #     self.flush_streams()
+
+    #     with io.open(path, "rb") as file:
+    #         file_tensor = torch.from_numpy(
+    #             np.fromfile(file, dtype=np.float32).reshape(-1, self.n_replicas).T
+    #         )
+
+    #     return file_tensor
+
+    def _load_file(self, path, rep_idx=None, max_steps=None):
+
         self.flush_streams()
 
-        with io.open(path, "rb") as file:
-            file_tensor = torch.from_numpy(
-                np.fromfile(file, dtype=np.float32).reshape(-1, self.n_replicas).T
+        def read_in_array_chunked(start, count, rep_idx):
+            with io.open(path, "rb") as file:
+                file_tensor = torch.from_numpy(
+                    np.fromfile(file, dtype=np.float32, count=count, offset=start)
+                    .reshape(-1, self.n_replicas)
+                    .T
+                )
+
+            if rep_idx is None:
+                return file_tensor
+            else:
+                return file_tensor[rep_idx]
+
+        bytes_step = self.n_replicas * 4
+        step_size = bytes_step * int(1e8)
+
+        if max_steps is not None:
+            max_size = int(
+                min(
+                    max_steps * bytes_step,
+                    os.path.getsize(self.observable_save_paths["Chi_t"]),
+                )
             )
+        else:
+            max_size = os.path.getsize(self.observable_save_paths["Chi_t"])
 
-        return file_tensor
+        bytes_start = range(0, max_size, step_size)
+        bytes_counts = [step_size] * (len(bytes_start) - 1) + [
+            max_size - bytes_start[-1]
+        ]
 
-    def __getitem__(self, name):
+        out_list = []
+        for _n_bytes_start, count in zip(bytes_start, bytes_counts):
+            chunk = read_in_array_chunked(_n_bytes_start, int(count / 4), rep_idx)
+            out_list.append(chunk)
+
+        return torch.concat(out_list, dim=-1)
+
+    def __getitem__(self, name, rep_idx=None, max_steps=None):
 
         if name == "log_weights":
             if self.log_weights_save_path.is_file():
@@ -145,4 +187,4 @@ class ObservableRecorder(object):
             else:
                 path = self.observable_save_paths[name]
 
-        return self._load_file(path)
+        return self._load_file(path,rep_idx=rep_idx, max_steps=max_steps)
