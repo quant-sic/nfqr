@@ -12,7 +12,7 @@
 
 !Makefile
 !.gitignore
-!requirements/*
+!pyproject.toml
 
 nfqr-env
 mlmc
@@ -20,3 +20,4 @@ run_scripts
 *.egg*
 .vscode
 experiments
+tmp
