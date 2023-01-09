@@ -49,7 +49,7 @@ if __name__ == "__main__":
             (range(mcmc_config.n_replicas), range(100, mcmc_config.max_stats_eval, mcmc_config.stats_step_interval)),
         ),
     )
-    # logger.info((results_df.index.levels[0], results_df.index.levels[1]))
+
     for eval_idx in results_df.index.levels[0]:
         mcmc.eval_idx = eval_idx
 
@@ -60,6 +60,14 @@ if __name__ == "__main__":
             stats = mcmc.get_stats()
             if isinstance(stats["acc_rate"], torch.Tensor):
                 stats["acc_rate"] = stats["acc_rate"].item()
+
+            if n_steps_stats>100000:
+                try:
+                    relative_error = stats["obs_stats"]["Chi_t"]["error"]/stats["obs_stats"]["Chi_t"]["mean"]
+                    if relative_error<mcmc_config.min_error:
+                        break
+                except ZeroDivisionError:
+                    pass
 
             results_df.loc[(eval_idx, n_steps_stats), "stats"] = (stats["obs_stats"][
                 "Chi_t"
