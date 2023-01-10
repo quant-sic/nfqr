@@ -1,6 +1,5 @@
 import os
 from argparse import ArgumentParser
-from functools import partialmethod
 from pathlib import Path
 
 import pandas as pd
