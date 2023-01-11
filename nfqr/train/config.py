@@ -48,7 +48,7 @@ class TrainerConfig(BaseModel):
         "type": "reduce_on_plateau"
     }
 
-    stats_limits: List[int] = [-1]
+    stats_limits: List[Optional[int]] = [None]
     p_sampler_set_size: int = 250000
 
     save_every_n_epochs: int = 25

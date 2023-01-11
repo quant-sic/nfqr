@@ -7,6 +7,10 @@ from typing import Callable, Dict
 import numpy as np
 import torch
 
+from nfqr.utils import create_logger
+
+logger = create_logger(__name__)
+
 
 class ObservableRecorder(object):
     def __init__(
@@ -144,7 +148,7 @@ class ObservableRecorder(object):
             else:
                 return file_tensor[rep_idx]
 
-        bytes_step = self.n_replicas * 4        
+        bytes_step = self.n_replicas * 4
         step_size = bytes_step * int(1e8)
 
         if max_steps is not None:
@@ -157,14 +161,10 @@ class ObservableRecorder(object):
         else:
             max_size = os.path.getsize(path)
 
-        try:
-            bytes_start = range(0, max_size, step_size)
-            bytes_counts = [step_size] * (len(bytes_start) - 1) + [
-                max_size - bytes_start[-1]
-            ]
-        except IndexError:
-            raise ValueError(f"{bytes_start},{bytes_counts}")
-
+        bytes_start = range(0, max_size, step_size)
+        bytes_counts = [step_size] * (len(bytes_start) - 1) + [
+            max_size - bytes_start[-1]
+        ]
 
         out_list = []
         for _n_bytes_start, count in zip(bytes_start, bytes_counts):
@@ -191,4 +191,4 @@ class ObservableRecorder(object):
             else:
                 path = self.observable_save_paths[name]
 
-        return self._load_file(path,rep_idx=rep_idx, max_steps=max_steps)
+        return self._load_file(path, rep_idx=rep_idx, max_steps=max_steps)

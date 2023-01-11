@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
 import torch
-from pydantic import root_validator, validator, create_model
+from pydantic import root_validator, validator
 from ray import tune
 
 from nfqr.config import BaseConfig
@@ -17,10 +17,8 @@ from nfqr.nip import (
     calc_ess_p_from_unnormalized_log_weights,
     calc_ess_q_from_unnormalized_log_weights,
 )
-from nfqr.target_systems import OBSERVABLE_REGISTRY
 from nfqr.target_systems.rotor import RotorTrajectorySamplerConfig
 from nfqr.utils import create_logger
-from itertools import chain
 
 logger = create_logger(__name__)
 
@@ -36,12 +34,12 @@ class EvalConfig(BaseConfig):
     observables: List[str] = ["Chi_t"]
 
     models: Optional[List[str]]
-    n_repeat:int=1
-    max_step:int= 1e12
-    min_step:int = 0
+    n_repeat: int = 1
+    max_step: int = 1e12
+    min_step: int = 0
 
-    start_from_target_beta:bool=False
-    max_rel_error:float=0.05
+    start_from_target_beta: bool = False
+    max_rel_error: float = 0.05
 
     @validator("observables", "methods", pre=True)
     @classmethod
@@ -57,8 +55,7 @@ class EvalConfig(BaseConfig):
         if isinstance(v, int):
             return [v]
         if not isinstance(v, (list, int)):
-            raise ValueError(
-                "n_iter and batch_size must be int or list of ints")
+            raise ValueError("n_iter and batch_size must be int or list of ints")
 
         return v
 
@@ -78,8 +75,13 @@ class EvalConfig(BaseConfig):
 
 ObsStats = Dict[str, Dict[str, float]]
 EvalStats = Union[
-    List[Union[List[Dict[str, Union[ObsStats, float, int]]],Dict[str, Union[ObsStats, float, int]]]],
-    Dict[str, Union[ObsStats, float, int]]
+    List[
+        Union[
+            List[Dict[str, Union[ObsStats, float, int]]],
+            Dict[str, Union[ObsStats, float, int]],
+        ]
+    ],
+    Dict[str, Union[ObsStats, float, int]],
 ]
 
 
@@ -107,8 +109,7 @@ class EvalResult(BaseConfig):
 
 def get_tmp_path_from_name_and_environ(name):
 
-    task_dir = TMP_DIR / \
-        "{}/{}".format(os.environ["job_id"], os.environ["task_id"])
+    task_dir = TMP_DIR / "{}/{}".format(os.environ["job_id"], os.environ["task_id"])
 
     if "tune" in os.environ and os.environ["tune"] == "ray":
         task_dir = task_dir / tune.get_trial_id()
@@ -125,7 +126,7 @@ def estimate_ess_p_nip(
     batch_size,
     n_iter,
     cut_quantiles=([0, 1], [0.05, 1], [0.1, 1]),
-    stats_limits=[-1]
+    stats_limits=[None],
 ):
 
     model.eval()
@@ -160,7 +161,7 @@ def estimate_ess_p_nip(
                     nip_sampler.unnormalized_log_weights, cut_quantiles=_cut_quantiles
                 )
 
-            if stats_limit == -1:
+            if stats_limit is None:
                 all_stats.update(ess_p_dict)
             else:
                 all_stats[f"stats_limit_{stats_limit}"] = ess_p_dict
@@ -200,7 +201,9 @@ def estimate_ess_q_nip(model, target, batch_size, n_iter):
     return ess_q
 
 
-def estimate_obs_nip(model, target, observables, batch_size, n_iter, stats_limits=[-1]):
+def estimate_obs_nip(
+    model, target, observables, batch_size, n_iter, stats_limits=[None]
+):
 
     model.eval()
     model.double()
@@ -226,7 +229,7 @@ def estimate_obs_nip(model, target, observables, batch_size, n_iter, stats_limit
 
             stats = nip_sampler.get_stats()
 
-            if stats_limit == -1:
+            if stats_limit is None:
                 all_stats.update(stats)
             else:
                 all_stats[f"stats_limit_{stats_limit}"] = stats
@@ -262,7 +265,9 @@ def estimate_nmcmc_acc_rate(model, target, trove_size, n_steps):
     return nmcmc.acceptance_rate
 
 
-def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps, stats_limits=[-1]):
+def estimate_obs_nmcmc(
+    model, observables, target, trove_size, n_steps, stats_limits=[None]
+):
 
     model.eval()
     model.double()
@@ -288,7 +293,7 @@ def estimate_obs_nmcmc(model, observables, target, trove_size, n_steps, stats_li
 
             stats = nmcmc.get_stats()
 
-            if stats_limit == -1:
+            if stats_limit is None:
                 all_stats.update(stats)
             else:
                 all_stats[f"stats_limit_{stats_limit}"] = stats

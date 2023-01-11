@@ -30,7 +30,10 @@ class NeuralImportanceSampler(Sampler):
         sampler=None,
     ):
         super(NeuralImportanceSampler, self).__init__(
-            observables=observables, target_system=target_system, out_dir=out_dir,n_replicas=1
+            observables=observables,
+            target_system=target_system,
+            out_dir=out_dir,
+            n_replicas=1,
         )
 
         self.batch_size = batch_size
@@ -60,15 +63,15 @@ class NeuralImportanceSampler(Sampler):
 
     @property
     def stats_limit(self):
-        if not hasattr(self,"_stats_limit"):
-            self._stats_limit = -1
-        
-        return self._stats_limit            
+        if not hasattr(self, "_stats_limit"):
+            self._stats_limit = None
+
+        return self._stats_limit
 
     @stats_limit.setter
-    def stats_limit(self,v):
+    def stats_limit(self, v):
         self._stats_limit = v
-        
+
     def run(self):
 
         for _ in tqdm(range(self.n_iter), desc="Running NIP"):
@@ -79,7 +82,7 @@ class NeuralImportanceSampler(Sampler):
 
         x_samples = self.sampler.sample(next(self.model.parameters()).device).detach()
         x_samples = x_samples.to(self.model.parameters().__next__().dtype)
-        
+
         log_p = self.target.log_prob(x_samples)
         log_weights = log_p - self.model.log_prob(x_samples)
 
@@ -101,20 +104,22 @@ class NeuralImportanceSampler(Sampler):
 
     @property
     def unnormalized_log_weights(self):
-        return self.observables_rec["log_weights"][...,:self.stats_limit]
+        return self.observables_rec["log_weights"][..., : self.stats_limit]
 
     @property
     def log_p(self):
-        return self.observables_rec["log_p"][...,:self.stats_limit]
+        return self.observables_rec["log_p"][..., : self.stats_limit]
 
     def _evaluate_obs(self, obs):
 
-        observable_data = self.observables_rec[obs][...,:self.stats_limit]
+        observable_data = self.observables_rec[obs][..., : self.stats_limit]
         prepared_observable_data = self.observables_rec.observables[obs].prepare(
             observable_data
         )
 
-        config_log_weights_unnormalized = self.observables_rec["log_weights"][...,:self.stats_limit]
+        config_log_weights_unnormalized = self.observables_rec["log_weights"][
+            ..., : self.stats_limit
+        ]
 
         assert config_log_weights_unnormalized.shape == observable_data.shape
 

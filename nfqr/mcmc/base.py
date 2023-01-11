@@ -39,7 +39,7 @@ class MCMC(Sampler):
     @property
     def stats_limit(self):
         if not hasattr(self, "_stats_limit"):
-            self._stats_limit = -1
+            self._stats_limit = None
 
         return self._stats_limit
 

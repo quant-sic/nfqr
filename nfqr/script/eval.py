@@ -4,7 +4,6 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 import numpy as np
-from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from tqdm import tqdm
 
 from nfqr.eval.evaluation import EvalConfig, EvalResult
@@ -158,18 +157,6 @@ if __name__ == "__main__":
 
             nip_repeat = []
             nmcmc_repeat = []
-            if "nip" in eval_config.methods:
-                for repeat_idx in range(eval_config.n_repeat):
-
-                    stats_nip = lit_model.estimate_obs_nip(
-                        batch_size=batch_size, n_iter=n_iter, ess_p=False
-                    )
-                    nip_repeat.append(stats_nip)
-
-                if use_idx is not None:
-                    stats_nip_list[use_idx] = nip_repeat
-                else:
-                    stats_nip_list.append(nip_repeat)
 
             if "nmcmc" in eval_config.methods:
                 for repeat_idx in range(eval_config.n_repeat):
@@ -183,6 +170,19 @@ if __name__ == "__main__":
                     stats_nmcmc_list[use_idx] = nmcmc_repeat
                 else:
                     stats_nmcmc_list.append(nmcmc_repeat)
+
+            if "nip" in eval_config.methods:
+                for repeat_idx in range(eval_config.n_repeat):
+
+                    stats_nip = lit_model.estimate_obs_nip(
+                        batch_size=batch_size, n_iter=n_iter, ess_p=False
+                    )
+                    nip_repeat.append(stats_nip)
+
+                if use_idx is not None:
+                    stats_nip_list[use_idx] = nip_repeat
+                else:
+                    stats_nip_list.append(nip_repeat)
 
             if n_iter * batch_size > 100000:
                 try:
