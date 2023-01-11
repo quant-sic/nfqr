@@ -13,6 +13,7 @@ import numpy as np
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 import re
 from nfqr.utils import setup_env
+from nfqr.utils.tensorboard import EventAccumulatorHook
 
 logger = create_logger(__name__)
 
@@ -38,7 +39,7 @@ if __name__ == "__main__":
 
     log_dir = "task_{}".format(os.environ["task_id"])
 
-    pbar = tqdm((exp_dir / f"logs/{log_dir}").glob("**/*.ckpt"))
+    pbar = tqdm(sorted((exp_dir / f"logs/{log_dir}").glob("**/*.ckpt")))
     for model_ckpt_path in pbar:
 
         if (eval_config.models is not None) and (not model_ckpt_path.stem in eval_config.models):
@@ -60,15 +61,24 @@ if __name__ == "__main__":
             continue
 
         if "beta_scheduled" in str(model_ckpt_path):
-            events_file_path = (model_ckpt_path.parent.parent.parent).glob("events*").__next__()
 
-            acc = EventAccumulator(str(events_file_path)).Reload()
+            events_file_path = (model_ckpt_path.parent.parent.parent).glob("events*[!.hook]").__next__()
 
-            _, step_nums, vals = [np.array(e) for e in zip(*acc.Scalars("beta"))]
+            acc = EventAccumulatorHook(events_file_path)
+
+            _, step_nums, vals = acc.Scalars("beta")
+
+            
             
             plot_step = np.argwhere((step_nums>=(step-1)).cumsum(axis=0)==1)[0][0]
 
             beta = vals[plot_step]
+
+            if eval_config.start_from_target_beta:
+                if not beta==train_config.trainer_configs[0].scheduler_configs[0].specific_scheduler_config.target_beta:
+                    logger.info(f"beta {beta} does not match target beta {train_config.trainer_configs[0].scheduler_configs[0].specific_scheduler_config.target_beta}")
+                    continue
+
 
             train_config.action_config.specific_action_config.beta = beta
             logger.info(f"Setting beta to {beta}")
@@ -153,6 +163,18 @@ if __name__ == "__main__":
                     stats_nmcmc_list[use_idx] = nmcmc_repeat
                 else:
                     stats_nmcmc_list.append(nmcmc_repeat)
+
+            if n_iter * batch_size > 100000:
+                try:
+                    relative_error = (
+                        (np.array([stats["obs_stats"]["Chi_t"]["error"] for stats in stats_nmcmc_list])
+                        / np.array([stats["obs_stats"]["Chi_t"]["mean"] for stats in stats_nmcmc_list])).mean()
+                    )
+
+                    if relative_error < eval_config.max_rel_error:
+                        break
+                except ZeroDivisionError:
+                    pass
 
 
             eval_result.exact_sus = lit_model.sus_exact

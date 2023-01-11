@@ -144,23 +144,27 @@ class ObservableRecorder(object):
             else:
                 return file_tensor[rep_idx]
 
-        bytes_step = self.n_replicas * 4
+        bytes_step = self.n_replicas * 4        
         step_size = bytes_step * int(1e8)
 
         if max_steps is not None:
             max_size = int(
                 min(
                     max_steps * bytes_step,
-                    os.path.getsize(self.observable_save_paths["Chi_t"]),
+                    os.path.getsize(path),
                 )
             )
         else:
-            max_size = os.path.getsize(self.observable_save_paths["Chi_t"])
+            max_size = os.path.getsize(path)
 
-        bytes_start = range(0, max_size, step_size)
-        bytes_counts = [step_size] * (len(bytes_start) - 1) + [
-            max_size - bytes_start[-1]
-        ]
+        try:
+            bytes_start = range(0, max_size, step_size)
+            bytes_counts = [step_size] * (len(bytes_start) - 1) + [
+                max_size - bytes_start[-1]
+            ]
+        except IndexError:
+            raise ValueError(f"{bytes_start},{bytes_counts}")
+
 
         out_list = []
         for _n_bytes_start, count in zip(bytes_start, bytes_counts):

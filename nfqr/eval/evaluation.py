@@ -40,6 +40,9 @@ class EvalConfig(BaseConfig):
     max_step:int= 1e12
     min_step:int = 0
 
+    start_from_target_beta:bool=False
+    max_rel_error:float=0.05
+
     @validator("observables", "methods", pre=True)
     @classmethod
     def str_to_list(cls, v):

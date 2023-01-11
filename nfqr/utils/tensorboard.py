@@ -17,7 +17,6 @@ class EventAccumulatorHook(object):
         else:
             self.pickleable_acc = pickle.load(open(self.save_path,"rb")) 
 
-
     def save(self):
         pickle.dump(self.pickleable_acc,open(self.save_path,"wb"))
 
