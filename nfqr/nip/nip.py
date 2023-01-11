@@ -104,22 +104,26 @@ class NeuralImportanceSampler(Sampler):
 
     @property
     def unnormalized_log_weights(self):
-        return self.observables_rec["log_weights"][..., : self.stats_limit]
+        return self.observables_rec.__getitem__(
+            name="log_weights", max_steps=self.stats_limit
+        )
 
     @property
     def log_p(self):
-        return self.observables_rec["log_p"][..., : self.stats_limit]
+        return self.observables_rec.__getitem__(
+            name="log_p", max_steps=self.stats_limit
+        )
 
     def _evaluate_obs(self, obs):
 
-        observable_data = self.observables_rec[obs][..., : self.stats_limit]
+        observable_data = self.observables_rec.__getitem__(
+            name=obs, max_steps=self.stats_limit
+        )
         prepared_observable_data = self.observables_rec.observables[obs].prepare(
             observable_data
         )
 
-        config_log_weights_unnormalized = self.observables_rec["log_weights"][
-            ..., : self.stats_limit
-        ]
+        config_log_weights_unnormalized = self.unnormalized_log_weights
 
         assert config_log_weights_unnormalized.shape == observable_data.shape
 
