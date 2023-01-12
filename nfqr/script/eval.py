@@ -36,7 +36,9 @@ if __name__ == "__main__":
 
     log_dir = "task_{}".format(os.environ["task_id"])
 
-    pbar = tqdm(sorted((exp_dir / f"logs/{log_dir}").glob("**/*.ckpt")))
+    ckpts,steps = zip(*map(lambda path:(path,int(re.search("step=([0-9]*).", path.name).groups()[0])),filter(lambda p:"step" in p.name,(exp_dir / f"logs/{log_dir}").glob("**/*.ckpt"))))
+
+    pbar = tqdm(map(lambda idx:ckpts[idx],np.argsort(steps)))
     for model_ckpt_path in pbar:
 
         if (eval_config.models is not None) and (
