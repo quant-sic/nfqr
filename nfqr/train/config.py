@@ -9,7 +9,7 @@ from nfqr.config import BaseConfig
 from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.normalizing_flows.flow import FlowConfig
 from nfqr.normalizing_flows.loss.loss import LossConfig
-from nfqr.target_systems import OBSERVABLE_REGISTRY, ActionConfig
+from nfqr.target_systems import ActionConfig
 from nfqr.train.scheduler import SchedulerConfig
 from nfqr.utils import DimsNotMatchingError, create_logger, set_par_list_or_dict
 

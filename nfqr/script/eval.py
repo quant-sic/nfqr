@@ -36,9 +36,20 @@ if __name__ == "__main__":
 
     log_dir = "task_{}".format(os.environ["task_id"])
 
-    ckpts,steps = zip(*map(lambda path:(path,int(re.search("step=([0-9]*).", path.name).groups()[0])),filter(lambda p:"step" in p.name,(exp_dir / f"logs/{log_dir}").glob("**/*.ckpt"))))
+    ckpts, steps = zip(
+        *map(
+            lambda path: (
+                path,
+                int(re.search("step=([0-9]*).", path.name).groups()[0]),
+            ),
+            filter(
+                lambda p: "step" in p.name,
+                (exp_dir / f"logs/{log_dir}").glob("**/*.ckpt"),
+            ),
+        )
+    )
 
-    pbar = tqdm(map(lambda idx:ckpts[idx],np.argsort(steps)))
+    pbar = tqdm(map(lambda idx: ckpts[idx], np.argsort(steps)))
     for model_ckpt_path in pbar:
 
         if (eval_config.models is not None) and (
@@ -187,18 +198,19 @@ if __name__ == "__main__":
                     stats_nip_list.append(nip_repeat)
 
             if n_iter * batch_size > 100000:
+                logger.info(stats_nmcmc_list)
                 try:
                     relative_error = (
                         np.array(
                             [
                                 stats["obs_stats"]["Chi_t"]["error"]
-                                for stats in stats_nmcmc_list
+                                for stats in nmcmc_repeat
                             ]
                         )
                         / np.array(
                             [
                                 stats["obs_stats"]["Chi_t"]["mean"]
-                                for stats in stats_nmcmc_list
+                                for stats in nmcmc_repeat
                             ]
                         )
                     ).mean()
