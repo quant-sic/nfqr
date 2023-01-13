@@ -1,0 +1,21 @@
+{
+    "n_iter": [
+        5,
+        8,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35
+    ],
+    "batch_size": 10000,
+    "methods": [
+        "nmcmc"
+    ],
+    "observables": [
+        "Chi_t"
+    ],
+    "n_repeat": 3,
+    "max_rel_error": 0.01
+}
