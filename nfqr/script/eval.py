@@ -56,6 +56,7 @@ if __name__ == "__main__":
             model_ckpt_path.stem not in eval_config.models
         ):
             continue
+        
         elif model_ckpt_path.stem == "model":
             continue
 
