@@ -13,14 +13,15 @@
     175000,
     200000,
     225000,
-    250000
+    250000,
+    80000
   ],
   "nip": {},
   "nmcmc": [
     [
       {
         "acc_rate": 0.81812,
-        "n_steps": 25000,
+        "n_steps": 25000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.00164006557315588,
@@ -35,12 +36,12 @@
             "dtau_int": 0.022637763754110148
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.8156,
-        "n_steps": 25000,
+        "n_steps": 25000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.008600343950092793,
@@ -55,12 +56,12 @@
             "dtau_int": 0.021464863177734078
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.82068,
-        "n_steps": 25000,
+        "n_steps": 25000.0,
         "obs_stats": {
           "Q": {
             "mean": 0.010520420968532562,
@@ -75,14 +76,14 @@
             "dtau_int": 0.021283869649485768
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       }
     ],
     [
       {
         "acc_rate": 0.81445,
-        "n_steps": 40000,
+        "n_steps": 40000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.005700142588466406,
@@ -97,12 +98,12 @@
             "dtau_int": 0.017296874640475447
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.815875,
-        "n_steps": 40000,
+        "n_steps": 40000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.0019500487251207232,
@@ -117,12 +118,12 @@
             "dtau_int": 0.016347990126553934
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.81825,
-        "n_steps": 40000,
+        "n_steps": 40000.0,
         "obs_stats": {
           "Q": {
             "mean": 0.002400059951469302,
@@ -137,14 +138,14 @@
             "dtau_int": 0.014808528403697513
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       }
     ],
     [
       {
         "acc_rate": 0.82222,
-        "n_steps": 50000,
+        "n_steps": 50000.0,
         "obs_stats": {
           "Q": {
             "mean": 0.004700093995779753,
@@ -159,12 +160,12 @@
             "dtau_int": 0.01499924319806514
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.81984,
-        "n_steps": 50000,
+        "n_steps": 50000.0,
         "obs_stats": {
           "Q": {
             "mean": 0.010420208796858788,
@@ -179,12 +180,12 @@
             "dtau_int": 0.015483915910432381
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.81846,
-        "n_steps": 50000,
+        "n_steps": 50000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.0019200383685529232,
@@ -199,14 +200,14 @@
             "dtau_int": 0.015028458110557384
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       }
     ],
     [
       {
         "acc_rate": 0.81348,
-        "n_steps": 75000,
+        "n_steps": 75000.0,
         "obs_stats": {
           "Q": {
             "mean": 0.0019200255628675222,
@@ -221,12 +222,12 @@
             "dtau_int": 0.014130782949089203
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.8166133333333333,
-        "n_steps": 75000,
+        "n_steps": 75000.0,
         "obs_stats": {
           "Q": {
             "mean": 0.000520006928127259,
@@ -241,12 +242,12 @@
             "dtau_int": 0.014458161848957067
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.8182,
-        "n_steps": 75000,
+        "n_steps": 75000.0,
         "obs_stats": {
           "Q": {
             "mean": 0.006626754999160767,
@@ -261,14 +262,14 @@
             "dtau_int": 0.01264919357407442
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       }
     ],
     [
       {
         "acc_rate": 0.81689,
-        "n_steps": 100000,
+        "n_steps": 100000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.004580045584589243,
@@ -283,12 +284,12 @@
             "dtau_int": 0.01029364719253589
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.81738,
-        "n_steps": 100000,
+        "n_steps": 100000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.00048000479000620544,
@@ -303,12 +304,12 @@
             "dtau_int": 0.011921007551390288
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.82075,
-        "n_steps": 100000,
+        "n_steps": 100000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.00031000308808870614,
@@ -323,14 +324,14 @@
             "dtau_int": 0.012024120737659771
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       }
     ],
     [
       {
         "acc_rate": 0.8174,
-        "n_steps": 125000,
+        "n_steps": 125000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.004152033012360334,
@@ -345,12 +346,12 @@
             "dtau_int": 0.00929413789996462
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.81716,
-        "n_steps": 125000,
+        "n_steps": 125000.0,
         "obs_stats": {
           "Q": {
             "mean": 0.001280010212212801,
@@ -365,12 +366,12 @@
             "dtau_int": 0.009684422504559984
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.81792,
-        "n_steps": 125000,
+        "n_steps": 125000.0,
         "obs_stats": {
           "Q": {
             "mean": 0.003056024434044957,
@@ -385,14 +386,14 @@
             "dtau_int": 0.009522198254160449
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       }
     ],
     [
       {
         "acc_rate": 0.8182466666666667,
-        "n_steps": 150000,
+        "n_steps": 150000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.0005866705905646086,
@@ -407,12 +408,12 @@
             "dtau_int": 0.008791232860897375
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.8185533333333334,
-        "n_steps": 150000,
+        "n_steps": 150000.0,
         "obs_stats": {
           "Q": {
             "mean": 0.0014133427757769823,
@@ -427,12 +428,12 @@
             "dtau_int": 0.008813724687744285
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.81714,
-        "n_steps": 150000,
+        "n_steps": 150000.0,
         "obs_stats": {
           "Q": {
             "mean": 0.0015200101770460606,
@@ -447,14 +448,14 @@
             "dtau_int": 0.009814985431018738
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       }
     ],
     [
       {
         "acc_rate": 0.8184628571428572,
-        "n_steps": 175000,
+        "n_steps": 175000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.0013142932439222932,
@@ -469,12 +470,12 @@
             "dtau_int": 0.008818714437858104
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.8173714285714285,
-        "n_steps": 175000,
+        "n_steps": 175000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.0013542934320867062,
@@ -489,12 +490,12 @@
             "dtau_int": 0.008916292187534435
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       },
       {
         "acc_rate": 0.8154228571428571,
-        "n_steps": 175000,
+        "n_steps": 175000.0,
         "obs_stats": {
           "Q": {
             "mean": -0.0030400173272937536,
@@ -509,8 +510,8 @@
             "dtau_int": 0.008886383407363573
           }
         },
-        "n_skipped": 0,
-        "step_size": 0
+        "n_skipped": 0.0,
+        "step_size": 0.0
       }
     ],
     {
@@ -572,7 +573,69 @@
       },
       "n_skipped": 0.0,
       "step_size": 0.0
-    }
+    },
+    [
+      {
+        "acc_rate": 0.816875,
+        "n_steps": 80000,
+        "obs_stats": {
+          "Q": {
+            "mean": 0.005737499799579382,
+            "error": 0.003457638141414994,
+            "tau_int": 0.7307153575135281,
+            "dtau_int": 0.012410641212210178
+          },
+          "Chi_t": {
+            "mean": 0.6544625163078308,
+            "error": 0.003898620391582396,
+            "tau_int": 0.7052959000445764,
+            "dtau_int": 0.012005271703839934
+          }
+        },
+        "n_skipped": 0,
+        "step_size": 0
+      },
+      {
+        "acc_rate": 0.817475,
+        "n_steps": 80000,
+        "obs_stats": {
+          "Q": {
+            "mean": 0.0012125000357627869,
+            "error": 0.0034677637181541278,
+            "tau_int": 0.7307231903941451,
+            "dtau_int": 0.012410765822719843
+          },
+          "Chi_t": {
+            "mean": 0.6582624912261963,
+            "error": 0.003906274831515099,
+            "tau_int": 0.6964247690771161,
+            "dtau_int": 0.011863341173069782
+          }
+        },
+        "n_skipped": 0,
+        "step_size": 0
+      },
+      {
+        "acc_rate": 0.8169125,
+        "n_steps": 80000,
+        "obs_stats": {
+          "Q": {
+            "mean": 0.0033499998971819878,
+            "error": 0.0034362257884714394,
+            "tau_int": 0.7273510988776948,
+            "dtau_int": 0.01235710319419276
+          },
+          "Chi_t": {
+            "mean": 0.6493499875068665,
+            "error": 0.0038840513290529844,
+            "tau_int": 0.7118825887268534,
+            "dtau_int": 0.012110499032323674
+          }
+        },
+        "n_skipped": 0,
+        "step_size": 0
+      }
+    ]
   ],
   "exact_sus": 0.6500977944017748
 }
