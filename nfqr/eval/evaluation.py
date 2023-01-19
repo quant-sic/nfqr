@@ -304,6 +304,32 @@ def estimate_obs_nmcmc(
     return stats
 
 
+def run_nmcmc_for_model(model, observables, target, trove_size, n_steps, out_file=None):
+
+    model.eval()
+    model.double()
+
+    if out_file is None:
+        rec_tmp = get_tmp_path_from_name_and_environ("estimate_obs_nmcmc")
+    else:
+        rec_tmp = out_file
+
+    nmcmc = NeuralMCMC(
+        model=model,
+        target=target,
+        trove_size=trove_size,
+        n_steps=n_steps,
+        observables=observables,
+        out_dir=rec_tmp,
+    )
+
+    with torch.no_grad():
+
+        nmcmc.run()
+
+    model.float()
+
+
 def get_ess_p_sampler(dim, action_config, batch_size, elements_per_dataset=250000):
 
     mcmc_sampler_config = TrajectorySamplerConfig(
