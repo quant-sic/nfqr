@@ -43,6 +43,10 @@ class TrainerConfig(BaseModel):
     gradient_clip_algorithm: str = "norm"
     track_grad_norm: int = 2
 
+    eval_ess_p:bool=True
+    reseed_random:bool=False
+    eval_bias_correction:bool=True
+
     optimizer: str = "Adam"
     lr_scheduler: Optional[Dict[str, Union[float, int, str]]] = {
         "type": "reduce_on_plateau"

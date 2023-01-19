@@ -112,6 +112,10 @@ def train_flow_model(exp_dir, skip_done=True):
 
         for idx, (lit_model_config, trainer_config, flow_model) in enumerate(iterate_config_models(exp_dir, model_ckpt_path)):
 
+            if trainer_config.reseed_random:
+                seed_everything(np.random.randint(10**(8)), workers=True)
+
+
             logger.info(
                 "Task {}: Interval {} with: \n\n {} \n\n".format(
                     os.environ["task_id"], idx, lit_model_config
@@ -123,12 +127,11 @@ def train_flow_model(exp_dir, skip_done=True):
             )
 
             callbacks = [
-                ModelCheckpoint(dirpath=tb_logger.log_dir + "/checkpoints/max_ess_p",
-                                auto_insert_metric_name=True, save_top_k=3, monitor="nip/ess_p/0-1/ess_p", mode="max"),
                 ModelCheckpoint(dirpath=tb_logger.log_dir + "/checkpoints/regular",
                                 filename="latest-{epoch}-{step}", save_top_k=-1, monitor="step", mode="max", every_n_epochs=trainer_config.save_every_n_epochs),
                 LearningRateMonitor(logging_interval='step')
-            ]
+            ]+[ModelCheckpoint(dirpath=tb_logger.log_dir + "/checkpoints/max_ess_p",
+                                auto_insert_metric_name=True, save_top_k=3, monitor="nip/ess_p/0-1/ess_p", mode="max")]*trainer_config.eval_ess_p  
 
             #accelerator = ("mps","gpu","cpu")[np.argwhere((torch.backends.mps.is_available(),torch.cuda.is_available(),True)).min()]
             accelerator = ("gpu", "cpu")[np.argwhere(

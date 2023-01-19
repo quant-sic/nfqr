@@ -434,18 +434,21 @@ class LitFlow(pl.LightningModule):
         # if self.current_epoch%5 != 0:
         #     return
 
-        stats_nmcmc = self.estimate_obs_nmcmc(
-            batch_size=self.trainer_config.batch_size_eval,
-            n_iter=self.trainer_config.n_iter_eval,
-        )
+        if self.trainer_config.eval_bias_correction:
+            stats_nmcmc = self.estimate_obs_nmcmc(
+                batch_size=self.trainer_config.batch_size_eval,
+                n_iter=self.trainer_config.n_iter_eval,
+            )
 
-        stats_nip = self.estimate_obs_nip(
-            batch_size=self.trainer_config.batch_size_eval,
-            n_iter=self.trainer_config.n_iter_eval,
-        )
+            logger.info(f"ESS p eval: {self.trainer_config.eval_ess_p}")
+            stats_nip = self.estimate_obs_nip(
+                batch_size=self.trainer_config.batch_size_eval,
+                n_iter=self.trainer_config.n_iter_eval,
+                ess_p=self.trainer_config.eval_ess_p
+            )
 
-        for sampler, _stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
-            self.log_all_values_in_stats_dict(_stats, sampler)
+            for sampler, _stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
+                self.log_all_values_in_stats_dict(_stats, sampler)
 
         if len(self.trainer.val_dataloaders) == 1:
             outputs = [outputs]
