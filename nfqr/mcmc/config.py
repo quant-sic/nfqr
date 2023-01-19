@@ -48,6 +48,8 @@ class MCMCConfig(BaseConfig):
     stats_step_interval:int=100
     max_stats_eval:int=1e6
     
+    stats_method:Literal["wolff","blocked"] = "wolff"
+
     @validator("observables", pre=True)
     @classmethod
     def str_to_list(cls, v):
