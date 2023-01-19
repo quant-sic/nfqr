@@ -5,9 +5,10 @@
     "observables": "Chi_t",
     "n_steps": 15e6,
     "n_repeat": 1,
-    "stats_step_interval": 1000,
+    "stats_step_interval": 25000,
     "max_stats_eval": 5e6,
-    "min_error": 0.05,
+    "min_error": 0.01,
+    "stats_method": "blocked",
     "dim": [
         [
             10
