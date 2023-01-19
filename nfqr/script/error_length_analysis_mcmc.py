@@ -145,4 +145,6 @@ if __name__ == "__main__":
                 stats["obs_stats"]["Chi_t"]["error"],
             )
 
-        results_df.to_pickle(mcmc_config.out_dir / "results_df.pkl")
+        results_df.to_pickle(
+            mcmc_config.out_dir / f"results_df_{mcmc_config.stats_method}.pkl"
+        )
