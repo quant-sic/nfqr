@@ -1,7 +1,9 @@
 import os
 from argparse import ArgumentParser
+from collections import defaultdict
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
@@ -9,10 +11,54 @@ from tqdm import tqdm
 from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.mcmc import MCMC_REGISTRY
 from nfqr.mcmc.config import MCMCConfig, MCMCResult
+from nfqr.normalizing_flows.target_density import TargetDensity
+from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
 from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.utils import create_logger, setup_env
 
 logger = create_logger(__name__)
+
+
+def get_tau_int(beta, dim):
+
+    autocorrelations_dir = EXPERIMENTS_DIR / "mcmc/hmc/clp_2/mcmc"
+
+    for task_dir_path in autocorrelations_dir.glob("*"):
+        try:
+            result = MCMCResult.from_directory(task_dir_path)
+        except FileNotFoundError:
+            continue
+
+        target = TargetDensity.boltzmann_from_action(
+            ACTION_REGISTRY[result.mcmc_config.action_config.target_system][
+                result.mcmc_config.action_config.action_type
+            ](**dict(result.mcmc_config.action_config.specific_action_config))
+        )
+
+        if target.dist.action.beta == beta and result.mcmc_config.dim[0] == dim:
+            return int(result.obs_stats["Chi_t"]["tau_int"])
+
+    return None
+
+
+def block_statistics(data, tau_int, factor: float = 2, idx_in_block=0):
+
+    block_size = tau_int * factor
+    splits = torch.split(data, split_size_or_sections=block_size)
+    data_subsampled_list = []
+    for split in splits:
+        data_subsampled_list.append(split[idx_in_block])
+
+    mean_block = torch.tensor(data_subsampled_list).mean()
+    std_block = torch.tensor(data_subsampled_list).std() / np.sqrt(
+        len(data_subsampled_list)
+    )
+
+    stats = defaultdict(lambda: defaultdict(dict))
+    stats["obs_stats"]["Chi_t"]["mean"] = mean_block
+    stats["obs_stats"]["Chi_t"]["error"] = std_block
+
+    return stats
 
 
 if __name__ == "__main__":
@@ -52,6 +98,7 @@ if __name__ == "__main__":
         ),
     )
 
+    logger.info(f"Starting {mcmc_config.stats_method} error analysis.")
     for eval_idx in results_df.index.levels[0]:
         mcmc.eval_idx = eval_idx
 
@@ -60,11 +107,22 @@ if __name__ == "__main__":
 
             mcmc.stats_limit = n_steps_stats
 
-            stats = mcmc.get_stats()
+            if mcmc_config.stats_method == "wolff":
+                stats = mcmc.get_stats()
+            elif mcmc_config.stats_method == "blocked":
+                tau_int = get_tau_int(mcmc.action.beta, mcmc_config.dim[0])
+                if tau_int is None:
+                    raise ValueError("tau_int not found.")
+
+                data = mcmc.observables_rec.__getitem__(
+                    "Chi_t", max_steps=mcmc.stats_limit, rep_idx=mcmc.eval_idx
+                )
+                stats = block_statistics(data=data, tau_int=tau_int)
+
             if isinstance(stats["acc_rate"], torch.Tensor):
                 stats["acc_rate"] = stats["acc_rate"].item()
 
-            if n_steps_stats > 100000:
+            if n_steps_stats > 50000:
                 try:
                     relative_error = (
                         stats["obs_stats"]["Chi_t"]["error"]
@@ -72,8 +130,8 @@ if __name__ == "__main__":
                     )
 
                     steps_bar.set_description(
-                        "Relative error: {:.2e} at steps {} .".format(
-                            relative_error, n_steps_stats
+                        "Relative error: {:.2e} at steps {} . Target {:.2}.".format(
+                            relative_error, n_steps_stats, mcmc_config.min_error
                         )
                     )
 
@@ -87,4 +145,6 @@ if __name__ == "__main__":
                 stats["obs_stats"]["Chi_t"]["error"],
             )
 
-        results_df.to_pickle(mcmc_config.out_dir / "results_df.pkl")
+        results_df.to_pickle(
+            mcmc_config.out_dir / f"results_df_{mcmc_config.stats_method}.pkl"
+        )
