@@ -38,6 +38,7 @@ class HMC(MCMC):
         initial_config_sampler_config=None,
         delete_existing_data=True,
         int_time: Union[float, None] = None,
+        n_record_skips: int = 1,
         **kwargs,
     ) -> None:
         super(HMC, self).__init__(
@@ -57,6 +58,7 @@ class HMC(MCMC):
         self._n_traj_steps = n_traj_steps
         self.n_samples_at_a_time = n_samples_at_a_time
         self.int_time = int_time
+        self.n_record_skips=n_record_skips
 
         self.target_system = action_config.target_system
         self.action = ACTION_REGISTRY[action_config.target_system][
@@ -182,7 +184,8 @@ class HMC(MCMC):
         )
         self.current_config = self.hmc.current_config
 
-        if record_observables:
+        record_step = (self.n_current_steps%self.n_record_skips==0)
+        if record_observables and record_step:
             self.observables_rec.record_config(self.hmc.current_config)
 
     def _step_cpp(self, config=None, record_observables=True):
@@ -199,7 +202,8 @@ class HMC(MCMC):
             else:
                 self._trove = torch.Tensor(self.hmc.expectation_values)
 
-        if record_observables:
+        record_step = (self.n_current_steps%self.n_record_skips==0)
+        if record_observables and record_step:
             self.observables_rec.record_obs(
                 self.observable, self._trove[..., step_in_trove]
             )

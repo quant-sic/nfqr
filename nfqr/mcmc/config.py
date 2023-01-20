@@ -40,6 +40,7 @@ class MCMCConfig(BaseConfig):
     n_replicas: Optional[int] = 1
     n_samples_at_a_time: Optional[int] = 10000
     int_time:Optional[Union[float,None]]=None
+    n_record_skips: int = 1
 
     initial_config_sampler_config: InitialConfigSamplerConfig
 
