@@ -85,16 +85,28 @@ class MCMC(Sampler):
 
     def __iter__(self):
 
-        self.initialize()
-
         for _ in range(self.n_steps):
             self.step()
             self.n_current_steps += 1
             yield self.current_config
 
     def run(self):
+
+        self.initialize()
+
         for _ in tqdm(self, total=self.n_steps, desc="Running MCMC"):
             pass
+
+    def continue_for_nsteps(self, n_continue_steps, disable_tqdm=False):
+
+        for _ in tqdm(
+            range(n_continue_steps),
+            total=n_continue_steps,
+            desc="Running MCMC",
+            disable=disable_tqdm,
+        ):
+            self.step()
+            self.n_current_steps += 1
 
     @property
     def n_skipped(self):

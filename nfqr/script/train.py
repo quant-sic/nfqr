@@ -1,21 +1,21 @@
 import os
+import re
 from argparse import ArgumentParser
 from pathlib import Path
 
+import numpy as np
 import torch
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
 from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.train.config import LitModelConfig
 from nfqr.train.model_lit import LitFlow
-from nfqr.utils.misc import create_logger
-import numpy as np
+from nfqr.train.utils import CheckpointSteps
 from nfqr.utils import setup_env
-from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
-import re
-
+from nfqr.utils.misc import create_logger
 
 logger = create_logger(__name__)
 
@@ -25,7 +25,6 @@ def iterate_config_models(exp_dir, model_ckpt_path):
     train_config = LitModelConfig.from_directory_for_task(
         exp_dir,
         task_id=int(os.environ["task_id"]),
-        num_tasks=int(os.environ["num_tasks"]),
     )
 
     for idx, trainer_config in enumerate(train_config.trainer_configs):
@@ -33,58 +32,88 @@ def iterate_config_models(exp_dir, model_ckpt_path):
         lit_model_config = dict(train_config)
         lit_model_config.update({"trainer_config": trainer_config})
 
-        if train_config.continue_beta is not None and train_config.continuation_exp is not None:
+        if (
+            train_config.continue_beta is not None
+            and train_config.continuation_exp is not None
+        ):
             logger.info(
-                f"Continuing training for beta={train_config.continue_beta} for experiment = {train_config.continuation_exp}")
+                f"Continuing training for beta={train_config.continue_beta} for experiment = {train_config.continuation_exp}"
+            )
 
             events_file_path = (
-                EXPERIMENTS_DIR / train_config.continuation_exp).glob("**/events*").__next__()
+                (EXPERIMENTS_DIR / train_config.continuation_exp)
+                .glob("**/events*")
+                .__next__()
+            )
 
             acc = EventAccumulator(str(events_file_path)).Reload()
-            _, step_nums, vals = [np.array(e)
-                                  for e in zip(*acc.Scalars("beta"))]
+            _, step_nums, vals = [np.array(e) for e in zip(*acc.Scalars("beta"))]
 
-            steps, saved_regular_model_paths = zip(*list((int(re.search("step=([0-9]*).", p.name).groups(
-            )[0]), p) for p in (EXPERIMENTS_DIR / train_config.continuation_exp).glob("**/regular/*.ckpt")))
+            steps, saved_regular_model_paths = zip(
+                *list(
+                    (int(re.search("step=([0-9]*).", p.name).groups()[0]), p)
+                    for p in (EXPERIMENTS_DIR / train_config.continuation_exp).glob(
+                        "**/regular/*.ckpt"
+                    )
+                )
+            )
 
-            plot_steps_ = np.argwhere((step_nums[:, None] > np.array(steps)[
-                None, :]).cumsum(axis=0) == 1)
+            plot_steps_ = np.argwhere(
+                (step_nums[:, None] > np.array(steps)[None, :]).cumsum(axis=0) == 1
+            )
 
             plot_steps = plot_steps_[np.argsort(plot_steps_[:, 1]), 0]
 
             beta_values = vals[plot_steps]
 
-            #choose model which is closest but needs to be larger beta
-            step_diffs = beta_values-train_config.continue_beta
-            step_diffs[step_diffs<0] = np.inf
+            # choose model which is closest but needs to be larger beta
+            step_diffs = beta_values - train_config.continue_beta
+            step_diffs[step_diffs < 0] = np.inf
             closest_idx = np.argmin(step_diffs)
-            
+
             beta_ckpt_path = saved_regular_model_paths[closest_idx]
-            lit_model_config["action_config"].specific_action_config.beta = train_config.continue_beta
+            lit_model_config[
+                "action_config"
+            ].specific_action_config.beta = train_config.continue_beta
 
             logger.info(f"Using saved checkpoint {beta_ckpt_path}")
             flow_model = LitFlow.load_from_checkpoint(
-                beta_ckpt_path, **lit_model_config)
+                beta_ckpt_path, **lit_model_config
+            )
 
-        elif (train_config.continue_model is not None) and (train_config.continuation_exp is not None) and ("beta_scheduled" in str(train_config.continuation_exp)):
+        elif (
+            (train_config.continue_model is not None)
+            and (train_config.continuation_exp is not None)
+            and ("beta_scheduled" in str(train_config.continuation_exp))
+        ):
 
-            continue_model_path = (EXPERIMENTS_DIR/train_config.continuation_exp).glob(f"**/{train_config.continue_model}*").__next__()
+            continue_model_path = (
+                (EXPERIMENTS_DIR / train_config.continuation_exp)
+                .glob(f"**/{train_config.continue_model}*")
+                .__next__()
+            )
             events_file_path = (
-                EXPERIMENTS_DIR / train_config.continuation_exp).glob("**/events*").__next__()
+                (EXPERIMENTS_DIR / train_config.continuation_exp)
+                .glob("**/events*")
+                .__next__()
+            )
 
             acc = EventAccumulator(str(events_file_path)).Reload()
             _, step_nums, vals = [np.array(e) for e in zip(*acc.Scalars("beta"))]
 
-            step = int(re.search("step=([0-9]*).",continue_model_path.name).groups()[0])
-            
-            plot_step = np.argwhere((step_nums>=(step-1)).cumsum(axis=0)==1)[0][0]
+            step = int(
+                re.search("step=([0-9]*).", continue_model_path.name).groups()[0]
+            )
+
+            plot_step = np.argwhere((step_nums >= (step - 1)).cumsum(axis=0) == 1)[0][0]
             beta = vals[plot_step]
 
             lit_model_config["action_config"].specific_action_config.beta = beta
             logger.info(f"Setting beta to {beta}")
-            
+
             flow_model = LitFlow.load_from_checkpoint(
-                continue_model_path, **lit_model_config)
+                continue_model_path, **lit_model_config
+            )
 
         elif idx == 0:
             flow_model = LitFlow(**lit_model_config)
@@ -110,11 +139,12 @@ def train_flow_model(exp_dir, skip_done=True):
         seed_everything(42, workers=True)
         model_ckpt_path = ((exp_dir / "logs") / log_dir) / "model.ckpt"
 
-        for idx, (lit_model_config, trainer_config, flow_model) in enumerate(iterate_config_models(exp_dir, model_ckpt_path)):
+        for idx, (lit_model_config, trainer_config, flow_model) in enumerate(
+            iterate_config_models(exp_dir, model_ckpt_path)
+        ):
 
             if trainer_config.reseed_random:
-                seed_everything(np.random.randint(10**(8)), workers=True)
-
+                seed_everything(np.random.randint(10 ** (8)), workers=True)
 
             logger.info(
                 "Task {}: Interval {} with: \n\n {} \n\n".format(
@@ -127,15 +157,42 @@ def train_flow_model(exp_dir, skip_done=True):
             )
 
             callbacks = [
-                ModelCheckpoint(dirpath=tb_logger.log_dir + "/checkpoints/regular",
-                                filename="latest-{epoch}-{step}", save_top_k=-1, monitor="step", mode="max", every_n_epochs=trainer_config.save_every_n_epochs),
-                LearningRateMonitor(logging_interval='step')
-            ]+[ModelCheckpoint(dirpath=tb_logger.log_dir + "/checkpoints/max_ess_p",
-                                auto_insert_metric_name=True, save_top_k=3, monitor="nip/ess_p/0-1/ess_p", mode="max")]*trainer_config.eval_ess_p  
+                LearningRateMonitor(logging_interval="step"),
+            ]
+            if trainer_config.eval_ess_p:
+                callbacks.append(
+                    ModelCheckpoint(
+                        dirpath=tb_logger.log_dir + "/checkpoints/max_ess_p",
+                        auto_insert_metric_name=True,
+                        save_top_k=3,
+                        monitor="nip/ess_p/0-1/ess_p",
+                        mode="max",
+                    )
+                )
+            if trainer_config.save_regular:
+                callbacks.append(
+                    ModelCheckpoint(
+                        dirpath=tb_logger.log_dir + "/checkpoints/regular",
+                        filename="latest-{epoch}-{step}",
+                        save_top_k=-1,
+                        monitor="step",
+                        mode="max",
+                        every_n_epochs=trainer_config.save_every_n_epochs,
+                    )
+                )
+            if trainer_config.save_steps:
+                callbacks.append(
+                    CheckpointSteps(
+                        dirpath=Path(tb_logger.log_dir + "/checkpoints/steps"),
+                        mode_kwargs={"r": trainer_config.save_steps_ratio},
+                        number_of_saved_ckpts=trainer_config.number_of_saved_ckpts_steps_ratio,
+                    )
+                )
 
-            #accelerator = ("mps","gpu","cpu")[np.argwhere((torch.backends.mps.is_available(),torch.cuda.is_available(),True)).min()]
-            accelerator = ("gpu", "cpu")[np.argwhere(
-                (torch.cuda.is_available(), True)).min()]
+            # accelerator = ("mps","gpu","cpu")[np.argwhere((torch.backends.mps.is_available(),torch.cuda.is_available(),True)).min()]
+            accelerator = ("gpu", "cpu")[
+                np.argwhere((torch.cuda.is_available(), True)).min()
+            ]
 
             trainer = Trainer(
                 **trainer_config.dict(
@@ -180,6 +237,7 @@ if __name__ == "__main__":
 
     setup_env()
 
+    os.environ["task_id"] = "8"
     parser = ArgumentParser()
 
     parser.add_argument("--exp_dir", type=Path)

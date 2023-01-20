@@ -11,7 +11,7 @@ from nfqr.config import BaseConfig
 from nfqr.data import ConditionConfig, MCMCConfig, PSampler, TrajectorySamplerConfig
 from nfqr.globals import TMP_DIR
 from nfqr.mcmc.initial_config import InitialConfigSamplerConfig
-from nfqr.mcmc.nmcmc import NeuralMCMC
+from nfqr.mcmc.nmcmc import NeuralMCMC, NeuralMCMCParallel
 from nfqr.nip import (
     NeuralImportanceSampler,
     calc_ess_p_from_unnormalized_log_weights,
@@ -40,6 +40,14 @@ class EvalConfig(BaseConfig):
 
     start_from_target_beta: bool = False
     max_rel_error: float = 0.05
+
+    stats_method: Literal["wolff", "blocked"] = "wolff"
+    max_stats_eval: int = 1e6
+    stats_step_interval: int = 10000
+    stats_skip_steps: int = 1
+    n_replicas: int = 5
+    min_stats_length: int = 100
+    mode: Literal["increment_nmcmc", "discrete_runs"] = "increment_nmcmc"
 
     @validator("observables", "methods", pre=True)
     @classmethod
@@ -97,6 +105,8 @@ class EvalResult(BaseConfig):
     nmcmc: Optional[EvalStats]
 
     exact_sus: Optional[float]
+
+    skipped_steps: Optional[int]
 
     @validator("observables", pre=True)
     @classmethod
@@ -304,15 +314,15 @@ def estimate_obs_nmcmc(
     return stats
 
 
-def run_nmcmc_for_model(model, observables, target, trove_size, n_steps, out_file=None):
+def run_nmcmc_for_model(model, observables, target, trove_size, n_steps, out_dir=None):
 
     model.eval()
     model.double()
 
-    if out_file is None:
+    if out_dir is None:
         rec_tmp = get_tmp_path_from_name_and_environ("estimate_obs_nmcmc")
     else:
-        rec_tmp = out_file
+        rec_tmp = out_dir
 
     nmcmc = NeuralMCMC(
         model=model,
@@ -321,6 +331,35 @@ def run_nmcmc_for_model(model, observables, target, trove_size, n_steps, out_fil
         n_steps=n_steps,
         observables=observables,
         out_dir=rec_tmp,
+    )
+
+    with torch.no_grad():
+
+        nmcmc.run()
+
+    model.float()
+
+
+def run_nmcmc_n_replicas_for_model(
+    model, observables, target, trove_size, n_steps, n_replicas, out_dir=None
+):
+
+    model.eval()
+    model.double()
+
+    if out_dir is None:
+        rec_tmp = get_tmp_path_from_name_and_environ("estimate_obs_nmcmc")
+    else:
+        rec_tmp = out_dir
+
+    nmcmc = NeuralMCMCParallel(
+        model=model,
+        target=target,
+        trove_size=trove_size,
+        n_steps=n_steps,
+        observables=observables,
+        out_dir=rec_tmp,
+        n_replicas=n_replicas,
     )
 
     with torch.no_grad():

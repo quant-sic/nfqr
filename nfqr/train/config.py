@@ -56,7 +56,12 @@ class TrainerConfig(BaseModel):
     p_sampler_set_size: int = 250000
 
     save_every_n_epochs: int = 25
+    save_steps: bool = False
+    save_steps_ratio: float = 0.5
+    save_regular: bool = True
 
+    log_histograms: bool = True
+    number_of_saved_ckpts_steps_ratio:int=25
 
 class LitModelConfig(BaseConfig):
 

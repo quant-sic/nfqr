@@ -1,7 +1,9 @@
 from collections import defaultdict
 from functools import cached_property
+from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.utilities.types import (
@@ -31,7 +33,6 @@ from nfqr.train.scheduler import (
     MaxFluctuationLRScheduler,
 )
 from nfqr.utils import create_logger
-from pathlib import Path
 
 logger = create_logger(__name__)
 
@@ -51,7 +52,7 @@ class LitFlow(pl.LightningModule):
     ) -> None:
         super().__init__()
 
-        self.automatic_optimization=automatic_optimization
+        self.automatic_optimization = automatic_optimization
 
         self.trainer_config = trainer_config
         self.action_config = action_config
@@ -64,27 +65,30 @@ class LitFlow(pl.LightningModule):
             self.set_final_beta()
         elif mode == "train":
             if self.trainer_config is None:
-                raise ValueError(
-                    "Trainer Config None not allowed for mode == train!")
+                raise ValueError("Trainer Config None not allowed for mode == train!")
 
             self.learning_rate = trainer_config.learning_rate
 
         if initial_weights is not None:
-            initial_weights_state_dict = LitFlow.load_from_checkpoint(initial_weights, dim=dim,
-                                                                      flow_config=flow_config,
-                                                                      observables=observables,
-                                                                      action_config=action_config,
-                                                                      trainer_config=trainer_config,
-                                                                      mode=mode,
-                                                                      initial_weights=None,
-                                                                      **kwargs).model.state_dict()
+            initial_weights_state_dict = LitFlow.load_from_checkpoint(
+                initial_weights,
+                dim=dim,
+                flow_config=flow_config,
+                observables=observables,
+                action_config=action_config,
+                trainer_config=trainer_config,
+                mode=mode,
+                initial_weights=None,
+                **kwargs,
+            ).model.state_dict()
             self.set_model_weights(state_dict=initial_weights_state_dict)
 
     def set_model_weights(self, state_dict):
 
         if not all(k in state_dict for k in self.model.state_dict()):
             raise ValueError(
-                f"State dict {state_dict} does not match self.model state_dict: Keys {set(self.model.state_dict().keys())-set(state_dict.keys())} are missing")
+                f"State dict {state_dict} does not match self.model state_dict: Keys {set(self.model.state_dict().keys())-set(state_dict.keys())} are missing"
+            )
 
         self.model.load_state_dict(state_dict)
 
@@ -175,8 +179,7 @@ class LitFlow(pl.LightningModule):
                 set(
                     list(
                         filter(
-                            lambda _scheduler: isinstance(
-                                _scheduler, _scheduler_class),
+                            lambda _scheduler: isinstance(_scheduler, _scheduler_class),
                             _schedulers,
                         )
                     )
@@ -185,8 +188,7 @@ class LitFlow(pl.LightningModule):
             <= 1
             for _scheduler_class in (BetaScheduler, LossScheduler)
         ):
-            raise RuntimeError(
-                "Only one scheduler instance per type is allowed")
+            raise RuntimeError("Only one scheduler instance per type is allowed")
 
         return _schedulers
 
@@ -233,7 +235,7 @@ class LitFlow(pl.LightningModule):
             dim=self.dim,
             action_config=self.action_config,
             batch_size=self.trainer_config.batch_size_eval,
-            elements_per_dataset=self.trainer_config.p_sampler_set_size
+            elements_per_dataset=self.trainer_config.p_sampler_set_size,
         )
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
@@ -305,8 +307,7 @@ class LitFlow(pl.LightningModule):
             )
         else:
             raise ValueError(
-                "Unknown optimizer type {}".format(
-                    self.trainer_config.optimizer)
+                "Unknown optimizer type {}".format(self.trainer_config.optimizer)
             )
 
         lr_scheduler_dict = self.trainer_config.lr_scheduler
@@ -337,9 +338,7 @@ class LitFlow(pl.LightningModule):
                     "max_fluctuation_step", 0.001
                 ),
                 cooldown_steps=lr_scheduler_dict.get("patience", 75),
-                metric_window_length=lr_scheduler_dict.get(
-                    "metric_window_length", 100
-                ),
+                metric_window_length=lr_scheduler_dict.get("metric_window_length", 100),
                 change_rate=lr_scheduler_dict.get("factor", 0.9),
                 min_lr=lr_scheduler_dict.get("min_lr", 5e-5),
             )
@@ -360,7 +359,9 @@ class LitFlow(pl.LightningModule):
     def lr_scheduler_step(self, scheduler, optimizer_idx, metric):
 
         # if initial epochs are over and not beta scheduling in progress -> lr step
-        if self.current_epoch > self.trainer_config.lr_scheduler.get("initial_waiting_epochs", 0) and (self.final_beta == self.target.dist.action.beta):
+        if self.current_epoch > self.trainer_config.lr_scheduler.get(
+            "initial_waiting_epochs", 0
+        ) and (self.final_beta == self.target.dist.action.beta):
             if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
                 scheduler.step(metrics=metric)
             else:
@@ -374,8 +375,7 @@ class LitFlow(pl.LightningModule):
         """
         if isinstance(node, dict):
             for key, _node in node.items():
-                self.log_all_values_in_stats_dict(
-                    _node, f"{str_path_to_node}/{key}")
+                self.log_all_values_in_stats_dict(_node, f"{str_path_to_node}/{key}")
 
         elif isinstance(node, (int, float, torch.Tensor)):
 
@@ -391,8 +391,7 @@ class LitFlow(pl.LightningModule):
                 and "mean" in str_path_to_node.split("/")[-1]
             ):
                 self.log(
-                    f"{str_path_to_node}/abs_diff_to_exact", abs(
-                        node - self.sus_exact)
+                    f"{str_path_to_node}/abs_diff_to_exact", abs(node - self.sus_exact)
                 )
                 self.log(f"{str_path_to_node}/sus_exact", self.sus_exact)
 
@@ -406,8 +405,7 @@ class LitFlow(pl.LightningModule):
             if hasattr(module, "logging_parameters"):
                 self.log_all_values_in_stats_dict(
                     node=module.logging_parameters,
-                    str_path_to_node="flow/" + name +
-                    "_" + type(module).__name__,
+                    str_path_to_node="flow/" + name + "_" + type(module).__name__,
                 )
 
     def validation_step(
@@ -422,8 +420,7 @@ class LitFlow(pl.LightningModule):
 
         for obs_name, obs_fn in self.observables_fn.items():
             with torch.no_grad():
-                val_step_output[obs_name] = obs_fn.evaluate(
-                    batch_dict["x_samples"])
+                val_step_output[obs_name] = obs_fn.evaluate(batch_dict["x_samples"])
 
         return val_step_output
 
@@ -440,11 +437,10 @@ class LitFlow(pl.LightningModule):
                 n_iter=self.trainer_config.n_iter_eval,
             )
 
-            logger.info(f"ESS p eval: {self.trainer_config.eval_ess_p}")
             stats_nip = self.estimate_obs_nip(
                 batch_size=self.trainer_config.batch_size_eval,
                 n_iter=self.trainer_config.n_iter_eval,
-                ess_p=self.trainer_config.eval_ess_p
+                ess_p=self.trainer_config.eval_ess_p,
             )
 
             for sampler, _stats in zip(("nip", "nmcmc"), (stats_nip, stats_nmcmc)):
@@ -453,23 +449,30 @@ class LitFlow(pl.LightningModule):
         if len(self.trainer.val_dataloaders) == 1:
             outputs = [outputs]
 
-        for dataloader_idx, val_steps_output in enumerate(outputs):
-            val_steps_output_transposed = defaultdict(list)
+        if self.trainer_config.log_histograms:
+            for dataloader_idx, val_steps_output in enumerate(outputs):
+                val_steps_output_transposed = defaultdict(list)
 
-            for output in val_steps_output:
-                for key, val in output.items():
-                    val_steps_output_transposed[key] += [val]
+                for output in val_steps_output:
+                    for key, val in output.items():
+                        val_steps_output_transposed[key] += [val]
 
-            for key, val in val_steps_output_transposed.items():
-                if key in self.observables_fn.keys() and hasattr(
-                    self.observables_fn[key], "hist_bin_range"
-                ):
-                    self.logger.experiment.add_histogram(
-                        tag=f"{dataloader_idx}_{type(self.trainer.val_dataloaders[dataloader_idx]).__name__}/{key}",
-                        values=torch.concat(val),
-                        global_step=self.global_step,
-                        bins=self.observables_fn[key].hist_bin_range(self.dim),
-                    )
+                for key, val in val_steps_output_transposed.items():
+                    if key in self.observables_fn.keys() and hasattr(
+                        self.observables_fn[key], "hist_bin_range"
+                    ):
+                        bins = (
+                            self.observables_fn[key]
+                            .hist_bin_range(self.dim)
+                            .astype(np.int32)
+                        )
+                        logger.info(bins.dtype)
+                        self.logger.experiment.add_histogram(
+                            tag=f"{dataloader_idx}_{type(self.trainer.val_dataloaders[dataloader_idx]).__name__}/{key}",
+                            values=torch.concat(val),
+                            global_step=self.global_step,
+                            bins=self.observables_fn[key].hist_bin_range(self.dim),
+                        )
 
         # if "von_mises" in self.config.flow_config.base_dist_config.type:
         #     with torch.no_grad():
@@ -484,14 +487,12 @@ class LitFlow(pl.LightningModule):
 
         self.log(
             "loss_epoch",
-            self.metrics.last_mean(
-                "loss", self.trainer_config.train_num_batches),
+            self.metrics.last_mean("loss", self.trainer_config.train_num_batches),
         )
 
         self.log(
             "loss_std_epoch",
-            self.metrics.last_mean(
-                "loss_std", self.trainer_config.train_num_batches),
+            self.metrics.last_mean("loss_std", self.trainer_config.train_num_batches),
         )
 
         for scheduler in [self.lr_schedulers()]:
@@ -501,7 +502,7 @@ class LitFlow(pl.LightningModule):
 
         return super().on_train_epoch_end()
 
-    def estimate_obs_nip(self, batch_size, n_iter,ess_p=True):
+    def estimate_obs_nip(self, batch_size, n_iter, ess_p=True):
 
         stats_nip = estimate_obs_nip(
             model=self.model,
@@ -509,7 +510,7 @@ class LitFlow(pl.LightningModule):
             observables=self.observables,
             batch_size=batch_size,
             n_iter=n_iter,
-            stats_limits=self.trainer_config.stats_limits
+            stats_limits=self.trainer_config.stats_limits,
         )
 
         if ess_p:
@@ -525,7 +526,7 @@ class LitFlow(pl.LightningModule):
             target=self.target,
             trove_size=batch_size,
             n_steps=n_iter * batch_size,
-            stats_limits=self.trainer_config.stats_limits
+            stats_limits=self.trainer_config.stats_limits,
         )
 
         return stats_nmcmc
@@ -537,9 +538,8 @@ class LitFlow(pl.LightningModule):
             data_sampler=self.ess_p_sampler,
             target=self.target,
             batch_size=self.ess_p_sampler.batch_size,
-            n_iter=int(len(self.ess_p_sampler.dataset) /
-                       self.ess_p_sampler.batch_size),
-            stats_limits=self.trainer_config.stats_limits
+            n_iter=int(len(self.ess_p_sampler.dataset) / self.ess_p_sampler.batch_size),
+            stats_limits=self.trainer_config.stats_limits,
         )
 
         return ess_p
