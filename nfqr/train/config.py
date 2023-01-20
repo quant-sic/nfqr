@@ -43,9 +43,9 @@ class TrainerConfig(BaseModel):
     gradient_clip_algorithm: str = "norm"
     track_grad_norm: int = 2
 
-    eval_ess_p:bool=True
-    reseed_random:bool=False
-    eval_bias_correction:bool=True
+    eval_ess_p: bool = True
+    reseed_random: bool = False
+    eval_bias_correction: bool = True
 
     optimizer: str = "Adam"
     lr_scheduler: Optional[Dict[str, Union[float, int, str]]] = {
@@ -61,7 +61,9 @@ class TrainerConfig(BaseModel):
     save_regular: bool = True
 
     log_histograms: bool = True
-    number_of_saved_ckpts_steps_ratio:int=25
+    number_of_saved_ckpts_steps_ratio: int = (25,)
+    random_seed: int = 42
+
 
 class LitModelConfig(BaseConfig):
 
