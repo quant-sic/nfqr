@@ -69,8 +69,6 @@ if __name__ == "__main__":
 
     setup_env()
 
-    os.environ["task_id"] = "1"
-
     parser = ArgumentParser()
 
     parser.add_argument("--exp_dir", type=Path)
@@ -99,7 +97,11 @@ if __name__ == "__main__":
         index=pd.MultiIndex.from_product(
             (
                 range(mcmc_config.n_replicas),
-                range(mcmc_config.stats_step_interval, mcmc_config.max_stats_eval, mcmc_config.stats_step_interval),
+                range(
+                    mcmc_config.min_stats_length,
+                    mcmc_config.max_stats_eval,
+                    mcmc_config.stats_step_interval,
+                ),
             ),
         ),
     )
@@ -114,11 +116,10 @@ if __name__ == "__main__":
         mcmc.eval_idx = eval_idx
 
         data = mcmc.observables_rec.__getitem__("Chi_t", rep_idx=mcmc.eval_idx)
-        print(data.shape)
 
         steps_bar = tqdm(results_df.index.levels[1])
         for n_steps_stats in steps_bar:
-
+            # logger.info(n_steps_stats)
             mcmc.stats_limit = n_steps_stats
             mcmc.stats_skip_steps = mcmc_config.stats_skip_steps
 
@@ -131,7 +132,7 @@ if __name__ == "__main__":
             if isinstance(stats["acc_rate"], torch.Tensor):
                 stats["acc_rate"] = stats["acc_rate"].item()
 
-            if n_steps_stats > 50000:
+            if n_steps_stats > 0.1 * mcmc_config.max_stats_eval:
                 try:
                     relative_error = (
                         stats["obs_stats"]["Chi_t"]["error"]
@@ -139,8 +140,11 @@ if __name__ == "__main__":
                     )
 
                     steps_bar.set_description(
-                        "Relative error: {:.2e} at steps {} . Target {:.2}.".format(
-                            relative_error, n_steps_stats, mcmc_config.min_error
+                        "Relative error: {:.2e} at steps {} . Target {:.2}. Tau_int: {:.2f}.".format(
+                            relative_error,
+                            n_steps_stats,
+                            mcmc_config.min_error,
+                            stats["obs_stats"]["Chi_t"]["tau_int"],
                         )
                     )
 

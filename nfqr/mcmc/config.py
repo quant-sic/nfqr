@@ -48,6 +48,7 @@ class MCMCConfig(BaseConfig):
     stats_step_interval: int = 100
     max_stats_eval: int = 1e6
     stats_skip_steps: int = 1
+    min_stats_length:int=1
 
     stats_method: Literal["wolff", "blocked"] = "wolff"
 
