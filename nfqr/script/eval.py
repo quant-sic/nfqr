@@ -263,7 +263,7 @@ def eval_increment_nmcmc(task_dir, lit_model, eval_config):
                     )
                 )
 
-                if n_steps_stats > 100000:
+                if n_steps_stats > 1000:
                     if relative_error < eval_config.max_rel_error:
                         converged_chains.append(eval_idx)
             except ZeroDivisionError:
