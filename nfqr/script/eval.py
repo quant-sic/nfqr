@@ -247,27 +247,27 @@ def eval_increment_nmcmc(task_dir, lit_model, eval_config):
             if isinstance(stats["acc_rate"], torch.Tensor):
                 stats["acc_rate"] = stats["acc_rate"].item()
 
-            if n_steps_stats > 0.05 * int(eval_config.max_stats_eval / tau_int):
-                try:
-                    relative_error = (
-                        stats["obs_stats"]["Chi_t"]["error"]
-                        / stats["obs_stats"]["Chi_t"]["mean"]
-                    )
+            try:
+                relative_error = (
+                    stats["obs_stats"]["Chi_t"]["error"]
+                    / stats["obs_stats"]["Chi_t"]["mean"]
+                )
 
-                    steps_bar.set_description(
-                        "Relative error: {:.2e} at steps {:d} . Target {:.2}. Tau_int: {:.2f}. Converged Chains {}".format(
-                            relative_error,
-                            n_steps_stats,
-                            eval_config.max_rel_error,
-                            stats["obs_stats"]["Chi_t"]["tau_int"],
-                            converged_chains,
-                        )
+                steps_bar.set_description(
+                    "Relative error: {:.2e} at steps {:d} . Target {:.2}. Tau_int: {:.2f}. Converged Chains {}".format(
+                        relative_error,
+                        n_steps_stats,
+                        eval_config.max_rel_error,
+                        stats["obs_stats"]["Chi_t"]["tau_int"],
+                        converged_chains,
                     )
+                )
 
+                if n_steps_stats > 100000:
                     if relative_error < eval_config.max_rel_error:
                         converged_chains.append(eval_idx)
-                except ZeroDivisionError:
-                    pass
+            except ZeroDivisionError:
+                pass
 
             results_df.loc[(eval_idx, n_steps_stats), "stats"] = (
                 stats["obs_stats"]["Chi_t"]["mean"],
