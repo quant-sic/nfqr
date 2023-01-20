@@ -10,19 +10,8 @@ from nfqr.utils import create_logger, setup_env
 
 logger = create_logger(__name__)
 
-
-if __name__ == "__main__":
-
-    setup_env()
-
-    parser = ArgumentParser()
-
-    parser.add_argument("--exp_dir", type=Path)
-    parser.add_argument("--redo_analysis", default=False, type=bool)
-    parser.add_argument("--get_stats", default=False, type=bool)
-
-    args = parser.parse_args()
-
+def run_mcmc(args):
+    
     exp_dir = EXPERIMENTS_DIR / args.exp_dir
 
     mcmc_config = MCMCConfig.from_directory_for_task(
@@ -34,17 +23,39 @@ if __name__ == "__main__":
         results=[],
     )
 
-    mcmc = MCMC_REGISTRY[mcmc_config.mcmc_alg][mcmc_config.mcmc_type](
-        **dict(mcmc_config)
-    )
-    mcmc.run()
+    if mcmc_config.out_dir.exists():
+        logger.info("Result exists")
+        return
 
-    if args.get_stats:
-        stats = mcmc.get_stats()
-        stats["acc_rate"] = stats["acc_rate"].item()
+    # mcmc = MCMC_REGISTRY[mcmc_config.mcmc_alg][mcmc_config.mcmc_type](
+    #     **dict(mcmc_config)
+    # )
+    # mcmc.run()
 
-        sus_exact = SusceptibilityExact(mcmc.action.beta, *mcmc_config.dim).evaluate()
+    # if args.get_stats:
+    #     stats = mcmc.get_stats()
+    #     stats["acc_rate"] = stats["acc_rate"].item()
 
-        result_config.results.append({"stats": [stats], "sus_exact": sus_exact})
+    #     sus_exact = SusceptibilityExact(mcmc.action.beta, *mcmc_config.dim).evaluate()
 
-        result_config.save(mcmc_config.out_dir)
+    #     result_config.results.append({"stats": [stats], "sus_exact": sus_exact})
+
+    #     result_config.save(mcmc_config.out_dir)
+
+
+
+if __name__ == "__main__":
+
+    setup_env()
+
+    parser = ArgumentParser()
+
+    parser.add_argument("--exp_dir", type=Path)
+    parser.add_argument("--redo_analysis", default=False, type=bool)
+    parser.add_argument("--get_stats", default=False, type=bool)
+    parser.add_argument("--skip_existing", default=True, type=bool)
+
+    args = parser.parse_args()
+
+    run_mcmc(args)
+
