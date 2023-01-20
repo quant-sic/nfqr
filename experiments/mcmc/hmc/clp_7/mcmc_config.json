@@ -1,0 +1,103 @@
+{
+    "mcmc_alg": "hmc",
+    "mcmc_type": "leapfrog",
+    "hmc_engine": "cpp_batch",
+    "observables": "Chi_t",
+    "n_steps": [
+        3639000,
+        7834000,
+        14324000,
+        29381000,
+        45205000,
+        117082000,
+        199340000,
+        325230000,
+        511709000,
+        780315000
+    ],
+    "n_repeat": 1,
+    "stats_step_interval": 25000,
+    "max_stats_eval": 5e6,
+    "min_error": 0.01,
+    "stats_method": "blocked",
+    "dim": [
+        [
+            31
+        ],
+        [
+            36
+        ],
+        [
+            39
+        ],
+        [
+            43
+        ],
+        [
+            47
+        ],
+        [
+            55
+        ],
+        [
+            60
+        ],
+        [
+            65
+        ],
+        [
+            70
+        ],
+        [
+            75
+        ]
+    ],
+    "action_config": {
+        "target_system": "qr",
+        "action_type": "qr",
+        "specific_action_config": {
+            "T": 4,
+            "mom_inertia": 0.25
+        }
+    },
+    "n_burnin_steps": [
+        72780,
+        156680,
+        286480,
+        587620,
+        904100,
+        2341640,
+        3986800,
+        6504600,
+        10234180,
+        15606300
+    ],
+    "n_traj_steps": 10,
+    "step_size": 0.05,
+    "autotune_step": true,
+    "n_samples_at_a_time": 5e4,
+    "n_replicas": 10,
+    "initial_config_sampler_config": {
+        "trajectory_sampler_config": {
+            "traj_type": "hot"
+        }
+    },
+    "task_parameters": [
+        "dim",
+        "n_steps",
+        "n_burnin_steps",
+        "n_record_skips"
+    ],
+    "n_record_skips": [
+        3639,
+        7834,
+        14324,
+        29381,
+        45205,
+        117082,
+        199340,
+        325230,
+        511709,
+        780315
+    ]
+}

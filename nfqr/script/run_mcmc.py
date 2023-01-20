@@ -24,9 +24,8 @@ def run_mcmc(args):
         results=[],
     )
 
-    print(mcmc_config.out_dir)
     if mcmc_config.out_dir.exists():
-        logger.info("Result exists")
+        logger.info("Result exists already. Skipping!")
         return
 
     mcmc = MCMC_REGISTRY[mcmc_config.mcmc_alg][mcmc_config.mcmc_type](
