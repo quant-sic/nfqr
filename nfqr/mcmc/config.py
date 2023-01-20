@@ -1,7 +1,7 @@
 import json
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Type, TypeVar, Union,Any
+from typing import Any, Dict, List, Literal, Optional, Type, TypeVar, Union
 
 from pydantic import root_validator, validator
 
@@ -16,19 +16,18 @@ from .cluster import CLUSTER_REGISTRY
 ConfigType = TypeVar("ConfigType", bound="MCMCConfig")
 
 
-
 class MCMCConfig(BaseConfig):
 
     _name: str = "mcmc_config"
 
-    n_repeat:int = 1
-    min_error:Optional[float] = None
+    n_repeat: int = 1
+    min_error: Optional[float] = None
 
     mcmc_type: str
     mcmc_alg: Literal["cluster", "hmc"]
 
     observables: List[str]
-    n_steps: Union[int,List[int]]
+    n_steps: Union[int, List[int]]
     dim: List[int]
     action_config: ActionConfig
     n_burnin_steps: int
@@ -39,16 +38,17 @@ class MCMCConfig(BaseConfig):
     hmc_engine: Optional[Literal["cpp_batch", "cpp_single", "python"]] = "cpp_single"
     n_replicas: Optional[int] = 1
     n_samples_at_a_time: Optional[int] = 10000
-    int_time:Optional[Union[float,None]]=None
+    int_time: Optional[Union[float, None]] = None
 
     initial_config_sampler_config: InitialConfigSamplerConfig
 
     task_parameters: Union[List[str], None] = None
 
-    stats_step_interval:int=100
-    max_stats_eval:int=1e6
-    
-    stats_method:Literal["wolff","blocked"] = "wolff"
+    stats_step_interval: int = 100
+    max_stats_eval: int = 1e6
+    stats_skip_steps: int = 1
+
+    stats_method: Literal["wolff", "blocked"] = "wolff"
 
     @validator("observables", pre=True)
     @classmethod
@@ -131,7 +131,7 @@ class MCMCConfig(BaseConfig):
 
         def set_dim(key, list_or_dict):
 
-            if key in ("trajectory_sampler_config","specific_action_config"):
+            if key in ("trajectory_sampler_config", "specific_action_config"):
                 if "dim" not in list_or_dict[key]:
 
                     list_or_dict[key]["dim"] = dim
@@ -159,7 +159,7 @@ class MCMCConfig(BaseConfig):
         Adds dims to sub configs.
         """
 
-        n_replicas = values.get("n_replicas",1)
+        n_replicas = values.get("n_replicas", 1)
 
         def set_n_replicas(key, list_or_dict):
 
@@ -183,14 +183,16 @@ class MCMCConfig(BaseConfig):
 
         return values
 
-Result = Dict[str,Any]
+
+Result = Dict[str, Any]
+
 
 class MCMCResult(BaseConfig):
 
     _name: str = "mcmc_result"
 
     mcmc_config: Optional[MCMCConfig]
-    results:Optional[List[Result]]
-    acceptance_rate:Optional[float]
-    obs_stats:Optional[Dict[str,Any]]
-    sus_exact:Optional[float]
+    results: Optional[List[Result]]
+    acceptance_rate: Optional[float]
+    obs_stats: Optional[Dict[str, Any]]
+    sus_exact: Optional[float]

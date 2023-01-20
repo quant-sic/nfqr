@@ -12,11 +12,15 @@ from nfqr.globals import EXPERIMENTS_DIR
 from nfqr.mcmc import MCMC_REGISTRY
 from nfqr.mcmc.config import MCMCConfig, MCMCResult
 from nfqr.normalizing_flows.target_density import TargetDensity
-from nfqr.target_systems import ACTION_REGISTRY, OBSERVABLE_REGISTRY, ActionConfig
+from nfqr.target_systems import ACTION_REGISTRY
 from nfqr.target_systems.rotor import SusceptibilityExact
 from nfqr.utils import create_logger, setup_env
 
 logger = create_logger(__name__)
+
+
+def exp_fit_function(x, a, b):
+    return a * x**b
 
 
 def get_tau_int(beta, dim):
@@ -38,7 +42,7 @@ def get_tau_int(beta, dim):
         if target.dist.action.beta == beta and result.mcmc_config.dim[0] == dim:
             return int(result.obs_stats["Chi_t"]["tau_int"])
 
-    return None
+    return int(exp_fit_function(beta ** (-1), 61.51495138, -6.11572102))
 
 
 def block_statistics(data, tau_int, factor: float = 2, idx_in_block=0):
@@ -64,6 +68,8 @@ def block_statistics(data, tau_int, factor: float = 2, idx_in_block=0):
 if __name__ == "__main__":
 
     setup_env()
+
+    os.environ["task_id"] = "1"
 
     parser = ArgumentParser()
 
@@ -93,31 +99,34 @@ if __name__ == "__main__":
         index=pd.MultiIndex.from_product(
             (
                 range(mcmc_config.n_replicas),
-                range(100, mcmc_config.max_stats_eval, mcmc_config.stats_step_interval),
+                range(mcmc_config.stats_step_interval, mcmc_config.max_stats_eval, mcmc_config.stats_step_interval),
             ),
         ),
     )
+    tau_int = get_tau_int(mcmc.action.beta, mcmc_config.dim[0])
+    if tau_int is None:
+        raise ValueError("tau_int not found.")
+    else:
+        logger.info(f"Using tau_int = {tau_int}")
 
     logger.info(f"Starting {mcmc_config.stats_method} error analysis.")
     for eval_idx in results_df.index.levels[0]:
         mcmc.eval_idx = eval_idx
 
+        data = mcmc.observables_rec.__getitem__("Chi_t", rep_idx=mcmc.eval_idx)
+        print(data.shape)
+
         steps_bar = tqdm(results_df.index.levels[1])
         for n_steps_stats in steps_bar:
 
             mcmc.stats_limit = n_steps_stats
+            mcmc.stats_skip_steps = mcmc_config.stats_skip_steps
 
             if mcmc_config.stats_method == "wolff":
                 stats = mcmc.get_stats()
             elif mcmc_config.stats_method == "blocked":
-                tau_int = get_tau_int(mcmc.action.beta, mcmc_config.dim[0])
-                if tau_int is None:
-                    raise ValueError("tau_int not found.")
 
-                data = mcmc.observables_rec.__getitem__(
-                    "Chi_t", max_steps=mcmc.stats_limit, rep_idx=mcmc.eval_idx
-                )
-                stats = block_statistics(data=data, tau_int=tau_int)
+                stats = block_statistics(data=data[:n_steps_stats], tau_int=tau_int)
 
             if isinstance(stats["acc_rate"], torch.Tensor):
                 stats["acc_rate"] = stats["acc_rate"].item()

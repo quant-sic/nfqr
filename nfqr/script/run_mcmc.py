@@ -10,8 +10,9 @@ from nfqr.utils import create_logger, setup_env
 
 logger = create_logger(__name__)
 
+
 def run_mcmc(args):
-    
+
     exp_dir = EXPERIMENTS_DIR / args.exp_dir
 
     mcmc_config = MCMCConfig.from_directory_for_task(
@@ -23,31 +24,32 @@ def run_mcmc(args):
         results=[],
     )
 
+    print(mcmc_config.out_dir)
     if mcmc_config.out_dir.exists():
         logger.info("Result exists")
         return
 
-    # mcmc = MCMC_REGISTRY[mcmc_config.mcmc_alg][mcmc_config.mcmc_type](
-    #     **dict(mcmc_config)
-    # )
-    # mcmc.run()
+    mcmc = MCMC_REGISTRY[mcmc_config.mcmc_alg][mcmc_config.mcmc_type](
+        **dict(mcmc_config)
+    )
+    mcmc.run()
 
-    # if args.get_stats:
-    #     stats = mcmc.get_stats()
-    #     stats["acc_rate"] = stats["acc_rate"].item()
+    if args.get_stats:
+        stats = mcmc.get_stats()
+        stats["acc_rate"] = stats["acc_rate"].item()
 
-    #     sus_exact = SusceptibilityExact(mcmc.action.beta, *mcmc_config.dim).evaluate()
+        sus_exact = SusceptibilityExact(mcmc.action.beta, *mcmc_config.dim).evaluate()
 
-    #     result_config.results.append({"stats": [stats], "sus_exact": sus_exact})
+        result_config.results.append({"stats": [stats], "sus_exact": sus_exact})
 
-    #     result_config.save(mcmc_config.out_dir)
-
+        result_config.save(mcmc_config.out_dir)
 
 
 if __name__ == "__main__":
 
     setup_env()
 
+    os.environ["task_id"] = "11"
     parser = ArgumentParser()
 
     parser.add_argument("--exp_dir", type=Path)
@@ -58,4 +60,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     run_mcmc(args)
-
