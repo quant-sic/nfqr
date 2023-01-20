@@ -182,26 +182,26 @@ def nmcmc_tau_int(lit_model, run_dir, chain_length=10**5, n_replicas=5):
 
 def eval_increment_nmcmc(task_dir, lit_model, eval_config):
 
-    results_df = pd.DataFrame(
-        columns=["stats"],
-        index=pd.MultiIndex.from_product(
-            (
-                range(eval_config.n_replicas),
-                range(
-                    eval_config.min_stats_length,
-                    eval_config.max_stats_eval,
-                    eval_config.stats_step_interval,
-                ),
-            ),
-        ),
-    )
-
     tau_int = nmcmc_tau_int(lit_model, run_dir=task_dir)
     tau_int = int(tau_int) if tau_int > 1 else 1
 
     EvalResult(
         observables=eval_config.observables, n_samples=[], skipped_steps=tau_int
     ).save(task_dir)
+
+    results_df = pd.DataFrame(
+        columns=["stats"],
+        index=pd.MultiIndex.from_product(
+            (
+                range(eval_config.n_replicas),
+                range(
+                    eval_config.min_tau_int_stats_length,
+                    int(eval_config.max_stats_eval / tau_int),
+                    eval_config.stats_tau_int_step_interval,
+                ),
+            ),
+        ),
+    )
 
     if tau_int is None:
         raise ValueError("tau_int not found.")
@@ -215,7 +215,7 @@ def eval_increment_nmcmc(task_dir, lit_model, eval_config):
         model=lit_model.model,
         target=lit_model.target,
         trove_size=10000,
-        n_steps=eval_config.min_stats_length * tau_int,
+        n_steps=eval_config.min_tau_int_stats_length * tau_int,
         observables=lit_model.observables,
         out_dir=task_dir / "nmcmc",
         n_replicas=eval_config.n_replicas,
@@ -223,7 +223,7 @@ def eval_increment_nmcmc(task_dir, lit_model, eval_config):
     )
     nmcmc.run()
 
-    nmcmc.stats_skip_steps = eval_config.stats_skip_steps
+    nmcmc.stats_skip_steps = eval_config.stats_tau_int_skip_steps
 
     logger.info(f"Starting {eval_config.stats_method} error analysis.")
 
@@ -233,7 +233,7 @@ def eval_increment_nmcmc(task_dir, lit_model, eval_config):
     for steps_idx, n_steps_stats in enumerate(steps_bar):
 
         nmcmc.continue_for_nsteps(
-            eval_config.stats_step_interval * tau_int, disable_tqdm=True
+            eval_config.stats_tau_int_step_interval * tau_int, disable_tqdm=True
         )
 
         for eval_idx in list(set(results_df.index.levels[0]) - set(converged_chains)):
@@ -247,7 +247,7 @@ def eval_increment_nmcmc(task_dir, lit_model, eval_config):
             if isinstance(stats["acc_rate"], torch.Tensor):
                 stats["acc_rate"] = stats["acc_rate"].item()
 
-            if n_steps_stats > 0.05 * eval_config.max_stats_eval:
+            if n_steps_stats > 0.05 * int(eval_config.max_stats_eval / tau_int):
                 try:
                     relative_error = (
                         stats["obs_stats"]["Chi_t"]["error"]

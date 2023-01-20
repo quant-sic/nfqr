@@ -43,10 +43,10 @@ class EvalConfig(BaseConfig):
 
     stats_method: Literal["wolff", "blocked"] = "wolff"
     max_stats_eval: int = 1e6
-    stats_step_interval: int = 10000
-    stats_skip_steps: int = 1
+    stats_tau_int_step_interval: int = 10000
+    stats_tau_int_skip_steps: int = 1
     n_replicas: int = 5
-    min_stats_length: int = 100
+    min_tau_int_stats_length: int = 100
     mode: Literal["increment_nmcmc", "discrete_runs"] = "increment_nmcmc"
 
     @validator("observables", "methods", pre=True)
