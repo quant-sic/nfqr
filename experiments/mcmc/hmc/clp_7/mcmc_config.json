@@ -21,10 +21,11 @@
         7803150000
     ],
     "n_repeat": 1,
-    "stats_step_interval": 25000,
-    "max_stats_eval": 5e6,
+    "stats_step_interval": 1,
+    "max_stats_eval": 10000,
     "min_error": 0.01,
     "stats_method": "wolff",
+    "min_stats_length":100,
     "dim": [
         [
             5
@@ -100,7 +101,23 @@
     "n_traj_steps": 10,
     "step_size": 0.05,
     "autotune_step": true,
-    "n_samples_at_a_time": 5e5,
+    "n_samples_at_a_time": [
+        25,
+        33,
+        131,
+        240,
+        1085,
+        3639,
+        7834,
+        14324,
+        29381,
+        45205,
+        117082,
+        199340,
+        325230,
+        511709,
+        780315
+    ],
     "n_replicas": 10,
     "initial_config_sampler_config": {
         "trajectory_sampler_config": {
@@ -111,7 +128,8 @@
         "dim",
         "n_steps",
         "n_burnin_steps",
-        "n_record_skips"
+        "n_record_skips",
+        "n_samples_at_a_time"
     ],
     "n_record_skips": [
         25,
