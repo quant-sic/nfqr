@@ -10,8 +10,9 @@ from nfqr.utils import create_logger, setup_env
 
 logger = create_logger(__name__)
 
+
 def run_mcmc(args):
-    
+
     exp_dir = EXPERIMENTS_DIR / args.exp_dir
 
     mcmc_config = MCMCConfig.from_directory_for_task(
@@ -43,11 +44,11 @@ def run_mcmc(args):
         result_config.save(mcmc_config.out_dir)
 
 
-
 if __name__ == "__main__":
 
     setup_env()
 
+    os.environ["task_id"] = "11"
     parser = ArgumentParser()
 
     parser.add_argument("--exp_dir", type=Path)
@@ -58,4 +59,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     run_mcmc(args)
-

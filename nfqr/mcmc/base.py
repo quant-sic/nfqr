@@ -37,6 +37,17 @@ class MCMC(Sampler):
         pass
 
     @property
+    def stats_skip_steps(self):
+        if not hasattr(self, "_stats_skip_steps"):
+            self._stats_skip_steps = None
+
+        return self._stats_skip_steps
+
+    @stats_skip_steps.setter
+    def stats_skip_steps(self, v):
+        self._stats_skip_steps = v
+
+    @property
     def stats_limit(self):
         if not hasattr(self, "_stats_limit"):
             self._stats_limit = None
@@ -112,6 +123,7 @@ class MCMC(Sampler):
         observable_data = self.observables_rec.__getitem__(
             obs, max_steps=self.stats_limit, rep_idx=self.eval_idx
         )
+        observable_data = observable_data[..., :: self.stats_skip_steps]
 
         prepared_observable_data = self.observables_rec.observables[obs].prepare(
             observable_data
