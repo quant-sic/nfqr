@@ -1,0 +1,18 @@
+{
+    "n_iter": [
+        10,
+        50,
+        100,
+        500,
+        1000
+    ],
+    "batch_size": 5000,
+    "methods": [
+        "nip",
+        "nmcmc"
+    ],
+    "observables": [
+        "Chi_t",
+        "Q"
+    ]
+}

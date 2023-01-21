@@ -1,0 +1,53 @@
+{
+    "mcmc_alg": "cluster",
+    "mcmc_type": "wolff",
+    "observables": "Chi_t",
+    "n_steps": 1e5,
+    "dim": [
+        25
+    ],
+    "action_config": {
+        "target_system": "qr",
+        "action_type": "qr",
+        "specific_action_config": {
+            "beta": [
+                0.25,
+                0.5,
+                0.75,
+                1.0,
+                1.25,
+                1.5,
+                1.75,
+                2.0,
+                2.25,
+                2.5,
+                2.75,
+                3.0,
+                3.25,
+                3.5,
+                3.75,
+                4.0,
+                4.25,
+                4.5,
+                4.75,
+                5.0
+            ]
+        }
+    },
+    "n_burnin_steps": 25000,
+    "n_traj_steps": 1,
+    "n_replicas": 1,
+    "step_size": 0.05,
+    "autotune_step": true,
+    "alg": "cpp_single",
+    "n_samples_at_a_time": 50000,
+    "task_parameters": [
+        "beta"
+    ],
+    "initial_config_sampler_config": {
+        "target_system": "qr",
+        "trajectory_sampler_config": {
+            "traj_type": "hot"
+        }
+    }
+}

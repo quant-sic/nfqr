@@ -1,0 +1,67 @@
+{
+  "flow_config": {
+    "flow_type": "bare",
+    "domain": "u1",
+    "base_dist_config": {
+      "dist_type": "uniform",
+      "loc_requires_grad": false,
+      "concentration_requires_grad": false,
+      "loc": null,
+      "concentration_unconstrained": null
+    },
+    "layer_chain_config": {
+      "layers_config": {
+        "domain": "u1",
+        "coupling_type": [
+          "bare",
+          "residual"
+        ],
+        "diffeomorphism": "ncp",
+        "expressivity": 3,
+        "net_config": {
+          "net_type": "mlp",
+          "net_hidden": [
+            50,
+            75,
+            100
+          ]
+        }
+      },
+      "split_type": "checkerboard",
+      "num_layers": 10
+    }
+  },
+  "observables": [
+    "Q",
+    "Chi_t"
+  ],
+  "action_config": {
+    "target_system": "qr",
+    "action_type": "qr",
+    "specific_action_config": {
+      "beta": 4.0
+    }
+  },
+  "dim": [
+    25
+  ],
+  "trainer_config": {
+    "learning_rate": 0.001,
+    "auto_lr_find": false,
+    "batch_size": 10000,
+    "train_num_batches": 100,
+    "val_num_batches": 5,
+    "max_epochs": 1000,
+    "log_every_n_steps": 25,
+    "task_parameters": [
+      "coupling_type"
+    ],
+    "accumulate_grad_batches": 2,
+    "loss_configs": [
+      {
+        "loss_type": "reverse",
+        "specific_loss_config": {}
+      }
+    ]
+  }
+}

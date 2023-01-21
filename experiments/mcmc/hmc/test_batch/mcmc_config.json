@@ -1,0 +1,39 @@
+{
+    "mcmc_alg": "hmc",
+    "mcmc_type": "leapfrog",
+    "hmc_engine": "cpp_batch",
+    "observables": "Chi_t",
+    "n_steps": [
+        10000
+    ],
+    "dim": [
+        25
+    ],
+    "action_config": {
+        "target_system": "qr",
+        "action_type": "qr",
+        "specific_action_config": {
+            "beta": [
+                0.5
+            ]
+        }
+    },
+    "n_burnin_steps": [
+        10000
+    ],
+    "n_traj_steps": 20,
+    "step_size": 0.05,
+    "autotune_step": true,
+    "n_samples_at_a_time": 5e4,
+    "n_replicas": 15,
+    "initial_config_sampler_config": {
+        "trajectory_sampler_config": {
+            "traj_type": "hot"
+        }
+    },
+    "task_parameters": [
+        "n_steps",
+        "beta",
+        "n_burnin_steps"
+    ]
+}

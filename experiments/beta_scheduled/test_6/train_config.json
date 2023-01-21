@@ -1,0 +1,118 @@
+{
+  "flow_config": {
+    "flow_type": "bare",
+    "domain": "u1",
+    "base_dist_config": {
+      "dist_type": "uniform"
+    },
+    "layer_chain_config": {
+      "layer_configs": {
+        "layer_type": "coupling_layer",
+        "specific_layer_config": {
+          "domain": "u1",
+          "specific_layer_type": "bare",
+          "diffeomorphism_config": {
+            "diffeomorphism_type": "ncp",
+            "specific_diffeomorphism_config": {
+              "greater_than_func": "exp",
+              "boundary_mode": "taylor",
+              "beta_exponent": 1
+            }
+          }
+        },
+        "conditioner_chain_config": {
+          "expressivity": 3,
+          "encoder_config": null,
+          "decoder_config": {
+            "net_type": "mlp_decoder",
+            "net_hidden": [
+              150,
+              200,
+              250
+            ]
+          },
+          "num_decoders": [
+            1,
+            2
+          ],
+          "share_encoder": true,
+          "share_decoder": false
+        },
+        "num_layers": [
+          100,
+          50
+        ],
+        "layer_split_config": {
+          "split_type": "n_transforms",
+          "specific_split_type_config": {
+            "n_transformed": [
+              1,
+              2
+            ]
+          }
+        }
+      }
+    }
+  },
+  "observables": [
+    "Q",
+    "Chi_t"
+  ],
+  "action_config": {
+    "target_system": "qr",
+    "action_type": "qr",
+    "specific_action_config": {
+      "beta": 3.0
+    }
+  },
+  "dim": [
+    100
+  ],
+  "trainer_configs": {
+    "learning_rate": 0.001,
+    "auto_lr_find": false,
+    "batch_size": 10000,
+    "train_num_batches": 500,
+    "val_num_batches": 5,
+    "max_epochs": 250,
+    "log_every_n_steps": 25,
+    "accumulate_grad_batches": 4,
+    "loss_configs": [
+      {
+        "loss_type": "reverse",
+        "specific_loss_config": {}
+      }
+    ],
+    "gradient_clip_val": 5.0,
+    "gradient_clip_algorithm": "norm",
+    "lr_scheduler": {
+      "type": "reduce_on_plateau",
+      "patience": 5,
+      "factor": 0.8,
+      "min_lr": 5e-6,
+      "initial_waiting_epochs": 30
+    },
+    "scheduler_configs": [
+      {
+        "scheduler_type": "beta",
+        "specific_scheduler_config": {
+          "target_beta": 6.25,
+          "damping_constant": {
+            "Chi_t": 50
+          },
+          "max_observed_change_rate": {
+            "Chi_t": 0.05
+          },
+          "change_rate": 0.2,
+          "cooldown_steps": 1500,
+          "metric_window_length": 1000
+        }
+      }
+    ]
+  },
+  "task_parameters": [
+    "num_layers",
+    "num_decoders",
+    "n_transformed"
+  ]
+}

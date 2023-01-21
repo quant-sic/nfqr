@@ -1,0 +1,55 @@
+{
+    "hmc_type": "hmc_leapfrog",
+    "observables": "Chi_t",
+    "n_steps": [
+        1e6,
+        1e6,
+        1e6,
+        5e6,
+        5e6,
+        1e7,
+        1e7,
+        5e7,
+        5e7,
+        5e7
+    ],
+    "dim": 25,
+    "action_config": {
+        "beta": [
+            0.5,
+            1.0,
+            1.5,
+            2.0,
+            2.5,
+            3.0,
+            3.5,
+            4.0,
+            4.5,
+            5.0
+        ]
+    },
+    "n_burnin_steps": [
+        1e5,
+        1e5,
+        1e5,
+        5e5,
+        5e5,
+        5e5,
+        1e6,
+        1e6,
+        5e6,
+        5e6
+    ],
+    "n_traj_steps": 20,
+    "step_size": 0.05,
+    "autotune_step": true,
+    "alg": "cpp_single",
+    "n_samples_at_a_time": 5e4,
+    "target_system": "qr",
+    "action": "qr",
+    "task_parameters": [
+        "n_steps",
+        "beta",
+        "n_burnin_steps"
+    ]
+}
