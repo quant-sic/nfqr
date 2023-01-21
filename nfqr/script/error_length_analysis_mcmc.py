@@ -42,7 +42,7 @@ def get_tau_int(beta, dim):
         if target.dist.action.beta == beta and result.mcmc_config.dim[0] == dim:
             return int(result.obs_stats["Chi_t"]["tau_int"])
 
-    return int(exp_fit_function(beta ** (-1), 61.51495138, -6.11572102))
+    return exp_fit_function(beta ** (-1), 61.51495138, -6.11572102)
 
 
 def block_statistics(data, tau_int, factor: float = 2, idx_in_block=0):
@@ -67,8 +67,16 @@ def block_statistics(data, tau_int, factor: float = 2, idx_in_block=0):
 
 if __name__ == "__main__":
 
+    if "task_id" not in os.environ:
+        os.environ["task_id"] = "6"
+
     setup_env()
 
+    logger.info(
+        "Starting error length analysis for MCMC. Task id: {} ".format(
+            os.environ["task_id"]
+        )
+    )
     parser = ArgumentParser()
 
     parser.add_argument("--exp_dir", type=Path)
@@ -106,6 +114,7 @@ if __name__ == "__main__":
         ),
     )
     tau_int = get_tau_int(mcmc.action.beta, mcmc_config.dim[0])
+    tau_int = int(tau_int) if tau_int > 1 else 1
     if tau_int is None:
         raise ValueError("tau_int not found.")
     else:

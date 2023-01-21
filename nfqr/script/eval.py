@@ -291,6 +291,9 @@ if __name__ == "__main__":
 
     logger.info(f"Starting Evaluation task for exp dir {exp_dir}")
 
+    if "task_id" not in os.environ:
+        os.environ["task_id"] = "8"
+
     setup_env()
 
     train_config = LitModelConfig.from_directory_for_task(
