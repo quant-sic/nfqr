@@ -136,7 +136,6 @@ def train_flow_model(exp_dir, skip_done=True):
 
     else:
 
-        seed_everything(42, workers=True)
         model_ckpt_path = ((exp_dir / "logs") / log_dir) / "model.ckpt"
 
         for idx, (lit_model_config, trainer_config, flow_model) in enumerate(
@@ -144,7 +143,10 @@ def train_flow_model(exp_dir, skip_done=True):
         ):
 
             if trainer_config.reseed_random:
-                seed_everything(np.random.randint(10 ** (8)), workers=True)
+                seed_everything(trainer_config.random_seed, workers=True)
+            else:
+                seed_everything(42, workers=True)
+
 
             logger.info(
                 "Task {}: Interval {} with: \n\n {} \n\n".format(
@@ -237,7 +239,6 @@ if __name__ == "__main__":
 
     setup_env()
 
-    os.environ["task_id"] = "8"
     parser = ArgumentParser()
 
     parser.add_argument("--exp_dir", type=Path)

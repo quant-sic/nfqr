@@ -12,6 +12,7 @@ from nfqr.mcmc.initial_config import InitialConfigSampler
 from nfqr.registry import StrRegistry
 from nfqr.target_systems import ACTION_REGISTRY, ActionConfig
 from nfqr.utils.misc import create_logger
+import atexit
 
 logger = create_logger(__name__)
 
@@ -118,6 +119,10 @@ class HMC(MCMC):
 
         self.autotune_step = autotune_step
 
+    # @atexit.register
+    # def flush_recorder(self):
+    #     self.observables_rec.flush_streams()
+
     @property
     def step_size(self):
 
@@ -187,6 +192,7 @@ class HMC(MCMC):
         record_step = (self.n_current_steps%self.n_record_skips==0)
         if record_observables and record_step:
             self.observables_rec.record_config(self.hmc.current_config)
+            self.observables_rec.flush_streams()
 
     def _step_cpp(self, config=None, record_observables=True):
 
@@ -207,6 +213,7 @@ class HMC(MCMC):
             self.observables_rec.record_obs(
                 self.observable, self._trove[..., step_in_trove]
             )
+            self.observables_rec.flush_streams()
 
     def autotune_step_size(self, desired_acceptance_percentage):
 

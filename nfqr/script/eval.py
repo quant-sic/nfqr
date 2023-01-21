@@ -21,6 +21,7 @@ from nfqr.utils.tensorboard import EventAccumulatorHook
 
 logger = create_logger(__name__)
 
+error_achieved = False
 
 def block_statistics(data, tau_int, factor: float = 2, idx_in_block=0):
 
@@ -61,8 +62,19 @@ def eval_single_runs_result_config(task_dir, eval_config, lit_model):
         ) and set(eval_result.observables).issubset(set(eval_config.observables))
 
         n_samples = eval_result.n_samples.copy()
-        stats_nip_list = eval_result.nip.copy()
-        stats_nmcmc_list = eval_result.nmcmc.copy()
+        try:
+            stats_nip_list = eval_result.nip.copy()
+        except AttributeError:
+            stats_nip_list = []
+        
+        try:
+            stats_nmcmc_list = eval_result.nmcmc.copy()
+        except AttributeError:
+            stats_nmcmc_list = []
+
+
+
+    global error_achieved 
 
     for n_iter, batch_size in zip(eval_config.n_iter, eval_config.batch_size):
 
@@ -104,6 +116,7 @@ def eval_single_runs_result_config(task_dir, eval_config, lit_model):
         nip_repeat = []
         nmcmc_repeat = []
 
+        
         if "nmcmc" in eval_config.methods:
             for repeat_idx in range(eval_config.n_repeat):
 
@@ -143,7 +156,10 @@ def eval_single_runs_result_config(task_dir, eval_config, lit_model):
                 ).mean()
 
                 if relative_error < eval_config.max_rel_error:
+                    logger.info("Max relative error achieved!")
+                    error_achieved = True
                     break
+
             except ZeroDivisionError:
                 pass
 
@@ -382,6 +398,9 @@ if __name__ == "__main__":
             eval_single_runs_result_config(
                 task_dir=task_dir, lit_model=lit_model, eval_config=eval_config
             )
+            if error_achieved:
+                break
+
         elif eval_config.mode == "increment_nmcmc":
             eval_increment_nmcmc(
                 task_dir=task_dir, lit_model=lit_model, eval_config=eval_config
