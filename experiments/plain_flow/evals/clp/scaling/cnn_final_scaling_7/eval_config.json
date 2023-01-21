@@ -6,9 +6,7 @@
         15,
         20,
         25,
-        30,
-        40,
-        50
+        30
     ],
     "batch_size": 10000,
     "methods": [
@@ -19,11 +17,11 @@
     ],
     "n_repeat": 3,
     "max_rel_error": 0.02,
-    "stats_method":  "wolff",
-    "max_stats_eval":  10e7,
-    "stats_tau_int_step_interval":  10,
-    "stats_tau_int_skip_steps":  1,
-    "n_replicas":  10,
-    "min_tau_int_stats_length":  25,
-    "mode": "increment_nmcmc"
+    "stats_method": "wolff",
+    "max_stats_eval": 10e7,
+    "stats_tau_int_step_interval": 10,
+    "stats_tau_int_skip_steps": 1,
+    "n_replicas": 3,
+    "min_tau_int_stats_length": 25,
+    "mode": "discrete_runs"
 }

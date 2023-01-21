@@ -32,7 +32,8 @@ def run_mcmc(args):
         **dict(mcmc_config)
     )
     mcmc.run()
-
+    mcmc.observables_rec.flush_streams()
+    
     if args.get_stats:
         stats = mcmc.get_stats()
         stats["acc_rate"] = stats["acc_rate"].item()
@@ -48,7 +49,6 @@ if __name__ == "__main__":
 
     setup_env()
 
-    os.environ["task_id"] = "11"
     parser = ArgumentParser()
 
     parser.add_argument("--exp_dir", type=Path)
