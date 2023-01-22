@@ -1,0 +1,178 @@
+{
+  "flow_config": {
+    "flow_type": "bare",
+    "domain": "u1",
+    "base_dist_config": {
+      "dist_type": "uniform"
+    },
+    "layer_chain_config": {
+      "layer_configs": {
+        "layer_type": "coupling_layer",
+        "specific_layer_config": {
+          "domain": "u1",
+          "specific_layer_type": "bare",
+          "diffeomorphism_config": {
+            "diffeomorphism_type": "ncp",
+            "specific_diffeomorphism_config": {
+              "greater_than_func": "exp",
+              "boundary_mode": "taylor"
+            }
+          },
+          "equivariant_mode": "shortest"
+        },
+        "conditioner_chain_config": {
+          "expressivity": 2,
+          "encoder_config": null,
+          "decoder_config": {
+            "decoder_type": "cnn",
+            "specific_decoder_config": {
+              "block_configs": [
+                {
+                  "n_channels": [
+                    16,
+                    32,
+                    32
+                  ],
+                  "norm_configs": [
+                    {
+                      "norm_type": "batch"
+                    },
+                    {
+                      "norm_type": "batch"
+                    },
+                    {
+                      "norm_type": "batch"
+                    }
+                  ],
+                  "kernel_sizes": [
+                    5,
+                    3,
+                    3
+                  ]
+                }
+              ]
+            }
+          },
+          "share_encoder": false,
+          "share_decoder": false
+        },
+        "num_layers": 16,
+        "layer_split_config": {
+          "split_type": "checkerboard",
+          "specific_split_type_config": {}
+        }
+      }
+    }
+  },
+  "observables": [
+    "Q",
+    "Chi_t"
+  ],
+  "action_config": {
+    "target_system": "qr",
+    "action_type": "qr",
+    "specific_action_config": {
+      "beta": 2.0
+    }
+  },
+  "dim": [
+    [
+      50
+    ],
+    [
+      60
+    ],
+    [
+      66
+    ],
+    [
+      70
+    ],
+    [
+      76
+    ],
+    [
+      80
+    ],
+    [
+      86
+    ],
+    [
+      90
+    ],
+    [
+      96
+    ],
+    [
+      100
+    ]
+  ],
+  "trainer_configs": {
+    "learning_rate": 0.00075,
+    "auto_lr_find": false,
+    "batch_size": 1000,
+    "train_num_batches": 500,
+    "val_num_batches": 0,
+    "n_iter_eval": 25,
+    "batch_size_eval": 10000,
+    "max_epochs": 350,
+    "log_every_n_steps": 25,
+    "accumulate_grad_batches": 1,
+    "loss_configs": [
+      {
+        "loss_type": "reverse",
+        "specific_loss_config": {}
+      }
+    ],
+    "gradient_clip_val": 5.0,
+    "gradient_clip_algorithm": "norm",
+    "lr_scheduler": {
+      "type": "reduce_on_plateau",
+      "patience": 10,
+      "factor": 0.8,
+      "min_lr": 5e-5
+    },
+    "scheduler_configs": [
+      {
+        "scheduler_type": "beta",
+        "specific_scheduler_config": {
+          "target_beta": [
+            3.125,
+            3.75,
+            4.125,
+            4.375,
+            4.75,
+            5.0,
+            5.375,
+            5.625,
+            6.0,
+            6.25
+          ],
+          "damping_constant": {
+            "Chi_t": 50
+          },
+          "max_observed_change_rate": {
+            "Chi_t": 0.05
+          },
+          "change_rate": 0.1,
+          "cooldown_steps": 1000,
+          "metric_window_length": 1000
+        }
+      }
+    ],
+    "save_every_n_epochs": 5,
+    "eval_ess_p": false,
+    "reseed_random": true,
+    "eval_bias_correction": false,
+    "save_steps": false,
+    "save_steps_ratio": 0.75,
+    "save_regular": true,
+    "log_histograms": false,
+    "number_of_saved_ckpts_steps_ratio": 50,
+    "random_seed": 4
+  },
+  "task_parameters": [
+    "dim",
+    "target_beta"
+  ]
+}

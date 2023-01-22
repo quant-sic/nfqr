@@ -156,9 +156,8 @@ def eval_single_runs_result_config(task_dir, eval_config, lit_model):
                 ).mean()
 
                 if relative_error < eval_config.max_rel_error:
-                    logger.info("Max relative error achieved!")
+                    logger.info("Max relative error {} achieved! at {} samples".format(relative_error,n_iter * batch_size))
                     error_achieved = True
-                    break
 
             except ZeroDivisionError:
                 pass
@@ -170,6 +169,8 @@ def eval_single_runs_result_config(task_dir, eval_config, lit_model):
 
         eval_result.save(task_dir)
 
+        if error_achieved:
+            break
 
 def nmcmc_tau_int(lit_model, run_dir, chain_length=10**5, n_replicas=5):
 
